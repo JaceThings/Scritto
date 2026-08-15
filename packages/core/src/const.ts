@@ -22,6 +22,13 @@ export const STYLES = `
     isolation: isolate;
     vertical-align: baseline;
   }
+  :host([data-shrink-clip]) {
+    clip-path: inset(-2em 0 -2em 0);
+  }
+  :host([data-shrink-clip]) [inert] {
+    -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 0.7em), transparent);
+    mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 0.7em), transparent);
+  }
   span {
     margin: 0 !important;
     padding: 0 !important;
@@ -30,7 +37,7 @@ export const STYLES = `
   [inert] {
     position: absolute !important;
     display: inline-flex !important;
-    z-index: 0;
+    z-index: 2;
   }
   .section {
     position: relative !important;

@@ -26,6 +26,7 @@ class NumericText extends ServerSafeHTMLElement {
   private _prefix = createEl('span', 'section')
   private _middle = createEl('span', 'section')
   private _suffix = createEl('span', 'section')
+  private _tail = createEl('span', 'section')
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
   private _enterGen = 0
@@ -41,7 +42,7 @@ class NumericText extends ServerSafeHTMLElement {
     super()
     const shadow = this.attachShadow({ mode: 'open' })
     if (styleSheet) shadow.adoptedStyleSheets = [styleSheet]
-    shadow.append(this._prefix, this._middle, this._suffix)
+    shadow.append(this._prefix, this._middle, this._suffix, this._tail)
   }
 
   connectedCallback() {
@@ -84,15 +85,27 @@ class NumericText extends ServerSafeHTMLElement {
       return
     }
 
-    const mid = labels.length - prefixCount - suffixCount
-    const oldSuffix = this._chars.length - suffixCount
+    let mid = labels.length - prefixCount - suffixCount
+    let tail = 0
+    let peel = 0
+    while (peel < mid && labels[prefixCount + peel] === ',') peel++
+    if (peel > 0 && peel < mid) {
+      tail = mid - peel
+      mid = peel
+    }
+    let oldSuffix = this._chars.length - suffixCount
+    let oldLead = 0
+    while (prefixCount + oldLead < oldSuffix && this._chars[prefixCount + oldLead].textContent === ',') oldLead++
+    if (oldLead > 0 && prefixCount + oldLead < oldSuffix) oldSuffix = prefixCount + oldLead
     const midEnd = prefixCount + mid
+    const exitingTail = this._chars.slice(oldSuffix + suffixCount)
 
     if (!animate) {
       this._reset()
       const next = this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels)
       for (let i = prefixCount; i < oldSuffix; i++) releaseChar(this._chars[i])
-      this._commit(next, prefixCount, midEnd)
+      for (let i = 0; i < exitingTail.length; i++) releaseChar(exitingTail[i])
+      this._commit(next, prefixCount, midEnd, suffixCount)
       return
     }
 
@@ -105,24 +118,27 @@ class NumericText extends ServerSafeHTMLElement {
 
     const oldPrefix = getRect(this._prefix)
     const oldSuffixRect = getRect(this._suffix)
-    const oldMiddle = oldPrefix.width && oldSuffixRect.width ? oldPrefix : getRect(this._middle)
+    const midRect = getRect(this._middle)
+    const oldTail = getRect(this._tail)
+    const oldMiddle = midRect.width ? midRect : oldPrefix.width && oldSuffixRect.width ? oldPrefix : midRect
+    const sectionRect = (el: HTMLElement) =>
+      el === this._prefix ? oldPrefix : el === this._suffix ? oldSuffixRect : el === this._tail ? oldTail : midRect
 
-    let exitingX = 0
-    if (prefixCount < oldSuffix) {
-      const anchor = this._chars[prefixCount]
-      const parent = anchor.parentElement!
-      const parentRect = parent === this._prefix ? oldPrefix : parent === this._suffix ? oldSuffixRect : oldMiddle
-      exitingX = this._isRTL
+    const exitX = (anchor: HTMLElement) => {
+      const parentRect = sectionRect(anchor.parentElement!)
+      return this._isRTL
         ? parentRect.left + anchor.offsetLeft + anchor.offsetWidth
         : parentRect.left + anchor.offsetLeft
     }
+    const exitingX = prefixCount < oldSuffix ? exitX(this._chars[prefixCount]) : 0
+    const tailX = exitingTail.length ? exitX(exitingTail[0]) : 0
 
     const next = this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels)
-    const enters = next.slice(prefixCount, midEnd)
+    const enters = next.slice(prefixCount, midEnd).concat(tail ? next.slice(midEnd + suffixCount) : [])
     for (let i = 0; i < enters.length; i++) if (enters[i].textContent !== SPACE) enters[i].style.opacity = '0'
-    const exiting = this._chars.slice(prefixCount, oldSuffix)
-    this._queueExit(exiting, exitingX, trend)
-    this._commit(next, prefixCount, midEnd)
+    this._queueExit(this._chars.slice(prefixCount, oldSuffix), exitingX, trend)
+    this._queueExit(exitingTail, tailX, trend)
+    this._commit(next, prefixCount, midEnd, suffixCount)
 
     resetAnim(this._prefix)
     resetAnim(this._suffix)
@@ -151,13 +167,15 @@ class NumericText extends ServerSafeHTMLElement {
     for (let i = 0; i < prefixCount; i++) next[i] = this._chars[i]
     for (let i = 0; i < mid; i++) next[prefixCount + i] = createChar(labels[prefixCount + i])
     for (let i = 0; i < suffixCount; i++) next[prefixCount + mid + i] = this._chars[oldSuffix + i]
+    for (let i = prefixCount + mid + suffixCount; i < labels.length; i++) next[i] = createChar(labels[i])
     return next
   }
 
-  private _commit(chars: HTMLElement[], prefixCount: number, midEnd: number) {
+  private _commit(chars: HTMLElement[], prefixCount: number, midEnd: number, suffixCount: number) {
     reconcileChildren(this._prefix, chars, 0, prefixCount)
     reconcileChildren(this._middle, chars, prefixCount, midEnd)
-    reconcileChildren(this._suffix, chars, midEnd, chars.length)
+    reconcileChildren(this._suffix, chars, midEnd, midEnd + suffixCount)
+    reconcileChildren(this._tail, chars, midEnd + suffixCount, chars.length)
     this._chars = chars
   }
 
@@ -165,7 +183,10 @@ class NumericText extends ServerSafeHTMLElement {
     if (!nodes.length) return
     const group = createEl('span')
     group.toggleAttribute('inert', true)
-    for (let i = 0; i < nodes.length; i++) group.appendChild(nodes[i])
+    for (let i = 0; i < nodes.length; i++) {
+      resetAnim(nodes[i])
+      group.appendChild(nodes[i])
+    }
     const entry: [HTMLElement, number] = [group, x]
     this._exitingChars.push(entry)
     this.shadowRoot!.appendChild(group)
@@ -184,41 +205,22 @@ class NumericText extends ServerSafeHTMLElement {
     }
   }
 
-  private _fits(el: HTMLElement) {
-    const r = getRect(el)
-    const host = getRect(this)
-    if (r.left > host.right - 2 || r.right < host.left + 2) return false
-    const prefix = getRect(this._prefix)
-    if (prefix.width > 1 && r.left < prefix.right - 1 && r.right > prefix.left + 1) return false
-    const suffix = getRect(this._suffix)
-    if (suffix.width > 1 && r.left < suffix.right - 1 && r.right > suffix.left + 1) return false
-    return true
-  }
-
   private _armEnters(enters: HTMLElement[], trend: number) {
     const pending = enters.filter((el) => el.textContent !== SPACE)
     if (!pending.length) return
-    const gen = ++this._enterGen
-    const deadline = performance.now() + this.transition.duration
-    const tick = () => {
-      if (gen !== this._enterGen) return
-      const force = performance.now() >= deadline
-      for (let i = pending.length - 1; i >= 0; i--) {
-        const el = pending[i]
-        if (!force && !this._fits(el)) continue
-        el.style.opacity = ''
-        this._animateChar(el, false, trend, 0)
-        pending.splice(i, 1)
-      }
-      if (pending.length) requestAnimationFrame(tick)
+    this._enterGen += 1
+    const stagger = this._stagger(pending)
+    for (let i = 0; i < pending.length; i++) {
+      pending[i].style.opacity = ''
+      this._animateChar(pending[i], false, trend, i * stagger)
     }
-    requestAnimationFrame(tick)
   }
 
   private _reset() {
     this._enterGen += 1
     resetAnim(this._prefix)
     resetAnim(this._suffix)
+    resetAnim(this._tail)
     for (let i = 0; i < this._chars.length; i++) resetAnim(this._chars[i])
 
     const exiting = this._exitingChars

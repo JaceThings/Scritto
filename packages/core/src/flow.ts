@@ -102,6 +102,7 @@ class NumericFlow extends ServerSafeHTMLElement {
     for (const anim of host.getAnimations()) if (isWidthAnim(anim)) anim.cancel()
     host.style.width = ''
     host.style.marginRight = ''
+    host.removeAttribute('data-shrink-clip')
   }
 
   private _drop() {
@@ -132,6 +133,7 @@ class NumericFlow extends ServerSafeHTMLElement {
     for (const anim of host.getAnimations()) if (isWidthAnim(anim)) anim.cancel()
     host.style.width = `${fromW}px`
     host.style.marginRight = `${toW - fromW}px`
+    if (toW < fromW) host.setAttribute('data-shrink-clip', '')
     const hostAnim = host.animate(
       { width: [`${fromW}px`, `${toW}px`], marginRight: [`${toW - fromW}px`, '0px'] },
       { duration, easing, fill: 'forwards' },
@@ -139,6 +141,7 @@ class NumericFlow extends ServerSafeHTMLElement {
     this._run(hostAnim, gen, () => {
       host.style.width = ''
       host.style.marginRight = ''
+      host.removeAttribute('data-shrink-clip')
     })
 
     const t0 = document.timeline.currentTime
