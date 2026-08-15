@@ -28,6 +28,7 @@ class NumericText extends ServerSafeHTMLElement {
   private _suffix = createEl('span', 'section')
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
+  private _enterGen = 0
   private _isRTL = false
   private _value = ''
   private _prevValue = ''
@@ -117,6 +118,8 @@ class NumericText extends ServerSafeHTMLElement {
     }
 
     const next = this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels)
+    const enters = next.slice(prefixCount, midEnd)
+    for (let i = 0; i < enters.length; i++) if (enters[i].textContent !== SPACE) enters[i].style.opacity = '0'
     const exiting = this._chars.slice(prefixCount, oldSuffix)
     this._queueExit(exiting, exitingX, trend)
     this._commit(next, prefixCount, midEnd)
@@ -132,14 +135,9 @@ class NumericText extends ServerSafeHTMLElement {
       el.style.transform = `translateX(${x - edge}px)`
     }
 
-    const enters = next.slice(prefixCount, midEnd)
-    const stagger = this._stagger(enters)
-    const hold =
-      enters.length && (prefixCount > 0 || suffixCount > 0) ? this.transition.duration * CONFIG.enterHold : 0
-    for (let i = 0; i < enters.length; i++) this._animateChar(enters[i], false, trend, hold + i * stagger)
-
     flip(this._prefix, this._edgeDx(oldPrefix, newPrefix, oldMiddle, true), this.transition, true)
     flip(this._suffix, this._edgeDx(oldSuffixRect, newSuffix, oldMiddle, false), this.transition, true)
+    this._armEnters(enters, trend)
   }
 
   private _nextChars(
@@ -186,7 +184,39 @@ class NumericText extends ServerSafeHTMLElement {
     }
   }
 
+  private _fits(el: HTMLElement) {
+    const r = getRect(el)
+    const host = getRect(this)
+    if (r.left > host.right - 2 || r.right < host.left + 2) return false
+    const prefix = getRect(this._prefix)
+    if (prefix.width > 1 && r.left < prefix.right - 1 && r.right > prefix.left + 1) return false
+    const suffix = getRect(this._suffix)
+    if (suffix.width > 1 && r.left < suffix.right - 1 && r.right > suffix.left + 1) return false
+    return true
+  }
+
+  private _armEnters(enters: HTMLElement[], trend: number) {
+    const pending = enters.filter((el) => el.textContent !== SPACE)
+    if (!pending.length) return
+    const gen = ++this._enterGen
+    const deadline = performance.now() + this.transition.duration
+    const tick = () => {
+      if (gen !== this._enterGen) return
+      const force = performance.now() >= deadline
+      for (let i = pending.length - 1; i >= 0; i--) {
+        const el = pending[i]
+        if (!force && !this._fits(el)) continue
+        el.style.opacity = ''
+        this._animateChar(el, false, trend, 0)
+        pending.splice(i, 1)
+      }
+      if (pending.length) requestAnimationFrame(tick)
+    }
+    requestAnimationFrame(tick)
+  }
+
   private _reset() {
+    this._enterGen += 1
     resetAnim(this._prefix)
     resetAnim(this._suffix)
     for (let i = 0; i < this._chars.length; i++) resetAnim(this._chars[i])

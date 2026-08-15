@@ -7,7 +7,6 @@ export const CONFIG = {
   blur: 0.1,
   rotate: 2,
   stagger: 0.3,
-  enterHold: 0.4,
 }
 export const DEFAULT_TRANSITION: Transition = {
   duration: 550,
