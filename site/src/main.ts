@@ -28,7 +28,6 @@ const el = document.querySelector<NumericText>('#test')!
 const flowA = document.querySelector<NumericText>('#flow-a')!
 const flowB = document.querySelector<NumericText>('#flow-b')!
 const stage = document.querySelector<HTMLButtonElement>('#stage')!
-const driftEl = document.querySelector<HTMLElement>('#stage-drift')!
 const hint = document.querySelector<HTMLElement>('#hint')!
 const variantsInput = document.querySelector<HTMLInputElement>('#variants')!
 
@@ -102,23 +101,15 @@ const paintDebug = () => {
 const paintAlign = () => {
   drift?.cancel()
   drift = null
-  driftEl.style.position = ''
-  driftEl.style.top = ''
-  driftEl.style.left = ''
-  driftEl.style.transform = ''
+  el.style.transform = ''
   if (align !== 'dynamic') {
     stage.style.justifyContent = ALIGN[align]
     return
   }
-  stage.style.justifyContent = 'flex-start'
-  driftEl.style.position = 'absolute'
-  driftEl.style.top = '50%'
-  drift = driftEl.animate(
-    {
-      left: ['1rem', 'calc(100% - 1rem)', '1rem'],
-      transform: ['translate(0, -50%)', 'translate(-100%, -50%)', 'translate(0, -50%)'],
-    },
-    { duration: 5000, easing: 'linear', iterations: Infinity },
+  stage.style.justifyContent = 'center'
+  drift = el.animate(
+    { transform: ['translateX(-100%)', 'translateX(100%)', 'translateX(-100%)'] },
+    { duration: 5000, easing: 'linear', fill: 'forwards', iterations: Infinity },
   )
 }
 

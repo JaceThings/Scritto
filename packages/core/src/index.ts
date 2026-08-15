@@ -28,7 +28,6 @@ class NumericText extends ServerSafeHTMLElement {
   private _suffix = createEl('span', 'section')
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
-  private _widthAnim: Animation | undefined
   private _isRTL = false
   private _value = ''
   private _prevValue = ''
@@ -103,7 +102,6 @@ class NumericText extends ServerSafeHTMLElement {
       trend = !isNaN(cur) && !isNaN(prev) ? (cur > prev ? 1 : -1) : 1
     }
 
-    const oldHostW = getRect(this).width
     const oldPrefix = getRect(this._prefix)
     const oldSuffixRect = getRect(this._suffix)
     const oldMiddle = oldPrefix.width && oldSuffixRect.width ? oldPrefix : getRect(this._middle)
@@ -125,11 +123,9 @@ class NumericText extends ServerSafeHTMLElement {
 
     resetAnim(this._prefix)
     resetAnim(this._suffix)
-    this._dropWidth()
 
     const newPrefix = getRect(this._prefix)
     const newSuffix = getRect(this._suffix)
-    const newHostW = getRect(this).width
     const edge = this._isRTL ? newPrefix.right : newPrefix.left
     for (let i = 0; i < this._exitingChars.length; i++) {
       const [el, x] = this._exitingChars[i]
@@ -138,11 +134,12 @@ class NumericText extends ServerSafeHTMLElement {
 
     const enters = next.slice(prefixCount, midEnd)
     const stagger = this._stagger(enters)
-    for (let i = 0; i < enters.length; i++) this._animateChar(enters[i], false, trend, i * stagger)
+    const hold =
+      enters.length && (prefixCount > 0 || suffixCount > 0) ? this.transition.duration * CONFIG.enterHold : 0
+    for (let i = 0; i < enters.length; i++) this._animateChar(enters[i], false, trend, hold + i * stagger)
 
     flip(this._prefix, this._edgeDx(oldPrefix, newPrefix, oldMiddle, true), this.transition, true)
     flip(this._suffix, this._edgeDx(oldSuffixRect, newSuffix, oldMiddle, false), this.transition, true)
-    this._animateWidth(oldHostW, newHostW)
   }
 
   private _nextChars(
@@ -189,23 +186,7 @@ class NumericText extends ServerSafeHTMLElement {
     }
   }
 
-  private _animateWidth(from: number, to: number) {
-    if (from === to) return
-    const anim = this.animate({ width: [`${from}px`, `${to}px`] }, { ...this.transition, fill: 'both' })
-    anim.onfinish = (event) => {
-      if (this._widthAnim === anim) this._widthAnim = undefined
-      finishIdentityAnim(event)
-    }
-    this._widthAnim = anim
-  }
-
-  private _dropWidth() {
-    this._widthAnim?.cancel()
-    this._widthAnim = undefined
-  }
-
   private _reset() {
-    this._dropWidth()
     resetAnim(this._prefix)
     resetAnim(this._suffix)
     for (let i = 0; i < this._chars.length; i++) resetAnim(this._chars[i])
