@@ -42,11 +42,3 @@ numeric-text:not(:defined) {
   font-kerning: none;
   font-variant-ligatures: none;
 }
-
-#flow-wrap [data-wrap-clip] {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  mask-image: linear-gradient(90deg, transparent, #000 1.1rem, #000 calc(100% - 1.1rem), transparent);
-}

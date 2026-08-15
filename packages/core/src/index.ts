@@ -14,6 +14,7 @@ import {
   finishIdentityAnim,
 } from './helpers'
 import { CONFIG, DEFAULT_TRANSITION, SPACE, STYLES } from './const'
+import { NumericFlow } from './flow'
 
 let styleSheet: CSSStyleSheet
 if (BROWSER) {
@@ -64,7 +65,10 @@ class NumericText extends ServerSafeHTMLElement {
     if (v === this._value) return
     this._prevValue = this._value
     this._value = v
-    this._render(withAnimation && !(this.respectMotionPreference && isReducedMotion()))
+    const animate = withAnimation && !(this.respectMotionPreference && isReducedMotion())
+    this.dispatchEvent(new CustomEvent('numericchange', { bubbles: true, detail: { phase: 'before', animate } }))
+    this._render(animate)
+    this.dispatchEvent(new CustomEvent('numericchange', { bubbles: true, detail: { phase: 'after', animate } }))
   }
 
   setOptions(opts: NumericTextOptions) {
@@ -271,4 +275,5 @@ declare global {
 }
 
 export type * from './types'
-export { NumericText, BROWSER }
+export type { NumericChangeDetail } from './flow'
+export { NumericText, NumericFlow, BROWSER }

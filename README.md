@@ -55,6 +55,14 @@ npm install @numeric-text/vue
 </script>
 ```
 
+Wrap surrounding copy in `<numeric-flow>` so nearby words slide and rewrap with the value:
+
+```html
+<numeric-flow>
+  Used <numeric-text></numeric-text> billion tokens this month.
+</numeric-flow>
+```
+
 ### Svelte
 
 ```svelte

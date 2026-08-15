@@ -25,11 +25,13 @@
         id="stage"
         type="button"
       >
-        <numeric-text
-          id="test"
-          class="text-5xl font-semibold leading-none @max-[24rem]:text-4xl"
-          role="img"
-        ></numeric-text>
+        <span class="inline-flex" id="stage-drift">
+          <numeric-text
+            id="test"
+            class="text-5xl font-semibold leading-none @max-[24rem]:text-4xl"
+            role="img"
+          ></numeric-text>
+        </span>
         <span class="absolute right-3 bottom-3 text-sm font-medium text-muted" id="hint">Click to swap</span>
       </button>
       <div class="flex flex-col rounded-xl bg-surface font-medium text-muted">
@@ -62,20 +64,20 @@
         </div>
       </div>
       <div class="flex flex-col gap-3">
-        <p
-          class="m-0 cursor-pointer rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium"
+        <numeric-flow
+          class="block cursor-pointer rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium"
           id="flow-sentence"
         >
-          Used <numeric-text id="flow-a" class="overflow-hidden align-baseline" role="img"></numeric-text> billion tokens this month.
-        </p>
-        <p
-          class="relative m-0 w-full cursor-pointer rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium"
+          Used <numeric-text id="flow-a" class="align-baseline" role="img"></numeric-text> billion tokens this month.
+        </numeric-flow>
+        <numeric-flow
+          class="block w-full cursor-pointer rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium"
           id="flow-wrap"
         >
           The collector logged <numeric-text id="flow-b" class="overflow-hidden align-baseline" role="img"></numeric-text> tokens
           across every running job in the queue this cycle, just enough extra width that a
           few words drop to the next line and climb back once the figure shrinks to a short tally.
-        </p>
+        </numeric-flow>
       </div>
       <footer class="mt-4 flex flex-col items-center gap-2 text-sm text-muted">
         <div class="inline-flex items-center gap-[0.35rem]">
