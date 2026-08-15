@@ -3,9 +3,13 @@ import { SPACE } from './const'
 
 export const BROWSER = typeof window !== 'undefined'
 export const ServerSafeHTMLElement = BROWSER ? HTMLElement : (class {} as unknown as typeof HTMLElement)
-export const isReducedMotion = () => {
-  return BROWSER && window.matchMedia('(prefers-reduced-motion: reduce)').matches
-}
+
+let reducedMotionQuery: MediaQueryList | undefined
+export const isReducedMotion = () =>
+  BROWSER && (reducedMotionQuery ??= window.matchMedia('(prefers-reduced-motion: reduce)')).matches
+
+const CHAR_POOL: HTMLElement[] = []
+const CHAR_POOL_MAX = 64
 
 export const createEl = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) => {
   const el = document.createElement(tag)
@@ -15,56 +19,88 @@ export const createEl = <K extends keyof HTMLElementTagNameMap>(tag: K, classNam
   return el
 }
 
+export const createChar = (text: string) => {
+  const el = CHAR_POOL.pop()
+  if (!el) return createEl('span', 'char', text)
+  el.textContent = text
+  return el
+}
+
+export const releaseChar = (el: HTMLElement) => {
+  resetAnim(el)
+  el.remove()
+  if (CHAR_POOL.length < CHAR_POOL_MAX) CHAR_POOL.push(el)
+}
+
 export const getRect = (el: HTMLElement) => el.getBoundingClientRect()
 
 export const cancelAnim = (el: HTMLElement) => {
-  for (const a of el.getAnimations()) a.cancel()
+  const anims = el.getAnimations()
+  for (let i = 0; i < anims.length; i++) anims[i].cancel()
 }
 
-export const flip = (el: HTMLElement, dx: number, transition: Transition) => {
-  if (!dx) return
+export const resetAnim = (el: HTMLElement) => {
   cancelAnim(el)
-  el.animate(
-    { transform: [`translateX(${dx}px)`, ''] },
-    {
-      duration: transition.duration,
-      easing: transition.easing,
-      fill: 'both',
-    },
-  )
+  if (!el.hasAttribute('style')) return
+  el.style.removeProperty('opacity')
+  el.style.removeProperty('transform')
+  el.style.removeProperty('filter')
+  if (!el.getAttribute('style')) el.removeAttribute('style')
+}
+
+export const finishIdentityAnim = (event: AnimationPlaybackEvent) => {
+  const anim = event.currentTarget as Animation
+  if (anim.playState === 'finished') anim.cancel()
+}
+
+export const flip = (el: HTMLElement, dx: number, transition: Transition, alreadyCancelled = false) => {
+  if (!dx) return
+  if (!alreadyCancelled) cancelAnim(el)
+  el.animate({ transform: [`translateX(${dx}px)`, ''] }, { ...transition, fill: 'both' }).onfinish =
+    finishIdentityAnim
+}
+
+export const reconcileChildren = (parent: HTMLElement, nodes: HTMLElement[], start: number, end: number) => {
+  let current = parent.firstChild
+  for (let i = start; i < end; i++) {
+    const node = nodes[i]
+    if (node === current) current = current.nextSibling
+    else parent.insertBefore(node, current)
+  }
+  while (current) {
+    const next = current.nextSibling
+    current.remove()
+    current = next
+  }
 }
 
 const segmenter = new Intl.Segmenter(undefined, { granularity: 'grapheme' })
+
 const splitGraphemes = (value: string): string[] => {
-  const result: string[] = []
-  for (const item of segmenter.segment(value)) {
-    result.push(item.segment === ' ' ? SPACE : item.segment)
+  const ascii = new Array<string>(value.length)
+  for (let i = 0; i < value.length; i++) {
+    const code = value.charCodeAt(i)
+    if (code > 0x7f || (code === 0x0d && value.charCodeAt(i + 1) === 0x0a)) {
+      const result: string[] = []
+      for (const item of segmenter.segment(value)) result.push(item.segment === ' ' ? SPACE : item.segment)
+      return result
+    }
+    ascii[i] = code === 0x20 ? SPACE : value[i]
   }
-  return result
+  return ascii
 }
 
 export const diff = (prev: HTMLElement[], newValue: string) => {
-  const curr = splitGraphemes(newValue)
-
+  const labels = splitGraphemes(newValue)
   const lenOld = prev.length
-  const lenNew = curr.length
+  const lenNew = labels.length
 
-  // 1. PREFIX SCAN
   let start = 0
-  while (start < lenOld && start < lenNew && prev[start].textContent === curr[start]) {
-    start++
-  }
+  while (start < lenOld && start < lenNew && prev[start].textContent === labels[start]) start++
 
-  // 2. SUFFIX SCAN
   let end = 0
   const maxSuffix = Math.min(lenOld - start, lenNew - start)
-  while (end < maxSuffix) {
-    if (prev[lenOld - 1 - end].textContent !== curr[lenNew - 1 - end]) break
-    end++
-  }
+  while (end < maxSuffix && prev[lenOld - 1 - end].textContent === labels[lenNew - 1 - end]) end++
 
-  // 3. MIDDLE EXTRACTION
-  const middleLabels = curr.slice(start, lenNew - end)
-
-  return { prefixCount: start, suffixCount: end, middleLabels }
+  return { prefixCount: start, suffixCount: end, labels }
 }

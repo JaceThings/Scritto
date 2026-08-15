@@ -21,7 +21,7 @@ A lightweight, framework-agnostic component for text transitions. As the name su
 
 ## Limitations
 
-- No multiline support: This is a very specific use case. Adding multiline support would greatly complicate the code and increase the bundle size.
+- The value itself does not wrap: it stays one inline unit. Surrounding text wraps around its changing width.
 - No support for ligatures and kerning: Because every character is rendered in its own `<span>`, typographic features such as ligatures and kerning are not supported.
 
 ## Installation

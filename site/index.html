@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="viewport-fit=cover, shrink-to-fit=no, width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no"
+    />
+    <meta name="theme-color" content="#ffffff" />
+    <title>Numeric Text</title>
+    <script>
+      (() => {
+        const stored = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1]
+        const dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.classList.toggle('dark', dark)
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1a1a1a' : '#ffffff')
+      })()
+    </script>
+  </head>
+  <body>
+    <div class="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-12 select-none">
+      <div class="flex items-center gap-3" id="modes"></div>
+      <button
+        class="@container relative flex h-80 items-center justify-center overflow-hidden rounded-xl bg-surface p-4"
+        id="stage"
+        type="button"
+      >
+        <numeric-text
+          id="test"
+          class="text-5xl font-semibold leading-none @max-[24rem]:text-4xl"
+          role="img"
+        ></numeric-text>
+        <span class="absolute right-3 bottom-3 text-sm font-medium text-muted" id="hint">Click to swap</span>
+      </button>
+      <div class="flex flex-col rounded-xl bg-surface font-medium text-muted">
+        <label class="mx-4 flex items-center justify-between border-b border-line py-3">
+          <span>Variants</span>
+          <input
+            class="w-2/3 border-0 bg-transparent text-right font-[inherit] text-inherit outline-none select-text focus:text-fg"
+            id="variants"
+          />
+        </label>
+        <div class="mx-4 flex items-center justify-between border-b border-line py-3">
+          <span>Align</span>
+          <div class="flex items-center gap-3 text-fg" id="align"></div>
+        </div>
+        <div class="mx-4 flex items-center justify-between border-b border-line py-3">
+          <span>Trend</span>
+          <div class="flex items-center gap-3 text-fg" id="trend"></div>
+        </div>
+        <div class="mx-4 flex items-center justify-between border-b border-line py-3">
+          <span>Easing</span>
+          <div class="flex items-center gap-3 text-fg" id="easing"></div>
+        </div>
+        <div class="mx-4 flex items-center justify-between border-b border-line py-3">
+          <span>Slow Mode</span>
+          <div class="flex items-center gap-3 text-fg" id="slow"></div>
+        </div>
+        <div class="mx-4 flex items-center justify-between py-3">
+          <span>Debug (show sections)</span>
+          <div class="flex items-center gap-3 text-fg" id="debug"></div>
+        </div>
+      </div>
+      <div class="flex flex-col gap-3">
+        <p
+          class="m-0 cursor-pointer rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium"
+          id="flow-sentence"
+        >
+          Used <numeric-text id="flow-a" class="overflow-hidden align-baseline" role="img"></numeric-text> billion tokens this month.
+        </p>
+        <p
+          class="relative m-0 w-full cursor-pointer rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium"
+          id="flow-wrap"
+        >
+          The collector logged <numeric-text id="flow-b" class="overflow-hidden align-baseline" role="img"></numeric-text> tokens
+          across every running job in the queue this cycle, just enough extra width that a
+          few words drop to the next line and climb back once the figure shrinks to a short tally.
+        </p>
+      </div>
+      <footer class="mt-4 flex flex-col items-center gap-2 text-sm text-muted">
+        <div class="inline-flex items-center gap-[0.35rem]">
+          <span>local</span>
+          ·
+          <a class="text-inherit no-underline hover:text-fg" href="https://github.com/shizukushq/numeric-text" target="_blank" rel="noreferrer">GitHub</a>
+          ·
+          <a class="text-inherit no-underline hover:text-fg" href="./bench.html">bench</a>
+          ·
+          <button
+            class="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-inherit hover:text-fg"
+            id="theme"
+            type="button"
+            aria-pressed="false"
+          >
+            Dark
+          </button>
+        </div>
+        <span>
+          playground inspired by
+          <a class="font-medium text-accent no-underline hover:text-fg" href="https://calligraph.raphaelsalaja.com/lab" target="_blank" rel="noreferrer">calligraph/lab</a>
+        </span>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

@@ -1,5 +1,18 @@
 import type { NumericTextOptions, Transition, Trend, Value } from './types'
-import { ServerSafeHTMLElement, createEl, getRect, cancelAnim, BROWSER, flip, isReducedMotion, diff } from './helpers'
+import {
+  ServerSafeHTMLElement,
+  createEl,
+  createChar,
+  releaseChar,
+  getRect,
+  BROWSER,
+  flip,
+  isReducedMotion,
+  diff,
+  reconcileChildren,
+  resetAnim,
+  finishIdentityAnim,
+} from './helpers'
 import { CONFIG, DEFAULT_TRANSITION, SPACE, STYLES } from './const'
 
 let styleSheet: CSSStyleSheet
@@ -9,38 +22,34 @@ if (BROWSER) {
 }
 
 class NumericText extends ServerSafeHTMLElement {
-  private _prefix: HTMLElement
-  private _middle: HTMLElement
-  private _suffix: HTMLElement
-
+  private _prefix = createEl('span', 'section')
+  private _middle = createEl('span', 'section')
+  private _suffix = createEl('span', 'section')
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
-
-  private _isRTL: boolean = false
-
-  private _value: string = ''
-  private _prevValue: string = ''
+  private _widthAnim: Animation | undefined
+  private _isRTL = false
+  private _value = ''
+  private _prevValue = ''
 
   public transition: Transition = DEFAULT_TRANSITION
   public trend: Trend = 0
-  public respectMotionPreference: boolean = true
+  public respectMotionPreference = true
 
   constructor() {
     super()
-
     const shadow = this.attachShadow({ mode: 'open' })
     if (styleSheet) shadow.adoptedStyleSheets = [styleSheet]
-
-    this._prefix = createEl('span', 'section')
-    this._middle = createEl('span', 'section')
-    this._suffix = createEl('span', 'section')
-
     shadow.append(this._prefix, this._middle, this._suffix)
   }
 
   connectedCallback() {
     this._isRTL = getComputedStyle(this).direction === 'rtl'
     this._render(false)
+  }
+
+  disconnectedCallback() {
+    this._reset()
   }
 
   get value() {
@@ -53,12 +62,9 @@ class NumericText extends ServerSafeHTMLElement {
   update(v: Value, withAnimation = true) {
     v = v + ''
     if (v === this._value) return
-
     this._prevValue = this._value
     this._value = v
-
-    const shouldAnimate = withAnimation && !(this.respectMotionPreference && isReducedMotion())
-    this._render(shouldAnimate)
+    this._render(withAnimation && !(this.respectMotionPreference && isReducedMotion()))
   }
 
   setOptions(opts: NumericTextOptions) {
@@ -68,149 +74,157 @@ class NumericText extends ServerSafeHTMLElement {
   }
 
   private _render(animate: boolean) {
-    const { prefixCount, suffixCount, middleLabels } = diff(this._chars, this._value)
+    const { prefixCount, suffixCount, labels } = diff(this._chars, this._value)
+    if (prefixCount === this._chars.length && prefixCount === labels.length) {
+      this._reset()
+      return
+    }
 
-    const newMiddleLen = middleLabels.length
-    const oldSuffixStart = this._chars.length - suffixCount
-    const totalLen = prefixCount + newMiddleLen + suffixCount
+    const mid = labels.length - prefixCount - suffixCount
+    const oldSuffix = this._chars.length - suffixCount
+    const midEnd = prefixCount + mid
 
     if (!animate) {
-      const nextChars = new Array(totalLen)
-      const newSuffixStart = prefixCount + newMiddleLen
-
-      for (let i = 0; i < prefixCount; i++) nextChars[i] = this._chars[i]
-      for (let i = 0; i < newMiddleLen; i++) {
-        nextChars[prefixCount + i] = createEl('span', 'char', middleLabels[i])
-      }
-      for (let i = 0; i < suffixCount; i++) {
-        nextChars[newSuffixStart + i] = this._chars[oldSuffixStart + i]
-      }
-
-      for (let i = prefixCount; i < oldSuffixStart; i++) {
-        this._chars[i].remove()
-      }
-
-      this._prefix.replaceChildren(...nextChars.slice(0, prefixCount))
-      this._middle.replaceChildren(...nextChars.slice(prefixCount, newSuffixStart))
-      this._suffix.replaceChildren(...nextChars.slice(newSuffixStart))
-
-      this._chars = nextChars
+      this._reset()
+      const next = this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels)
+      for (let i = prefixCount; i < oldSuffix; i++) releaseChar(this._chars[i])
+      this._commit(next, prefixCount, midEnd)
       return
     }
 
     let trend = this.trend
     if (!trend) {
-      const c = parseFloat(this._value)
-      const p = parseFloat(this._prevValue)
-      trend = !isNaN(c) && !isNaN(p) ? (c > p ? 1 : -1) : 1
+      const cur = parseFloat(this._value)
+      const prev = parseFloat(this._prevValue)
+      trend = !isNaN(cur) && !isNaN(prev) ? (cur > prev ? 1 : -1) : 1
     }
 
-    const oldPrefixRect = getRect(this._prefix)
-    const oldMiddleRect = getRect(this._middle)
+    const oldHostW = getRect(this).width
+    const oldPrefix = getRect(this._prefix)
     const oldSuffixRect = getRect(this._suffix)
+    const oldMiddle = oldPrefix.width && oldSuffixRect.width ? oldPrefix : getRect(this._middle)
 
     let exitingX = 0
-    if (prefixCount < oldSuffixStart) {
-      const exitingAnchor = this._chars[prefixCount]
-      const parent = exitingAnchor.parentElement!
-      const parentRect =
-        parent === this._prefix ? oldPrefixRect : parent === this._suffix ? oldSuffixRect : oldMiddleRect
-
-      if (this._isRTL) exitingX = parentRect.left + exitingAnchor.offsetLeft + exitingAnchor.offsetWidth
-      else exitingX = parentRect.left + exitingAnchor.offsetLeft
+    if (prefixCount < oldSuffix) {
+      const anchor = this._chars[prefixCount]
+      const parent = anchor.parentElement!
+      const parentRect = parent === this._prefix ? oldPrefix : parent === this._suffix ? oldSuffixRect : oldMiddle
+      exitingX = this._isRTL
+        ? parentRect.left + anchor.offsetLeft + anchor.offsetWidth
+        : parentRect.left + anchor.offsetLeft
     }
 
-    const nextChars = new Array(totalLen)
-    const exitingNodes = []
-    for (let i = 0; i < prefixCount; i++) nextChars[i] = this._chars[i]
-    for (let i = prefixCount; i < oldSuffixStart; i++) {
-      exitingNodes.push(this._chars[i])
+    const next = this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels)
+    const exiting = this._chars.slice(prefixCount, oldSuffix)
+    this._queueExit(exiting, exitingX, trend)
+    this._commit(next, prefixCount, midEnd)
+
+    resetAnim(this._prefix)
+    resetAnim(this._suffix)
+    this._dropWidth()
+
+    const newPrefix = getRect(this._prefix)
+    const newSuffix = getRect(this._suffix)
+    const newHostW = getRect(this).width
+    const edge = this._isRTL ? newPrefix.right : newPrefix.left
+    for (let i = 0; i < this._exitingChars.length; i++) {
+      const [el, x] = this._exitingChars[i]
+      el.style.transform = `translateX(${x - edge}px)`
     }
 
-    const newMiddleNodes = new Array(newMiddleLen)
-    for (let i = 0; i < newMiddleLen; i++) {
-      const el = createEl('span', 'char', middleLabels[i])
-      newMiddleNodes[i] = el
-      nextChars[prefixCount + i] = el
-    }
+    const enters = next.slice(prefixCount, midEnd)
+    const stagger = this._stagger(enters)
+    for (let i = 0; i < enters.length; i++) this._animateChar(enters[i], false, trend, i * stagger)
 
-    const newSuffixStart = prefixCount + newMiddleLen
-    for (let i = 0; i < suffixCount; i++) {
-      nextChars[newSuffixStart + i] = this._chars[oldSuffixStart + i]
-    }
-
-    if (exitingNodes.length) {
-      const group = createEl('span')
-      group.toggleAttribute('inert', true)
-
-      for (const node of exitingNodes) group.appendChild(node)
-
-      const newExitEntry = [group, exitingX] as [HTMLElement, number]
-      this._exitingChars.push(newExitEntry)
-      this.shadowRoot!.appendChild(group)
-
-      let active = exitingNodes.length
-      const exitStagger = this._getStagger(exitingNodes)
-      for (let i = 0; i < exitingNodes.length; i++) {
-        const node = exitingNodes[i]
-        this._animateChar(node, true, trend, i * exitStagger, () => {
-          node.remove()
-          if (--active === 0) {
-            group.remove()
-            const idx = this._exitingChars.indexOf(newExitEntry!)
-            if (idx !== -1) this._exitingChars.splice(idx, 1)
-          }
-        })
-      }
-    }
-
-    this._prefix.replaceChildren(...nextChars.slice(0, prefixCount))
-    this._middle.replaceChildren(...newMiddleNodes)
-    this._suffix.replaceChildren(...nextChars.slice(newSuffixStart))
-    this._chars = nextChars
-
-    cancelAnim(this._prefix)
-    cancelAnim(this._suffix)
-    const newPrefixRect = getRect(this._prefix)
-    const newSuffixRect = getRect(this._suffix)
-
-    const exitingEdge = this._isRTL ? newPrefixRect.right : newPrefixRect.left
-    for (const [el, x] of this._exitingChars) {
-      const newX = x - exitingEdge
-      el.style.transform = `translateX(${newX}px)`
-    }
-
-    const enterStagger = this._getStagger(newMiddleNodes)
-    for (let i = 0; i < newMiddleLen; i++) {
-      this._animateChar(newMiddleNodes[i], false, trend, i * enterStagger)
-    }
-
-    const pDx = this._getEdgeDx(oldPrefixRect, newPrefixRect, oldMiddleRect, true)
-    const sDx = this._getEdgeDx(oldSuffixRect, newSuffixRect, oldMiddleRect, false)
-
-    flip(this._prefix, pDx, this.transition)
-    flip(this._suffix, sDx, this.transition)
+    flip(this._prefix, this._edgeDx(oldPrefix, newPrefix, oldMiddle, true), this.transition, true)
+    flip(this._suffix, this._edgeDx(oldSuffixRect, newSuffix, oldMiddle, false), this.transition, true)
+    this._animateWidth(oldHostW, newHostW)
   }
 
-  private _getStagger(nodes: HTMLElement[]) {
-    let animatingCount = 0
+  private _nextChars(
+    prefixCount: number,
+    mid: number,
+    suffixCount: number,
+    oldSuffix: number,
+    labels: string[],
+  ) {
+    const next = new Array<HTMLElement>(labels.length)
+    for (let i = 0; i < prefixCount; i++) next[i] = this._chars[i]
+    for (let i = 0; i < mid; i++) next[prefixCount + i] = createChar(labels[prefixCount + i])
+    for (let i = 0; i < suffixCount; i++) next[prefixCount + mid + i] = this._chars[oldSuffix + i]
+    return next
+  }
+
+  private _commit(chars: HTMLElement[], prefixCount: number, midEnd: number) {
+    reconcileChildren(this._prefix, chars, 0, prefixCount)
+    reconcileChildren(this._middle, chars, prefixCount, midEnd)
+    reconcileChildren(this._suffix, chars, midEnd, chars.length)
+    this._chars = chars
+  }
+
+  private _queueExit(nodes: HTMLElement[], x: number, trend: number) {
+    if (!nodes.length) return
+    const group = createEl('span')
+    group.toggleAttribute('inert', true)
+    for (let i = 0; i < nodes.length; i++) group.appendChild(nodes[i])
+    const entry: [HTMLElement, number] = [group, x]
+    this._exitingChars.push(entry)
+    this.shadowRoot!.appendChild(group)
+
+    let left = nodes.length
+    const stagger = this._stagger(nodes)
     for (let i = 0; i < nodes.length; i++) {
-      if (nodes[i].textContent !== SPACE) {
-        animatingCount++
-      }
+      this._animateChar(nodes[i], true, trend, i * stagger, () => {
+        releaseChar(nodes[i])
+        if (--left === 0) {
+          group.remove()
+          const idx = this._exitingChars.indexOf(entry)
+          if (idx !== -1) this._exitingChars.splice(idx, 1)
+        }
+      })
     }
-
-    return (this.transition.duration * CONFIG.stagger) / (animatingCount || 1)
   }
 
-  private _getEdgeDx(oldRect: DOMRect, newRect: DOMRect, oldMiddle: DOMRect, isPrefix: boolean) {
-    if (this._isRTL === isPrefix) {
-      const oldEdge = oldRect.width ? oldRect.right : oldMiddle.right
-      return oldEdge - newRect.right
-    } else {
-      const oldEdge = oldRect.width ? oldRect.left : oldMiddle.left
-      return oldEdge - newRect.left
+  private _animateWidth(from: number, to: number) {
+    if (from === to) return
+    const anim = this.animate({ width: [`${from}px`, `${to}px`] }, { ...this.transition, fill: 'both' })
+    anim.onfinish = (event) => {
+      if (this._widthAnim === anim) this._widthAnim = undefined
+      finishIdentityAnim(event)
     }
+    this._widthAnim = anim
+  }
+
+  private _dropWidth() {
+    this._widthAnim?.cancel()
+    this._widthAnim = undefined
+  }
+
+  private _reset() {
+    this._dropWidth()
+    resetAnim(this._prefix)
+    resetAnim(this._suffix)
+    for (let i = 0; i < this._chars.length; i++) resetAnim(this._chars[i])
+
+    const exiting = this._exitingChars
+    this._exitingChars = []
+    for (let i = 0; i < exiting.length; i++) {
+      const group = exiting[i][0]
+      const nodes = group.querySelectorAll<HTMLElement>('.char')
+      for (let j = 0; j < nodes.length; j++) releaseChar(nodes[j])
+      group.remove()
+    }
+  }
+
+  private _stagger(nodes: HTMLElement[]) {
+    let n = 0
+    for (let i = 0; i < nodes.length; i++) if (nodes[i].textContent !== SPACE) n++
+    return (this.transition.duration * CONFIG.stagger) / (n || 1)
+  }
+
+  private _edgeDx(oldRect: DOMRect, newRect: DOMRect, oldMiddle: DOMRect, isPrefix: boolean) {
+    if (this._isRTL === isPrefix) return (oldRect.width ? oldRect.right : oldMiddle.right) - newRect.right
+    return (oldRect.width ? oldRect.left : oldMiddle.left) - newRect.left
   }
 
   private _animateChar(el: HTMLElement, isOut: boolean, trend: number, delay: number, onFinish?: () => void) {
@@ -219,24 +233,30 @@ class NumericText extends ServerSafeHTMLElement {
       return
     }
 
-    const m = isOut ? -1 : 1
-    const transform = `translateY(${m * trend * CONFIG.y}em) scale(${CONFIG.scale}) rotateZ(${CONFIG.rotate}deg)`
+    const dir = isOut ? -1 : 1
+    const transform = `translateY(${dir * trend * CONFIG.y}em) scale(${CONFIG.scale}) rotateZ(${CONFIG.rotate}deg)`
     const filter = `blur(${CONFIG.blur}em)`
-
     const anim = el.animate(
       {
         opacity: isOut ? 0 : [0, 1],
         transform: isOut ? transform : [transform, ''],
         filter: isOut ? filter : [filter, ''],
       },
-      {
-        duration: this.transition.duration,
-        easing: this.transition.easing,
-        fill: 'both',
-        delay,
-      },
+      { ...this.transition, fill: 'both', delay },
     )
-    if (onFinish) anim.onfinish = onFinish
+
+    if (!onFinish) {
+      anim.onfinish = finishIdentityAnim
+      return
+    }
+    let done = false
+    const finish = () => {
+      if (done) return
+      done = true
+      onFinish()
+    }
+    anim.onfinish = finish
+    anim.oncancel = finish
   }
 }
 

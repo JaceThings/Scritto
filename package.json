@@ -2,11 +2,13 @@
   "name": "numeric-text",
   "private": true,
   "workspaces": [
-    "packages/*"
+    "packages/*",
+    "site"
   ],
   "scripts": {
     "build": "bun run --filter './packages/*' build",
     "dev": "bun run --filter './packages/*' dev",
+    "play": "bun run --filter site dev",
     "ci:version": "changeset version && bun update && git add --all",
     "ci:publish": "for dir in packages/*; do (cd \"$dir\" && bun publish || true); done && changeset tag",
     "size": "bun run build && bun scripts/size.ts"

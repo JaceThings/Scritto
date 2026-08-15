@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>numeric-text bench</title>
+    <script>
+      (() => {
+        const stored = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1]
+        const dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.classList.toggle('dark', dark)
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1a1a1a' : '#ffffff')
+      })()
+    </script>
+  </head>
+  <body class="m-6">
+    <p>
+      <a class="text-accent no-underline hover:text-fg" href="./">playground</a>
+      ·
+      <button
+        class="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-muted hover:text-fg"
+        id="theme"
+        type="button"
+        aria-pressed="false"
+      >
+        Dark
+      </button>
+    </p>
+    <p>100 hosts × 50 updates. Measures wall time, long tasks, dropped frames, and leftover animations.</p>
+    <p>
+      <a class="text-accent no-underline hover:text-fg" href="./bench.html">local</a>
+      ·
+      <a class="text-accent no-underline hover:text-fg" href="./bench.html?baseline">published 0.1.4</a>
+    </p>
+    <button class="mb-4 mr-2 cursor-pointer rounded-lg bg-surface px-3 py-1.5 font-medium" id="run" type="button">
+      Run
+    </button>
+    <pre class="max-w-2xl rounded-lg bg-surface p-3" id="out">idle</pre>
+    <div class="flex flex-wrap gap-x-4 gap-y-2 text-xl font-semibold" id="grid"></div>
+    <script type="module" src="/src/bench.ts"></script>
+  </body>
+</html>

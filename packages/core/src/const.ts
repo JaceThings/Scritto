@@ -17,8 +17,10 @@ export const STYLES = `
   :host {
     position: relative;
     display: inline-flex;
-    white-space: nowrap !important; /* no multi-line support */
+    box-sizing: border-box;
+    white-space: nowrap !important;
     isolation: isolate;
+    vertical-align: baseline;
   }
   span {
     margin: 0 !important;
@@ -28,16 +30,22 @@ export const STYLES = `
   [inert] {
     position: absolute !important;
     display: inline-flex !important;
-    will-change: transform;
     z-index: 0;
   }
   .section {
     position: relative !important;
     display: inline-flex !important;
-    will-change: transform;
+    flex: none;
+    transform: none;
     z-index: 1;
+  }
+  .section::before {
+    content: "\\200B"; /* baseline when the section is empty */
   }
   .char {
     display: inline-block !important;
+    opacity: 1;
+    transform: none;
+    filter: none;
     white-space: pre !important;
   }`
