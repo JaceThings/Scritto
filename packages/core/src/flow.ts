@@ -70,11 +70,13 @@ class NumericFlow extends ServerSafeHTMLElement {
     if (custom.target.closest('numeric-flow') !== this) return
     const host = custom.target as FlowHost
     if (custom.detail.phase === 'before') {
+      const prev = this._host
       this._host = host
       this._first = this._words().map((word) => word.getBoundingClientRect())
       this._fromW = host.getBoundingClientRect().width
       this._gen += 1
       this._drop()
+      if (prev && prev !== host) this._clearHost(prev)
       this._resetWords()
       return
     }
@@ -95,14 +97,18 @@ class NumericFlow extends ServerSafeHTMLElement {
     }
   }
 
+  private _clearHost(host: FlowHost | null) {
+    if (!host) return
+    for (const anim of host.getAnimations()) if (isWidthAnim(anim)) anim.cancel()
+    host.style.width = ''
+    host.style.marginRight = ''
+  }
+
   private _drop() {
     for (const anim of this._anims) anim.cancel()
     this._anims.length = 0
     this._clip.replaceChildren()
-    if (!this._host) return
-    for (const anim of this._host.getAnimations()) if (isWidthAnim(anim)) anim.cancel()
-    this._host.style.width = ''
-    this._host.style.marginRight = ''
+    this._clearHost(this._host)
   }
 
   private _run(anim: Animation, gen: number, done?: () => void) {

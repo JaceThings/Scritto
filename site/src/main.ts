@@ -20,12 +20,6 @@ const ALIGN: Record<string, string> = {
   dynamic: 'center',
 }
 
-const EASING = {
-  bouncy:
-    'linear(0,.1052,.3155,.532,.7112,.8414,.9265,.9765,1.0023,1.013,1.0151,1.0133,1.01,1.0068,1.0041,1.0022,1.001,1)',
-  smooth: 'linear(0,.1803,.4551,.6711,.8122,.8966,.9445,.9708,.9848,.9922,.996,.998,1)',
-} as const
-
 const TREND: Record<string, Trend> = { up: 1, auto: 0, down: -1 }
 const FLOW_A = ['104', '1.3']
 const FLOW_B = ['1,234,567', '12']
@@ -38,13 +32,12 @@ const driftEl = document.querySelector<HTMLElement>('#stage-drift')!
 const hint = document.querySelector<HTMLElement>('#hint')!
 const variantsInput = document.querySelector<HTMLInputElement>('#variants')!
 
-let variants = MODES.Text
+let variants: string = MODES.Text
 let index = 0
 let flowAIndex = 0
 let flowBIndex = 0
 let align = 'center'
 let trend: keyof typeof TREND = 'auto'
-let easing: keyof typeof EASING = 'bouncy'
 let slow = false
 let debug = false
 let drift: Animation | null = null
@@ -54,7 +47,7 @@ const parts = () => variants.split('|').map((part) => part.trim()).filter(Boolea
 const options = () => ({
   trend: TREND[trend],
   respectMotionPreference: false,
-  transition: { duration: slow ? 1100 : 550, easing: EASING[easing] },
+  transition: { duration: slow ? 1100 : 550 },
 })
 
 const paint = (node: NumericText, value: string, animate: boolean) => {
@@ -157,10 +150,6 @@ tabs(document.querySelector('#align')!, Object.keys(ALIGN), () => align, (value)
 })
 tabs(document.querySelector('#trend')!, Object.keys(TREND), () => trend, (value) => {
   trend = value as keyof typeof TREND
-  apply(false)
-})
-tabs(document.querySelector('#easing')!, Object.keys(EASING), () => easing, (value) => {
-  easing = value as keyof typeof EASING
   apply(false)
 })
 tabs(document.querySelector('#slow')!, ['off', 'on'], () => (slow ? 'on' : 'off'), (value) => {
