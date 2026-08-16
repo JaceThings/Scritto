@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#ffffff" />
+    <title>scritto look</title>
+    <script>
+      (() => {
+        const stored = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1]
+        const dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.classList.toggle('dark', dark)
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1a1a1a' : '#ffffff')
+      })()
+    </script>
+  </head>
+  <body>
+    <div class="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-12">
+      <p class="text-sm text-muted">
+        <a class="text-inherit no-underline hover:text-fg" href="./playground.html">playground</a>
+        ·
+        <a class="text-inherit no-underline hover:text-fg" href="./suite.html">suite</a>
+        ·
+        <button
+          class="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-inherit hover:text-fg"
+          id="theme"
+          type="button"
+          aria-pressed="false"
+        >
+          Dark
+        </button>
+      </p>
+      <p class="text-muted">
+        Click a card to grow or shrink the number. Scroll the long paragraph: words on screen should slide, words off
+        screen snap.
+      </p>
+      <div class="flex flex-col rounded-xl bg-surface font-medium text-muted">
+        <div class="mx-4 flex items-center justify-between border-b border-line py-3">
+          <span>Words</span>
+          <div class="flex items-center gap-3 text-fg" id="words"></div>
+        </div>
+        <div class="mx-4 flex items-center justify-between py-3">
+          <span>Bounce</span>
+          <div class="flex items-center gap-3 text-fg" id="bounce"></div>
+        </div>
+      </div>
+      <div
+        class="block w-full cursor-pointer rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium text-fg"
+        id="paragraph"
+      ></div>
+      <div
+        class="flex w-full cursor-pointer flex-col gap-2 rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium text-fg"
+        id="lines"
+      ></div>
+    </div>
+    <script type="module" src="/src/look.ts"></script>
+  </body>
+</html>

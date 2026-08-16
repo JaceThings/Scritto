@@ -1,4 +1,4 @@
 scritto-text:not(:defined) {
-  display: inline-flex;
+  display: inline;
   white-space: nowrap !important;
 }

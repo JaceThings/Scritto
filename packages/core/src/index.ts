@@ -7,11 +7,11 @@ import {
   BROWSER,
   flip,
   isReducedMotion,
+  isOnscreen,
   diff,
   reconcileChildren,
   clearAnimStyle,
   finishIdentityAnim,
-  getRect,
   box,
   type Box,
 } from './helpers'
@@ -24,16 +24,16 @@ if (BROWSER) {
   styleSheet.replaceSync(STYLES)
 }
 
-type Plan = {
+type Layout = {
   prefixCount: number
-  mid: number
   suffixCount: number
   oldSuffix: number
-  labels: string[]
   midEnd: number
-  tail: number
   exitingTail: HTMLElement[]
   next: HTMLElement[]
+}
+
+type Plan = Layout & {
   enters: HTMLElement[]
   trend: number
   oldPrefix: Box
@@ -58,29 +58,25 @@ const flushAnimated = () => {
   flushScheduled = false
   const list = [...pending]
   pending.clear()
+  const each = (fn: (el: Scritto) => void) => {
+    for (const el of list) if (el.isConnected) fn(el)
+  }
+
   let t = performance.now()
-  for (const el of list) {
-    if (!el.isConnected) continue
-    el._emit('before', true)
-  }
+  each((el) => el._emit('before', true))
   prepareFlows()
-  for (const el of list) {
-    if (!el.isConnected) continue
-    el._prepareAnimated()
-  }
+  each((el) => el._prepareAnimated())
   flushStats.prepare += performance.now() - t
+
   t = performance.now()
-  for (const el of list) {
-    if (!el.isConnected) continue
-    el._commitAnimated()
-  }
+  each((el) => el._commitAnimated())
   flushStats.commit += performance.now() - t
+
   t = performance.now()
-  for (const el of list) {
-    if (!el.isConnected) continue
+  each((el) => {
     el._finishAnimated()
     el._emit('after', true)
-  }
+  })
   playFlows()
   flushStats.finish += performance.now() - t
   flushStats.hosts += list.length
@@ -93,10 +89,10 @@ class Scritto extends ServerSafeHTMLElement {
   private _tail = createEl('span', 'section')
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
-  private _enterGen = 0
   private _isRTL = false
   private _value = ''
   private _prevValue = ''
+  private _plain = document.createTextNode('')
   private _readyPlan: Plan | null = null
   private _anims: Animation[] = []
 
@@ -113,8 +109,11 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   connectedCallback() {
+    // A custom element constructor must not add children: doing so makes
+    // document.createElement() fail and return an HTMLUnknownElement.
+    if (this._plain.parentNode !== this) this.append(this._plain)
     this._isRTL = getComputedStyle(this).direction === 'rtl'
-    this._render(false)
+    this._render()
   }
 
   disconnectedCallback() {
@@ -135,10 +134,12 @@ class Scritto extends ServerSafeHTMLElement {
     if (v === this._value) return
     this._prevValue = this._value
     this._value = v
-    const animate = withAnimation && !(this.respectMotionPreference && isReducedMotion())
+    this._plain.nodeValue = v
+    const animate =
+      withAnimation && !(this.respectMotionPreference && isReducedMotion()) && isOnscreen(this)
     if (!animate) {
       this._emit('before', false)
-      this._render(false)
+      this._render()
       this._emit('after', false)
       return
     }
@@ -149,35 +150,28 @@ class Scritto extends ServerSafeHTMLElement {
     this.dispatchEvent(new CustomEvent('scrittochange', { bubbles: true, detail: { phase, animate } }))
   }
 
-  setOptions(opts: ScrittoOptions) {
-    if (typeof opts.bounce === 'boolean') this.bounce = opts.bounce
-    const base = this.bounce ? BOUNCE_TRANSITION : DEFAULT_TRANSITION
-    if (opts.transition) this.transition = { ...base, ...opts.transition }
-    else if (typeof opts.bounce === 'boolean') this.transition = { ...base }
-    if (typeof opts.trend === 'number') this.trend = opts.trend
-    if (typeof opts.respectMotionPreference === 'boolean') this.respectMotionPreference = opts.respectMotionPreference
+  setOptions({ bounce, transition, trend, respectMotionPreference }: ScrittoOptions) {
+    if (bounce === true || bounce === false) this.bounce = bounce
+    if (transition || bounce === true || bounce === false) {
+      this.transition = { ...(this.bounce ? BOUNCE_TRANSITION : DEFAULT_TRANSITION), ...transition }
+    }
+    if (trend === -1 || trend === 0 || trend === 1) this.trend = trend
+    if (respectMotionPreference === true || respectMotionPreference === false) {
+      this.respectMotionPreference = respectMotionPreference
+    }
   }
 
-  private _render(animate: boolean) {
-    if (!animate) {
-      const plan = this._buildPlan(false)
-      if (!plan) {
-        this._reset()
-        return
-      }
-      this._reset()
-      for (let i = plan.prefixCount; i < plan.oldSuffix; i++) releaseChar(this._chars[i])
-      for (let i = 0; i < plan.exitingTail.length; i++) releaseChar(plan.exitingTail[i])
-      this._commit(plan.next, plan.prefixCount, plan.midEnd, plan.suffixCount)
-      return
-    }
-    this._prepareAnimated()
-    this._commitAnimated()
-    this._finishAnimated()
+  private _render() {
+    const layout = this._buildLayout()
+    this._reset()
+    if (!layout) return
+    for (let i = layout.prefixCount; i < layout.oldSuffix; i++) releaseChar(this._chars[i])
+    for (let i = 0; i < layout.exitingTail.length; i++) releaseChar(layout.exitingTail[i])
+    this._commit(layout.next, layout.prefixCount, layout.midEnd, layout.suffixCount)
   }
 
   _prepareAnimated() {
-    this._readyPlan = this._buildPlan(true)
+    this._readyPlan = this._buildPlan()
   }
 
   _commitAnimated() {
@@ -199,59 +193,55 @@ class Scritto extends ServerSafeHTMLElement {
     const plan = this._readyPlan
     this._readyPlan = null
     if (!plan) return
-    const newPrefix = getRect(this._prefix)
-    const newSuffix = getRect(this._suffix)
+    const newPrefix = this._prefix.getBoundingClientRect()
+    const newSuffix = this._suffix.getBoundingClientRect()
     const edge = this._isRTL ? newPrefix.right : newPrefix.left
     for (let i = 0; i < this._exitingChars.length; i++) {
       const [el, x] = this._exitingChars[i]
       el.style.transform = `translateX(${x - edge}px)`
     }
-    const prefixFlip = flip(this._prefix, this._edgeDx(plan.oldPrefix, newPrefix, plan.oldMiddle, true), this.transition, true)
-    const suffixFlip = flip(this._suffix, this._edgeDx(plan.oldSuffixBox, newSuffix, plan.oldMiddle, false), this.transition, true)
+    const line = newPrefix.height || 1
+    const prefixDx =
+      Math.abs(newPrefix.top - plan.oldPrefix.top) >= line * 0.5
+        ? 0
+        : this._edgeDx(plan.oldPrefix, newPrefix, plan.oldMiddle, true)
+    const suffixDx =
+      Math.abs(newSuffix.top - plan.oldSuffixBox.top) >= line * 0.5
+        ? 0
+        : this._edgeDx(plan.oldSuffixBox, newSuffix, plan.oldMiddle, false)
+    const prefixFlip = flip(this._prefix, prefixDx, this.transition, true)
+    const suffixFlip = flip(this._suffix, suffixDx, this.transition, true)
     if (prefixFlip) this._anims.push(prefixFlip)
     if (suffixFlip) this._anims.push(suffixFlip)
     this._armEnters(plan.enters, plan.trend)
   }
 
-  private _buildPlan(animate: boolean): Plan | null {
+  private _buildLayout(): Layout | null {
     const { prefixCount, suffixCount, labels } = diff(this._chars, this._value)
     if (prefixCount === this._chars.length && prefixCount === labels.length) return null
 
     let mid = labels.length - prefixCount - suffixCount
-    let tail = 0
     let peel = 0
     while (peel < mid && labels[prefixCount + peel] === ',') peel++
-    if (peel > 0 && peel < mid) {
-      tail = mid - peel
-      mid = peel
-    }
+    if (peel > 0 && peel < mid) mid = peel
     let oldSuffix = this._chars.length - suffixCount
     let oldLead = 0
     while (prefixCount + oldLead < oldSuffix && this._chars[prefixCount + oldLead].textContent === ',') oldLead++
     if (oldLead > 0 && prefixCount + oldLead < oldSuffix) oldSuffix = prefixCount + oldLead
     const midEnd = prefixCount + mid
-    const exitingTail = this._chars.slice(oldSuffix + suffixCount)
-    const next = this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels)
-    if (!animate) {
-      return {
-        prefixCount,
-        mid,
-        suffixCount,
-        oldSuffix,
-        labels,
-        midEnd,
-        tail,
-        exitingTail,
-        next,
-        enters: [],
-        trend: 0,
-        oldPrefix: box(0, 0),
-        oldMiddle: box(0, 0),
-        oldSuffixBox: box(0, 0),
-        exitingX: 0,
-        tailX: 0,
-      }
+    return {
+      prefixCount,
+      suffixCount,
+      oldSuffix,
+      midEnd,
+      exitingTail: this._chars.slice(oldSuffix + suffixCount),
+      next: this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels),
     }
+  }
+
+  private _buildPlan(): Plan | null {
+    const layout = this._buildLayout()
+    if (!layout) return null
 
     let trend = this.trend
     if (!trend) {
@@ -260,36 +250,31 @@ class Scritto extends ServerSafeHTMLElement {
       trend = !isNaN(cur) && !isNaN(prev) ? (cur > prev ? 1 : -1) : 1
     }
 
-    const oldPrefix = getRect(this._prefix)
-    const oldSuffixRect = getRect(this._suffix)
-    const midRect = getRect(this._middle)
-    const oldTail = getRect(this._tail)
+    const oldPrefix = this._prefix.getBoundingClientRect()
+    const oldSuffixRect = this._suffix.getBoundingClientRect()
+    const midRect = this._middle.getBoundingClientRect()
+    const oldTail = this._tail.getBoundingClientRect()
     const oldMiddle = midRect.width ? midRect : oldPrefix.width && oldSuffixRect.width ? oldPrefix : midRect
     const sectionRect = (el: HTMLElement) =>
       el === this._prefix ? oldPrefix : el === this._suffix ? oldSuffixRect : el === this._tail ? oldTail : midRect
 
     const exitX = (anchor: HTMLElement) => {
-      const parentRect = sectionRect(anchor.parentElement!)
+      const parent = anchor.parentElement
+      if (!parent) return 0
+      const parentRect = sectionRect(parent)
       return this._isRTL
         ? parentRect.left + anchor.offsetLeft + anchor.offsetWidth
         : parentRect.left + anchor.offsetLeft
     }
 
+    const { prefixCount, suffixCount, oldSuffix, midEnd, exitingTail, next } = layout
     return {
-      prefixCount,
-      mid,
-      suffixCount,
-      oldSuffix,
-      labels,
-      midEnd,
-      tail,
-      exitingTail,
-      next,
-      enters: next.slice(prefixCount, midEnd).concat(tail ? next.slice(midEnd + suffixCount) : []),
+      ...layout,
+      enters: next.slice(prefixCount, midEnd).concat(next.slice(midEnd + suffixCount)),
       trend,
-      oldPrefix: box(oldPrefix.left, oldPrefix.width),
-      oldMiddle: box(oldMiddle.left, oldMiddle.width),
-      oldSuffixBox: box(oldSuffixRect.left, oldSuffixRect.width),
+      oldPrefix: box(oldPrefix.left, oldPrefix.width, oldPrefix.top),
+      oldMiddle: box(oldMiddle.left, oldMiddle.width, oldMiddle.top),
+      oldSuffixBox: box(oldSuffixRect.left, oldSuffixRect.width, oldSuffixRect.top),
       exitingX: prefixCount < oldSuffix ? exitX(this._chars[prefixCount]) : 0,
       tailX: exitingTail.length ? exitX(exitingTail[0]) : 0,
     }
@@ -347,7 +332,6 @@ class Scritto extends ServerSafeHTMLElement {
   private _armEnters(enters: HTMLElement[], trend: number) {
     const pending = enters.filter((el) => el.textContent !== SPACE)
     if (!pending.length) return
-    this._enterGen += 1
     const stagger = this._stagger(pending)
     for (let i = 0; i < pending.length; i++) {
       pending[i].style.opacity = ''
@@ -361,7 +345,6 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   private _reset() {
-    this._enterGen += 1
     this._cancelTracked()
     clearAnimStyle(this._prefix)
     clearAnimStyle(this._middle)

@@ -4,7 +4,7 @@ import { bindThemeToggle } from './theme'
 
 const baseline = new URLSearchParams(location.search).has('baseline')
 if (baseline) await import('https://esm.sh/@scritto/core@0.1.4')
-else await import('../../packages/core/dist/index.js')
+else await import('../../../packages/core/dist/index.js')
 
 const COUNT = 100
 const ROUNDS = 50
@@ -15,7 +15,7 @@ const out = document.querySelector('#out')!
 const hosts: Scritto[] = []
 
 for (let i = 0; i < COUNT; i++) {
-  const el = document.createElement('scritto-text') as Scritto
+  const el = document.createElement('scritto-text')
   el.setOptions({ respectMotionPreference: false })
   el.update(VALUES[0], false)
   grid.append(el)

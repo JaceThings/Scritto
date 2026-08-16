@@ -1,19 +1,45 @@
 import type { Transition } from './types'
-import { SPACE } from './const'
+import { SHRINK_EASING, SPACE } from './const'
 
-export const BROWSER = typeof window !== 'undefined'
-export const ServerSafeHTMLElement = BROWSER ? HTMLElement : (class {} as unknown as typeof HTMLElement)
+export const BROWSER = 'window' in globalThis
+export const ServerSafeHTMLElement = globalThis.HTMLElement ?? class {}
 
 let reducedMotionQuery: MediaQueryList | undefined
 export const isReducedMotion = () =>
   BROWSER && (reducedMotionQuery ??= window.matchMedia('(prefers-reduced-motion: reduce)')).matches
 
+const CLIP_OVERFLOW = /auto|scroll|hidden|clip/
+
+export const visibleClip = (el: HTMLElement) => {
+  let top = 0
+  let left = 0
+  let bottom = window.innerHeight
+  let right = window.innerWidth
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const { overflow, overflowX, overflowY } = getComputedStyle(node)
+    if (!CLIP_OVERFLOW.test(overflow) && !CLIP_OVERFLOW.test(overflowX) && !CLIP_OVERFLOW.test(overflowY)) continue
+    const rect = node.getBoundingClientRect()
+    top = Math.max(top, rect.top)
+    left = Math.max(left, rect.left)
+    bottom = Math.min(bottom, rect.bottom)
+    right = Math.min(right, rect.right)
+  }
+  return { top, left, bottom, right }
+}
+
+export const isOnscreen = (el: HTMLElement) => {
+  const clip = visibleClip(el)
+  if (clip.bottom <= clip.top || clip.right <= clip.left) return false
+  const rect = el.getBoundingClientRect()
+  return rect.bottom > clip.top && rect.top < clip.bottom && rect.right > clip.left && rect.left < clip.right
+}
+
 const CHAR_POOL: HTMLElement[] = []
 const CHAR_POOL_MAX = 1024
 
-export type Box = { left: number; right: number; width: number }
+export type Box = { left: number; right: number; width: number; top: number }
 
-export const box = (left: number, width: number): Box => ({ left, right: left + width, width })
+export const box = (left: number, width: number, top = 0): Box => ({ left, right: left + width, width, top })
 
 export const createEl = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) => {
   const el = document.createElement(tag)
@@ -36,8 +62,6 @@ export const releaseChar = (el: HTMLElement) => {
   if (CHAR_POOL.length < CHAR_POOL_MAX) CHAR_POOL.push(el)
 }
 
-export const getRect = (el: HTMLElement) => el.getBoundingClientRect()
-
 export const cancelAnim = (el: HTMLElement) => {
   const anims = el.getAnimations()
   for (let i = 0; i < anims.length; i++) anims[i].cancel()
@@ -57,14 +81,17 @@ export const resetAnim = (el: HTMLElement) => {
 }
 
 export const finishIdentityAnim = (event: AnimationPlaybackEvent) => {
-  const anim = event.currentTarget as Animation
-  if (anim.playState === 'finished') anim.cancel()
+  const anim = event.currentTarget
+  if (anim instanceof Animation && anim.playState === 'finished') anim.cancel()
 }
 
 export const flip = (el: HTMLElement, dx: number, transition: Transition, alreadyCancelled = false) => {
   if (!dx) return
   if (!alreadyCancelled) cancelAnim(el)
-  const anim = el.animate({ transform: [`translateX(${dx}px)`, ''] }, { ...transition, fill: 'both' })
+  const anim = el.animate(
+    { transform: [`translateX(${dx}px)`, ''] },
+    { duration: transition.duration, easing: SHRINK_EASING, fill: 'both' },
+  )
   anim.onfinish = finishIdentityAnim
   return anim
 }

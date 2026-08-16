@@ -1,0 +1,207 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f6f2" />
+    <title>scritto · playground</title>
+  </head>
+  <body>
+    <main class="flex min-h-dvh w-full items-stretch justify-center bg-bg">
+      <article class="column gap-9">
+        <header class="flex w-full flex-col gap-5">
+          <div class="stagger" style="--i: 0">
+            <h1 class="text-[16px] leading-none font-[550] tracking-[-0.25px] text-text-primary">
+              scritto
+            </h1>
+          </div>
+          <div class="stagger" style="--i: 1">
+            <div class="divider" role="separator"></div>
+          </div>
+        </header>
+
+        <div id="page" class="flex w-full flex-col gap-12">
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 2" id="roll">
+            <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
+              <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Roll</h2>
+              <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+                Words, numbers, and emoji all roll in place. Click the card to advance the value, and
+                edit the list below to roll your own — a comma or Enter splits a value.
+              </p>
+            </div>
+            <div class="figure">
+              <button class="stage stage-tall" type="button" aria-label="Advance the value">
+                <scritto-text
+                  id="roll-demo"
+                  class="text-[40px] leading-none font-[550] tracking-[-0.25px]"
+                  role="img"
+                ></scritto-text>
+              </button>
+              <div class="row">
+                <div class="pill-group" id="mode" role="radiogroup" aria-label="Value set"></div>
+              </div>
+              <div class="row row-field">
+                <span class="row-label" id="values-label">Values</span>
+                <div class="hops" id="values" role="group" aria-labelledby="values-label"></div>
+                <span class="sr-only" id="values-hint">
+                  Comma or Enter splits at the caret. Commas are drawn, never typed. Backspace at the
+                  start of a value joins it to the one before.
+                </span>
+              </div>
+            </div>
+          </section>
+
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 3">
+            <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
+              <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Alignment</h2>
+              <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+                Where the value anchors as it changes width. Dynamic keeps it moving, so you can see
+                the roll hold its place while the host slides.
+              </p>
+            </div>
+            <div class="figure">
+              <button class="stage" type="button" aria-label="Advance the value">
+                <scritto-text
+                  id="align-demo"
+                  class="text-[28px] leading-none font-[550] tracking-[-0.25px]"
+                  role="img"
+                ></scritto-text>
+              </button>
+              <div class="row">
+                <div class="pill-group" id="align" role="radiogroup" aria-label="Alignment"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 4">
+            <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
+              <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Trend</h2>
+              <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+                Which way the glyphs travel. Auto reads the numbers and follows them; up and down
+                override it.
+              </p>
+            </div>
+            <div class="figure">
+              <button class="stage" type="button" aria-label="Advance the value">
+                <scritto-text
+                  id="trend-demo"
+                  class="text-[28px] leading-none font-[550] tracking-[-0.25px]"
+                  role="img"
+                ></scritto-text>
+              </button>
+              <div class="row">
+                <div class="pill-group" id="trend" role="radiogroup" aria-label="Trend"></div>
+              </div>
+            </div>
+          </section>
+
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 5">
+            <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
+              <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Bounce</h2>
+              <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+                How far each character overshoots as it lands. Zero settles flat; the library ships
+                at 0.20 and its bouncy preset is 0.30.
+              </p>
+            </div>
+            <div class="figure">
+              <button class="stage" type="button" aria-label="Advance the value">
+                <scritto-text
+                  id="bounce-demo"
+                  class="text-[28px] leading-none font-[550] tracking-[-0.25px]"
+                  role="img"
+                ></scritto-text>
+              </button>
+              <div class="row row-slider" id="bounce"></div>
+            </div>
+          </section>
+
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 6">
+            <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
+              <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Duration</h2>
+              <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+                How long the roll takes end to end. Drag the track, or focus it and use the arrow
+                keys.
+              </p>
+            </div>
+            <div class="figure">
+              <button class="stage" type="button" aria-label="Advance the value">
+                <scritto-text
+                  id="duration-demo"
+                  class="text-[28px] leading-none font-[550] tracking-[-0.25px]"
+                  role="img"
+                ></scritto-text>
+              </button>
+              <div class="row row-slider" id="duration"></div>
+            </div>
+          </section>
+
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 7">
+            <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
+              <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">In a sentence</h2>
+              <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+                A live number sitting in running copy. Light really does cover 299,792 km a second,
+                so the words shift as the figure grows and again when the minute starts it over.
+              </p>
+            </div>
+            <div class="figure">
+              <div class="p-4">
+                <scritto-flow class="copy" id="flow-sentence">
+                  Light has traveled <scritto-text id="flow-a" class="live" role="img"></scritto-text>
+                  km since this minute began.
+                </scritto-flow>
+              </div>
+            </div>
+          </section>
+
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 8">
+            <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
+              <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Wrapped</h2>
+              <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+                Neighbors slide when the number changes width and a line has to give.
+              </p>
+            </div>
+            <div class="figure">
+              <button class="copy-stage copy-stage-wrap" type="button" aria-label="Advance the number">
+                <scritto-flow class="copy" id="flow-wrap">
+                  The collector logged <scritto-text id="flow-b" class="live" role="img"></scritto-text>
+                  tokens across every running job in the queue this cycle, just enough extra width
+                  that a few words drop to the next line and climb back once the figure shrinks to a
+                  short tally.
+                </scritto-flow>
+              </button>
+            </div>
+          </section>
+        </div>
+
+        <footer class="flex w-full flex-col gap-5">
+          <div class="stagger" style="--i: 11">
+            <div class="divider" role="separator"></div>
+          </div>
+          <nav id="site-nav" class="stagger site-nav flex w-full items-start gap-4 text-[14px] leading-[1.2] font-medium tracking-[-0.25px] text-text-primary whitespace-nowrap" style="--i: 12" aria-label="Site">
+            <span class="nav-slot" data-nav-home>
+              <a class="footer-link py-2 -my-2" href="./" data-route>
+                <span class="footer-link-underline">Home</span>
+              </a>
+            </span>
+            <span class="nav-slot">
+              <a class="footer-link py-2 -my-2" href="./playground.html" data-route>
+                <span class="footer-link-underline">Playground</span>
+              </a>
+            </span>
+            <span class="nav-slot">
+              <a class="footer-link py-2 -my-2" href="https://github.com/JaceThings/Scritto" target="_blank" rel="noreferrer">
+                <span class="footer-link-underline">GitHub</span>
+              </a>
+            </span>
+            <span class="nav-slot ml-auto">
+              <a class="footer-link py-2 -my-2" href="https://x.com/JaceThings" target="_blank" rel="noreferrer">
+                <span class="footer-link-underline">Follow</span>
+              </a>
+            </span>
+          </nav>
+        </footer>
+      </article>
+    </main>
+    <script type="module" src="/src/app.ts"></script>
+  </body>
+</html>

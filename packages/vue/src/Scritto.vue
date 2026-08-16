@@ -14,41 +14,31 @@ const props = withDefaults(defineProps<Props>(), {
 const el = ref<ScrittoElement>();
 let isMounted = false;
 
+const applyOptions = () => {
+  el.value?.setOptions({
+    trend: props.trend,
+    transition: props.transition,
+    respectMotionPreference: props.respectMotionPreference,
+    bounce: props.bounce,
+  });
+};
+
 watch(
   () => props.value,
   (newValue) => {
-    if (el.value) {
-      el.value.update(newValue, isMounted && props.animated);
-    }
+    el.value?.update(newValue, isMounted && props.animated);
   },
 );
 
 watch(
   () => [props.trend, props.transition, props.respectMotionPreference, props.bounce],
-  () => {
-    if (el.value) {
-      el.value.setOptions({
-        trend: props.trend,
-        transition: props.transition,
-        respectMotionPreference: props.respectMotionPreference,
-        bounce: props.bounce,
-      });
-    }
-  },
+  applyOptions,
   { deep: true },
 );
 
 onMounted(() => {
-  if (el.value) {
-      el.value.setOptions({
-        trend: props.trend,
-        transition: props.transition,
-        respectMotionPreference: props.respectMotionPreference,
-        bounce: props.bounce,
-      });
-
-    el.value.update(props.value, false);
-  }
+  applyOptions();
+  el.value?.update(props.value, false);
   isMounted = true;
 });
 </script>

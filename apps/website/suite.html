@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#ffffff" />
-    <title>scritto bench</title>
+    <title>scritto suite</title>
     <script>
       (() => {
         const stored = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1]
@@ -14,13 +14,13 @@
       })()
     </script>
   </head>
-  <body class="m-6">
+  <body class="m-6 max-w-5xl">
     <p>
       <a class="text-accent no-underline hover:text-fg" href="./playground.html">playground</a>
       ·
       <a class="text-accent no-underline hover:text-fg" href="./look.html">look</a>
       ·
-      <a class="text-accent no-underline hover:text-fg" href="./suite.html">suite</a>
+      <a class="text-accent no-underline hover:text-fg" href="./bench.html">bench</a>
       ·
       <a class="text-accent no-underline hover:text-fg" href="./stress.html">stress</a>
       ·
@@ -33,17 +33,18 @@
         Dark
       </button>
     </p>
-    <p>100 hosts × 50 updates. Measures wall time, long tasks, dropped frames, and leftover animations.</p>
-    <p>
-      <a class="text-accent no-underline hover:text-fg" href="./bench.html">local</a>
-      ·
-      <a class="text-accent no-underline hover:text-fg" href="./bench.html?baseline">published 0.1.4</a>
+    <p class="text-muted">
+      20 cases: isolated hosts, in-copy layout, multi-line wrap, 200–20k word paragraphs, bounce, RTL, emoji, comma
+      peel. fps / update ms / setup ms / long tasks / dropped frames / leftover animations / heap.
     </p>
-    <button class="mb-4 mr-2 cursor-pointer rounded-lg bg-surface px-3 py-1.5 font-medium" id="run" type="button">
-      Run
-    </button>
-    <pre class="max-w-2xl rounded-lg bg-surface p-3" id="out">idle</pre>
-    <div class="flex flex-wrap gap-x-4 gap-y-2 text-xl font-semibold" id="grid"></div>
-    <script type="module" src="/src/bench.ts"></script>
+    <p class="mb-4 flex items-center gap-3">
+      <button class="cursor-pointer rounded-lg bg-surface px-3 py-1.5 font-medium" id="run-all" type="button">
+        Run all
+      </button>
+      <span class="text-sm text-muted" id="status">idle</span>
+    </p>
+    <table class="mb-8 w-full text-sm" id="results"></table>
+    <div class="text-[17px] leading-7" id="page"></div>
+    <script type="module" src="/src/suite.ts"></script>
   </body>
 </html>

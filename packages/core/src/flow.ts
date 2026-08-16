@@ -1,22 +1,54 @@
-import { BROWSER, ServerSafeHTMLElement } from './helpers'
+import { BROWSER, ServerSafeHTMLElement, visibleClip } from './helpers'
 import { SHRINK_EASING } from './const'
 import type { Transition } from './types'
 
 export type ScrittoChangeDetail = { phase: 'before' | 'after'; animate: boolean }
 
 type FlowHost = HTMLElement & { transition: Transition }
+type Box = { left: number; top: number; width: number; height: number }
 
-const CLIP_STYLE = `position:absolute;inset:0;overflow:hidden;pointer-events:none;mask-image:linear-gradient(90deg,transparent,#000 1.1rem,#000 calc(100% - 1.1rem),transparent)`
+const WIDTH_ANIM = 'scritto-width'
 
-const isWidthAnim = (anim: Animation) => {
-  const effect = anim.effect
-  return effect instanceof KeyframeEffect && effect.getKeyframes().some((frame) => frame.width != null)
+/** Roughly a word space: what a ghost clears so it isn't fading on top of its old neighbour. */
+const GAP = 6
+
+/** Slack on the teardown backstop, so it lands after the last frame rather than on it. */
+const SETTLE_SLACK = 50
+
+// Fade lives in the gutters past the text, not on the content box. 1.1rem is
+// 17.6px and would stick 1.6px past the 16px stage padding, where the figure
+// clips the dissolve — 1rem occupies that padding exactly.
+const GUTTER = '1rem'
+const CLIP_STYLE = `position:absolute;top:0;bottom:0;left:-${GUTTER};right:-${GUTTER};overflow:hidden;pointer-events:none;mask-image:linear-gradient(90deg,transparent,#000 ${GUTTER},#000 calc(100% - ${GUTTER}),transparent)`
+
+// Ghosts are positioned inside the clip. Measurements stay flow-relative.
+const boxOf = (el: HTMLElement, origin: DOMRect, insetX: number, insetY: number): Box => {
+  const rect = el.getBoundingClientRect()
+  return {
+    left: rect.left - origin.left - insetX,
+    top: rect.top - origin.top - insetY,
+    width: rect.width,
+    height: rect.height,
+  }
+}
+
+const lowerBound = (words: HTMLElement[], target: number) => {
+  let lo = 0
+  let hi = words.length
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1
+    if (words[mid].offsetTop < target) lo = mid + 1
+    else hi = mid
+  }
+  return lo
 }
 
 const wordify = (root: HTMLElement) => {
   const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
   const nodes: Text[] = []
-  while (walker.nextNode()) nodes.push(walker.currentNode as Text)
+  while (walker.nextNode()) {
+    if (walker.currentNode instanceof Text) nodes.push(walker.currentNode)
+  }
   for (const node of nodes) {
     if (node.parentElement?.closest('scritto-text')) continue
     const parts = node.textContent?.split(/(\s+)/) ?? []
@@ -59,15 +91,19 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   private _clip = document.createElement('span')
   private _gen = 0
   private _anims: Animation[] = []
-  private _first: DOMRect[] = []
+  private _first: Box[] = []
   private _fromW = 0
   private _host: FlowHost | null = null
   private _wordEls: HTMLElement[] = []
   private _insetX = 0
   private _insetY = 0
   private _pendingHost: FlowHost | null = null
-  private _last: DOMRect[] = []
+  private _last: Box[] = []
   private _toW = 0
+  private _lo = 0
+  private _hi = 0
+  private _touched: HTMLElement[] = []
+  private _settleTimer: ReturnType<typeof setTimeout> | undefined
 
   constructor() {
     super()
@@ -91,24 +127,25 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     pendingFlows.delete(this)
     this.removeEventListener('scrittochange', this._onChange)
     this._drop()
+    this._resetWords()
   }
 
   private _onChange = (event: Event) => {
-    const custom = event as CustomEvent<ScrittoChangeDetail>
-    if (!(custom.target instanceof HTMLElement)) return
-    if (custom.target.closest('scritto-flow') !== this) return
-    const host = custom.target as FlowHost
-    if (custom.detail.phase === 'before') {
-      this._pendingHost = host
+    if (!(event instanceof CustomEvent) || !(event.target instanceof HTMLElement)) return
+    if (event.target.closest('scritto-flow') !== this) return
+    if (!('transition' in event.target)) return
+    const { phase, animate } = event.detail
+    if (phase === 'before') {
+      this._pendingHost = event.target as FlowHost
       pendingFlows.add(this)
-      if (!custom.detail.animate) {
+      if (!animate) {
         this._prepareWrites()
         this._prepareReads()
         pendingFlows.delete(this)
       }
       return
     }
-    if (!custom.detail.animate) pendingFlows.delete(this)
+    if (!animate) pendingFlows.delete(this)
   }
 
   _prepareWrites() {
@@ -122,44 +159,83 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     this._resetWords()
   }
 
+  private _visibleRange() {
+    const words = this._wordEls
+    if (!words.length) return [0, 0] as const
+    const flow = this.getBoundingClientRect()
+    const clip = visibleClip(this)
+    const visibleTop = Math.max(flow.top, clip.top)
+    const visibleBottom = Math.min(flow.bottom, clip.bottom)
+    if (visibleBottom <= visibleTop) return [0, 0] as const
+    const lo = lowerBound(words, visibleTop - flow.top)
+    const hi = lowerBound(words, visibleBottom - flow.top)
+    return [lo, Math.max(lo, hi)] as const
+  }
+
+  private _measureSlice(lo: number, hi: number) {
+    const words = this._wordEls
+    // Relative to the flow's own box, not the viewport: the two measurements
+    // straddle a layout change, and if the document scrolls in between — losing a
+    // line at the bottom of the page clamps scrollTop — viewport coordinates read
+    // as every word having changed line, which turns the whole paragraph into
+    // ghosts.
+    const origin = this.getBoundingClientRect()
+    const out = new Array<Box>(Math.max(0, hi - lo))
+    for (let i = lo; i < hi; i++) out[i - lo] = boxOf(words[i], origin, this._insetX, this._insetY)
+    return out
+  }
+
   _prepareReads() {
     const host = this._pendingHost
     if (!host) return
-    this._first = this._wordEls.map((word) => word.getBoundingClientRect())
+    const [lo, hi] = this._visibleRange()
+    this._lo = lo
+    this._hi = hi
+    this._first = this._measureSlice(lo, hi)
     this._fromW = host.getBoundingClientRect().width
   }
 
   _measureLast() {
     const host = this._pendingHost
     if (!host) return null
-    this._last = this._wordEls.map((word) => word.getBoundingClientRect())
+    this._last = this._measureSlice(this._lo, this._hi)
     this._toW = host.getBoundingClientRect().width
     return host
   }
 
+  // Teardown walks the words this generation actually touched rather than the
+  // measured slice: the slice is recomputed from the scroll position every
+  // generation, so a word hidden under one slice can fall outside the next and
+  // stay `visibility:hidden` with its ghost already dropped.
   private _resetWords() {
-    for (const word of this._wordEls) {
-      word.style.opacity = ''
+    for (const word of this._touched) {
       word.style.transform = ''
       word.style.visibility = ''
     }
+    this._touched.length = 0
   }
 
   private _clearHost(host: FlowHost | null) {
     if (!host) return
-    for (const anim of host.getAnimations()) if (isWidthAnim(anim)) anim.cancel()
+    for (const anim of host.getAnimations()) if (anim.id === WIDTH_ANIM) anim.cancel()
     host.style.width = ''
     host.style.marginRight = ''
+    host.style.display = ''
     host.removeAttribute('data-shrink-clip')
   }
 
   private _drop() {
+    clearTimeout(this._settleTimer)
+    this._settleTimer = undefined
     for (const anim of this._anims) anim.cancel()
     this._anims.length = 0
     this._clip.replaceChildren()
     this._clearHost(this._host)
   }
 
+  // Each animation cleans its own node. A single tail-finish used to call
+  // `_drop`, which cancelled every in-flight ghost the moment anything ended,
+  // so the dissolve never read.
   private _run(anim: Animation, gen: number, done?: () => void) {
     this._anims.push(anim)
     anim.onfinish = () => {
@@ -168,99 +244,129 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     }
   }
 
+  // Wall-clock only: leftover ghosts over hidden words are what left the edge
+  // mask sitting on the real paragraph. Must not run until after `duration`.
+  private _settle = (gen: number) => {
+    if (gen !== this._gen) return
+    this._drop()
+    this._resetWords()
+  }
+
   _playMeasured(host: FlowHost) {
     const gen = this._gen
     const { duration, easing } = host.transition
-    const widthEasing = SHRINK_EASING
     const words = this._wordEls
     const last = this._last
     const toW = this._toW
     const first = this._first
     const fromW = this._fromW
-
-    host.style.width = `${fromW}px`
-    host.style.marginRight = `${toW - fromW}px`
-    if (toW < fromW) host.setAttribute('data-shrink-clip', '')
-    const hostAnim = host.animate(
-      { width: [`${fromW}px`, `${toW}px`], marginRight: [`${toW - fromW}px`, '0px'] },
-      { duration, easing: widthEasing, fill: 'forwards' },
-    )
-    this._run(hostAnim, gen, () => {
-      host.style.width = ''
-      host.style.marginRight = ''
-      host.removeAttribute('data-shrink-clip')
-    })
-
+    const lo = this._lo
     const t0 = document.timeline.currentTime
-    if (t0 !== null) hostAnim.startTime = t0
 
-    const lineH = first[0]?.height || 1
-    const origin = this.getBoundingClientRect()
-    const insetX = this._insetX
-    const insetY = this._insetY
-    const wrapped = words.map((_, i) => Math.abs((last[i]?.top ?? 0) - (first[i]?.top ?? 0)) >= lineH * 0.5)
-    const enterShift = new Map<number, number>()
-    const leaveShift = new Map<number, number>()
-    for (let i = 0; i < words.length; i++) {
-      if (!wrapped[i] || !first[i] || !last[i]) continue
-      const down = last[i].top > first[i].top
-      enterShift.set(Math.round(last[i].top), (enterShift.get(Math.round(last[i].top)) ?? 0) + (down ? -1 : 1) * (last[i].width + 6))
-      leaveShift.set(Math.round(first[i].top), (leaveShift.get(Math.round(first[i].top)) ?? 0) + (down ? 1 : -1) * (first[i].width + 6))
+    if (Math.abs(toW - fromW) >= 0.5) {
+      host.style.display = 'inline-block'
+      host.style.width = `${fromW}px`
+      host.style.marginRight = `${toW - fromW}px`
+      if (toW < fromW) host.setAttribute('data-shrink-clip', '')
+      const hostAnim = host.animate(
+        { width: [`${fromW}px`, `${toW}px`], marginRight: [`${toW - fromW}px`, '0px'] },
+        { duration, easing: SHRINK_EASING, fill: 'forwards' },
+      )
+      hostAnim.id = WIDTH_ANIM
+      if (t0 !== null) hostAnim.startTime = t0
+      this._run(hostAnim, gen, () => this._clearHost(host))
     }
 
-    const pin = (word: HTMLElement, rect: DOMRect) => {
+    // A word that keeps its line just slides along it. One that changes line never
+    // travels there: flying it diagonally across the paragraph draws the eye
+    // through text it has nothing to do with. Instead it hands off between two
+    // ghosts — one carrying on past the end of the line it left, one arriving from
+    // before the start of the line it joined — and the clip's edge mask dissolves
+    // both, so the word reads as having gone round the corner.
+    const lineH = first[0]?.height || 1
+    const wrapped = first.map((a, i) => !!last[i] && Math.abs(last[i].top - a.top) >= lineH * 0.5)
+
+    // Words that wrap together travel as a group, so each line's ghosts share one
+    // shift: the width of everything leaving or joining it. A word sliding out by
+    // its own width alone would still be sitting on the line when it faded.
+    const enterShift = new Map<number, number>()
+    const leaveShift = new Map<number, number>()
+    for (let i = 0; i < first.length; i++) {
+      if (!wrapped[i]) continue
+      const a = first[i]
+      const b = last[i]
+      const down = b.top > a.top
+      const enterKey = Math.round(b.top)
+      const leaveKey = Math.round(a.top)
+      enterShift.set(enterKey, (enterShift.get(enterKey) ?? 0) + (down ? -1 : 1) * (b.width + GAP))
+      leaveShift.set(leaveKey, (leaveShift.get(leaveKey) ?? 0) + (down ? 1 : -1) * (a.width + GAP))
+    }
+
+    const gutterPx = this.getBoundingClientRect().left - this._clip.getBoundingClientRect().left
+    const pin = (word: HTMLElement, at: Box) => {
       const ghost = word.cloneNode(true) as HTMLElement
       ghost.dataset.wrapGhost = ''
       ghost.removeAttribute('data-word')
       ghost.setAttribute('aria-hidden', 'true')
-      ghost.style.cssText = `position:absolute;left:${rect.left - origin.left - insetX}px;top:${rect.top - origin.top - insetY}px;margin:0`
+      ghost.style.cssText = `position:absolute;left:${at.left + gutterPx}px;top:${at.top}px;margin:0`
       this._clip.append(ghost)
       return ghost
     }
 
-    for (let i = 0; i < words.length; i++) {
-      const word = words[i]
-      if (!first[i] || !last[i]) continue
+    const play = (el: HTMLElement, frames: Keyframe[], done?: () => void) => {
+      const anim = el.animate(frames, { duration, easing, fill: 'forwards' })
+      if (t0 !== null) anim.startTime = t0
+      this._run(anim, gen, done)
+    }
+
+    for (let i = 0; i < first.length; i++) {
+      const word = words[lo + i]
+      const a = first[i]
+      const b = last[i]
+      if (!word || !a || !b) continue
+
       if (!wrapped[i]) {
-        const dx = first[i].left - last[i].left
+        const dx = a.left - b.left
         if (Math.abs(dx) < 0.5) continue
         word.style.transform = `translateX(${dx}px)`
-        const anim = word.animate({ transform: [`translateX(${dx}px)`, 'none'] }, { duration, easing, fill: 'forwards' })
-        if (t0 !== null) anim.startTime = t0
-        this._run(anim, gen, () => {
+        this._touched.push(word)
+        play(word, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], () => {
           word.style.transform = ''
         })
         continue
       }
 
-      const down = last[i].top > first[i].top
-      const enterX = enterShift.get(Math.round(last[i].top)) ?? (down ? -last[i].width : last[i].width)
-      const leaveX = leaveShift.get(Math.round(first[i].top)) ?? (down ? 24 : -24)
+      const down = b.top > a.top
+      const enterX = enterShift.get(Math.round(b.top)) ?? (down ? -b.width : b.width)
+      const leaveX = leaveShift.get(Math.round(a.top)) ?? (down ? GAP * 4 : -GAP * 4)
       word.style.visibility = 'hidden'
+      this._touched.push(word)
 
-      const leaving = pin(word, first[i])
-      this._run(
-        leaving.animate(
-          { opacity: [1, 0], transform: ['none', `translateX(${leaveX}px)`] },
-          { duration, easing, fill: 'forwards' },
-        ),
-        gen,
+      const leaving = pin(word, a)
+      play(
+        leaving,
+        [
+          { opacity: 1, transform: 'none' },
+          { opacity: 0, transform: `translateX(${leaveX}px)` },
+        ],
         () => leaving.remove(),
       )
-
-      const entering = pin(word, last[i])
-      this._run(
-        entering.animate(
-          { opacity: [0, 1], transform: [`translateX(${enterX}px)`, 'none'] },
-          { duration, easing, fill: 'forwards' },
-        ),
-        gen,
+      const entering = pin(word, b)
+      play(
+        entering,
+        [
+          { opacity: 0, transform: `translateX(${enterX}px)` },
+          { opacity: 1, transform: 'none' },
+        ],
         () => {
           entering.remove()
           word.style.visibility = ''
         },
       )
     }
+
+    if (!this._anims.length) return
+    this._settleTimer = setTimeout(this._settle, duration + SETTLE_SLACK, gen)
   }
 }
 

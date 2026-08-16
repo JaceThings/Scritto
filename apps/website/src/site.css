@@ -1,0 +1,590 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+/* `font-synthesis: none` below means the entry's italics need a real face. */
+@import '@fontsource-variable/inter/standard-italic.css';
+
+@theme {
+  --color-bg: #f7f6f2;
+  --color-surface: #f7f6f2;
+  --color-text-primary: #73574a;
+  --color-text-secondary: rgba(154, 145, 138, 0.75);
+  --color-text-input: #7e756c;
+  --color-accent-green: #425c30;
+  --color-live: #425c30;
+  --color-divider-from: rgba(115, 87, 74, 0.08);
+  --color-divider-to: rgba(115, 87, 74, 0);
+  --color-figure: #ffffff;
+  --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  --ease-out-quint: cubic-bezier(0.2, 0, 0, 1);
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+html {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+}
+
+body {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-feature-settings:
+    'kern' 1,
+    'liga' 1,
+    'calt' 1,
+    'cv05' 1;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  line-height: 1.2;
+  letter-spacing: -0.25px;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+p {
+  text-wrap: pretty;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+@keyframes site-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.stagger {
+  animation: site-in 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: calc(0.35s + var(--i, 0) * 0.08s);
+}
+
+/* The entrance cascade belongs to the first load. Once the router has swapped a
+   body, the cross-fade carries the change instead. */
+html.routed .stagger {
+  animation: none;
+}
+
+/* Ported from Lisse's masthead: the wordmark and its gloss share a bottom edge.
+   The class rides on the header row home.ts hangs the entry off, so the header
+   is back to a bare wordmark once the entry comes down. */
+.entry-head {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+/* Longer than Lisse's gloss, so on a phone it takes a second line: hang it off
+   the wordmark's baseline rather than the row's bottom edge, and keep the
+   Italian out of the paragraph hyphenation. */
+.entry-gloss {
+  hyphens: none;
+  -webkit-hyphens: none;
+}
+
+@media (max-width: 560px) {
+  .entry-head {
+    align-items: baseline;
+  }
+}
+
+.site-nav {
+  position: relative;
+}
+
+.nav-slot {
+  display: inline-flex;
+}
+
+.column {
+  @apply relative flex w-[510px] max-w-full flex-col items-stretch py-20 max-[560px]:w-[calc(100vw-32px)] max-[560px]:pt-6 max-[560px]:pb-16;
+}
+
+.divider {
+  height: 1.25px;
+  width: 100%;
+  background: linear-gradient(to right, var(--color-divider-from), var(--color-divider-to));
+}
+
+@property --footer-link-line {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+
+.footer-link-underline {
+  background:
+    radial-gradient(circle 1px at 100% 50%, var(--footer-link-line) 99%, transparent) 0 100% / 1px 2px
+      no-repeat,
+    radial-gradient(circle 1px at 0% 50%, var(--footer-link-line) 99%, transparent) 100% 100% / 1px 2px
+      no-repeat,
+    linear-gradient(var(--footer-link-line), var(--footer-link-line)) 50% 100% / calc(100% - 2px) 2px
+      no-repeat;
+  padding-bottom: 2px;
+  transition: --footer-link-line 0.3s ease-out;
+}
+
+@media (hover: hover) {
+  .footer-link:hover .footer-link-underline {
+    --footer-link-line: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
+  }
+}
+
+.figure {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-figure);
+  border-radius: 12px 12px 20px 20px;
+  box-shadow:
+    0 0 0 1px rgba(119, 119, 119, 0.08),
+    0 2px 1px -0.5px rgba(119, 119, 119, 0.08);
+}
+
+/* The rounder bottom exists only to nest the controls sitting in those corners. */
+.figure:not(:has(.row)) {
+  border-radius: 12px;
+}
+
+.install-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.375rem;
+  overflow: hidden;
+  background: var(--color-surface);
+  padding: 0.375rem 0.5rem;
+  border-radius: 8px;
+  box-shadow:
+    0 0 0 1px rgba(119, 119, 119, 0.08),
+    0 2px 1px -0.5px rgba(119, 119, 119, 0.08);
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 10rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 12px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.stage-tall {
+  height: 255px;
+}
+
+.copy-stage {
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* 4-line wrap at the 510px column. Without this the card shrinks to 3 lines
+   and everything below it jumps. The flow box stays tall so line-4 ghosts
+   are not clipped by inset:0. */
+.copy-stage-wrap {
+  min-height: calc(32px + 15px * 1.5 * 4);
+}
+
+.copy-stage-wrap .copy {
+  min-height: calc(15px * 1.5 * 4);
+}
+
+.copy {
+  display: block;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+  color: var(--color-text-primary);
+}
+
+/* Hairline between a figure card's stacked rows. */
+.row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  box-shadow: inset 0 1px 0 0 #edece8;
+}
+
+.pill-group {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+}
+
+/* Padding and negative margin grow the hit area without moving the pill. */
+.pill {
+  display: flex;
+  flex: 1;
+  margin: -6px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pill > span {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 29px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+  color: var(--color-text-input);
+  font-feature-settings:
+    'ss03' 1,
+    'ss04' 1;
+  font-variant-numeric: tabular-nums;
+  transition-property: background-color, scale;
+  transition-duration: 350ms, 120ms;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1), var(--ease-out-quint);
+}
+
+.pill[aria-checked='true'] > span {
+  background: rgba(126, 117, 108, 0.12);
+}
+
+.pill:active > span {
+  scale: 0.96;
+}
+
+.pill:focus-visible {
+  outline: none;
+}
+
+.pill:focus-visible > span {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+}
+
+@media (min-width: 561px) {
+  .pill-group[data-columns='4'] .pill {
+    flex-basis: calc(25% - 9px);
+  }
+}
+
+@media (max-width: 560px) {
+  .pill-group[data-columns='4'] .pill {
+    flex-basis: calc(50% - 6px);
+  }
+}
+
+.row-field,
+.row-slider {
+  padding: 16px;
+}
+
+.row-field {
+  gap: 12px;
+  justify-content: space-between;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+}
+
+.row-label {
+  flex: none;
+  user-select: none;
+  color: var(--color-text-input);
+}
+
+.field {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  text-align: right;
+  font: inherit;
+  color: var(--color-text-primary);
+  outline: none;
+  cursor: text;
+}
+
+.field:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 4px;
+  border-radius: 2px;
+}
+
+/* Not `.collapse`: Tailwind ships that name as `visibility: collapse`, which wins
+   the cascade for a property this rule never sets and hides the row for good. */
+/* The value list, read as one comma-separated sentence: each value is its own field
+   and the commas between them are drawn. Wraps rather than scrolling, so a long list
+   on a narrow screen is all still there. */
+.hops {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* A value and the comma that follows it travel together: on its own the comma could
+   wrap to the start of the next line. */
+.hop {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+}
+
+.hop-value {
+  flex: none;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--color-text-primary);
+  white-space: pre;
+  outline: none;
+}
+
+/* Drawn, not typed: never a character, never in the hit target, never selected. */
+.hop-sep {
+  flex: none;
+  padding-right: 0.3em;
+  pointer-events: none;
+  user-select: none;
+  color: rgba(126, 117, 108, 0.4);
+}
+
+/* On the value, not on the line: the line is not the field. */
+.hop-value:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+/* Sizes the fields. Lives inside the row so it inherits the very font it measures. */
+.hop-mirror {
+  position: absolute;
+  top: -100vh;
+  left: 0;
+  visibility: hidden;
+  white-space: pre;
+  pointer-events: none;
+}
+
+.slider {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slider-head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+}
+
+.slider-label {
+  flex: 1;
+  min-width: 0;
+  user-select: none;
+  color: var(--color-text-input);
+}
+
+/* Block, not inline-flex: a flex item would blockify the scritto-text host and
+   take it out of the inline flow it lays glyphs out in. */
+.slider-readout,
+.slider-input {
+  display: block;
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+  font-feature-settings:
+    'ss03' 1,
+    'ss04' 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider-readout {
+  cursor: text;
+  color: rgba(126, 117, 108, 0.5);
+  user-select: none;
+}
+
+.slider-input {
+  border: 0;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--color-text-input);
+}
+
+.slider-readout:focus-visible {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+
+/* Padding plus negative margin widens the drag target past the 8px track. */
+.slider-drag {
+  width: 100%;
+  padding: 8px 0 16px;
+  margin: -8px 0 -16px;
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+.slider-shell {
+  position: relative;
+  width: 100%;
+  height: 8px;
+}
+
+/* Rubber band: width grows by the overshoot so the corner radius stays uniform,
+   and the opposite edge stays pinned by the matching translate. */
+.slider-stretch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.slider-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 4px;
+  background: rgba(126, 117, 108, 0.12);
+}
+
+.slider-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--color-text-input);
+}
+
+.slider-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.slider-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 0;
+  height: 0;
+}
+
+.slider-range::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.slider-range:focus-visible {
+  outline: none;
+}
+
+.slider-shell:has(.slider-range:focus-visible) {
+  outline: 2px solid var(--color-text-primary);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+scritto-text:not(:defined) {
+  display: inline;
+  white-space: nowrap !important;
+  font-kerning: none;
+  font-variant-ligatures: none;
+}
+
+scritto-text.live {
+  color: var(--color-live);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger {
+    animation: none;
+  }
+}

@@ -28,7 +28,7 @@ for (const [id, value] of [
 }
 
 const makeHost = () => {
-  const el = document.createElement('scritto-text') as Scritto
+  const el = document.createElement('scritto-text')
   el.setOptions({ respectMotionPreference: false, transition: { duration: 280 } })
   el.update(VALUES[0], false)
   hosts.push(el)
@@ -178,7 +178,7 @@ const run = async () => {
     pretext,
     pass: median(fps) >= 55,
   }
-  ;(window as Window & { __STRESS__?: typeof report }).__STRESS__ = report
+  Object.assign(window, { __STRESS__: report })
   out.textContent = JSON.stringify(report, null, 2)
   return report
 }

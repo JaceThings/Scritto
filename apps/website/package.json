@@ -10,7 +10,8 @@
   "dependencies": {
     "@chenglou/pretext": "^0.0.8",
     "@fontsource-variable/inter": "^5.3.0",
-    "@scritto/core": "workspace:*"
+    "@scritto/core": "workspace:*",
+    "justif": "^0.8.1"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",

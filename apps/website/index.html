@@ -2,104 +2,156 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f6f2" />
     <meta
-      name="viewport"
-      content="viewport-fit=cover, shrink-to-fit=no, width=device-width, height=device-height, initial-scale=1, maximum-scale=1, user-scalable=no"
+      name="description"
+      content="Scritto is a small JavaScript library that rolls text in place. Bindings for React, Vue, Svelte, and Solid, plus a framework-agnostic core."
     />
-    <meta name="theme-color" content="#ffffff" />
-    <title>Scritto</title>
-    <script>
-      (() => {
-        const stored = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1]
-        const dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
-        document.documentElement.classList.toggle('dark', dark)
-        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1a1a1a' : '#ffffff')
-      })()
-    </script>
+    <title>scritto</title>
   </head>
   <body>
-    <div class="mx-auto flex w-full max-w-2xl flex-col gap-3 px-4 py-12 select-none">
-      <div class="flex items-center gap-3" id="modes"></div>
-      <button
-        class="@container relative flex h-80 items-center justify-center overflow-hidden rounded-xl bg-surface p-4"
-        id="stage"
-        type="button"
-      >
-        <scritto-text
-          id="test"
-          class="text-5xl font-semibold leading-none @max-[24rem]:text-4xl"
-          role="img"
-        ></scritto-text>
-        <span class="absolute right-3 bottom-3 text-sm font-medium text-muted" id="hint">Click to swap</span>
-      </button>
-      <div class="flex flex-col rounded-xl bg-surface font-medium text-muted">
-        <label class="mx-4 flex items-center justify-between border-b border-line py-3">
-          <span>Variants</span>
-          <input
-            class="w-2/3 border-0 bg-transparent text-right font-[inherit] text-inherit outline-none select-text focus:text-fg"
-            id="variants"
-          />
-        </label>
-        <div class="mx-4 flex items-center justify-between border-b border-line py-3">
-          <span>Align</span>
-          <div class="flex items-center gap-3 text-fg" id="align"></div>
+    <main class="flex min-h-dvh w-full items-stretch justify-center bg-bg">
+      <article class="column gap-9">
+        <header class="flex w-full flex-col gap-5">
+          <div class="stagger" style="--i: 0">
+            <h1 class="text-[16px] leading-none font-[550] tracking-[-0.25px] text-text-primary">
+              scritto
+            </h1>
+          </div>
+          <div class="stagger" style="--i: 4">
+            <div class="divider" role="separator"></div>
+          </div>
+        </header>
+
+        <div id="page" class="flex w-full flex-col gap-9">
+        <!-- The router keeps the header across routes, so the entry ships with the
+             home body and home.ts hangs it off the wordmark while home is mounted. -->
+        <template id="entry">
+          <p class="entry-gloss text-[14px] leading-none font-[450] tracking-[-0.25px]">
+            <span aria-hidden="true">
+              /ˈskrit.to/ <em class="italic">adj. &amp; n.</em> [It., pp. of
+              <em class="italic">scrivere</em>, <em class="italic">to write</em>]
+            </span>
+            <span class="sr-only">
+              Pronounced skreet-toh. Adjective and noun, from Italian, past participle of scrivere,
+              to write.
+            </span>
+          </p>
+          <div class="entry-senses -mt-2.5 flex w-full flex-col gap-2 pl-2 text-text-secondary">
+            <div class="stagger" style="--i: 1">
+              <p class="text-[14px] leading-[1.2] font-medium tracking-[-0.25px]">
+                <span class="font-[550] proportional-nums">1</span> a written; set down in letters
+                rather than spoken (<em class="italic">un testo scritto</em>).
+              </p>
+            </div>
+            <div class="stagger" style="--i: 2">
+              <p class="pl-2 text-[14px] leading-[1.2] font-medium tracking-[-0.25px]">
+                <span class="font-[550] proportional-nums">b</span> fig. settled in advance, as
+                though already written (<em class="italic">era scritto</em>).
+              </p>
+            </div>
+            <div class="stagger" style="--i: 3">
+              <p class="text-[14px] leading-[1.2] font-medium tracking-[-0.25px]">
+                <span class="font-[550] proportional-nums">2</span> n. a piece of writing; a text as
+                it stands on the page (<em class="italic">gli scritti di Calvino</em>).
+              </p>
+            </div>
+          </div>
+        </template>
+
+        <section class="stagger w-full text-text-primary" style="--i: 5">
+          <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px] text-justify hyphens-auto">
+            Scritto is a small JavaScript library that rolls text in place, the same motion SwiftUI
+            uses for numbers. Bindings for React, Vue, Svelte, and Solid, plus a framework-agnostic
+            core.
+          </p>
+        </section>
+
+        <section class="stagger w-full text-text-primary" style="--i: 6">
+          <scritto-flow class="block text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+            You're the <scritto-text id="you" class="live align-baseline"></scritto-text> visitor.
+            <scritto-text id="here" class="align-baseline"></scritto-text>
+            This page has been opened <scritto-text id="views" class="live align-baseline"></scritto-text>
+            times and poked <scritto-text id="clicks" class="live align-baseline"></scritto-text> times,
+            and the packages have been downloaded
+            <scritto-text id="npm" class="live align-baseline"></scritto-text> times this month. You've
+            been sitting here
+            <!-- The timer grows as the visit does; kept with "for" so a line never
+                 opens on a number that is still ticking. -->
+            <span class="whitespace-nowrap">for
+              <scritto-text id="sat" class="live align-baseline"></scritto-text>.</span>
+          </scritto-flow>
+        </section>
+
+        <div class="stagger" style="--i: 7">
+          <div class="divider" role="separator"></div>
         </div>
-        <div class="mx-4 flex items-center justify-between border-b border-line py-3">
-          <span>Trend</span>
-          <div class="flex items-center gap-3 text-fg" id="trend"></div>
-        </div>
-        <div class="mx-4 flex items-center justify-between border-b border-line py-3">
-          <span>Bounce</span>
-          <div class="flex items-center gap-3 text-fg" id="bounce"></div>
-        </div>
-        <div class="mx-4 flex items-center justify-between border-b border-line py-3">
-          <span>Slow Mode</span>
-          <div class="flex items-center gap-3 text-fg" id="slow"></div>
-        </div>
-        <div class="mx-4 flex items-center justify-between py-3">
-          <span>Debug (show sections)</span>
-          <div class="flex items-center gap-3 text-fg" id="debug"></div>
-        </div>
-      </div>
-      <div class="flex flex-col gap-3">
-        <scritto-flow
-          class="block cursor-pointer rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium"
-          id="flow-sentence"
-        >
-          Used <scritto-text id="flow-a" class="align-baseline" role="img"></scritto-text> billion tokens this month.
-        </scritto-flow>
-        <scritto-flow
-          class="block w-full cursor-pointer rounded-xl bg-surface px-[1.1rem] py-4 text-left text-[1.05rem] leading-normal font-medium"
-          id="flow-wrap"
-        >
-          The collector logged <scritto-text id="flow-b" class="align-baseline" role="img"></scritto-text> tokens
-          across every running job in the queue this cycle, just enough extra width that a
-          few words drop to the next line and climb back once the figure shrinks to a short tally.
-        </scritto-flow>
-      </div>
-      <footer class="mt-4 flex flex-col items-center gap-2 text-sm text-muted">
-        <div class="inline-flex items-center gap-[0.35rem]">
-          <span>local</span>
-          ·
-          <a class="text-inherit no-underline hover:text-fg" href="https://github.com/JaceThings/Scritto" target="_blank" rel="noreferrer">GitHub</a>
-          ·
-          <a class="text-inherit no-underline hover:text-fg" href="./bench.html">bench</a>
-          ·
-          <button
-            class="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-inherit hover:text-fg"
-            id="theme"
-            type="button"
-            aria-pressed="false"
-          >
-            Dark
+
+        <section class="flex w-full flex-col gap-3" aria-labelledby="install-heading">
+          <h2 id="install-heading" class="sr-only">Install</h2>
+          <button class="stagger -m-1.5 cursor-pointer p-1.5" style="--i: 8" type="button" data-copy="npm install @scritto/react" aria-label="Copy npm install @scritto/react">
+            <span class="install-row">
+              <span class="min-w-0 flex-1 text-left font-mono text-[14px] leading-[1.2] font-medium tracking-[-0.25px] text-text-input">npm install @scritto/react</span>
+              <span class="text-[12px] text-text-secondary" data-copy-label>copy</span>
+            </span>
           </button>
+          <button class="stagger -m-1.5 cursor-pointer p-1.5" style="--i: 9" type="button" data-copy="npm install @scritto/vue" aria-label="Copy npm install @scritto/vue">
+            <span class="install-row">
+              <span class="min-w-0 flex-1 text-left font-mono text-[14px] leading-[1.2] font-medium tracking-[-0.25px] text-text-input">npm install @scritto/vue</span>
+              <span class="text-[12px] text-text-secondary" data-copy-label>copy</span>
+            </span>
+          </button>
+          <button class="stagger -m-1.5 cursor-pointer p-1.5" style="--i: 10" type="button" data-copy="npm install @scritto/svelte" aria-label="Copy npm install @scritto/svelte">
+            <span class="install-row">
+              <span class="min-w-0 flex-1 text-left font-mono text-[14px] leading-[1.2] font-medium tracking-[-0.25px] text-text-input">npm install @scritto/svelte</span>
+              <span class="text-[12px] text-text-secondary" data-copy-label>copy</span>
+            </span>
+          </button>
+          <button class="stagger -m-1.5 cursor-pointer p-1.5" style="--i: 11" type="button" data-copy="npm install @scritto/solid" aria-label="Copy npm install @scritto/solid">
+            <span class="install-row">
+              <span class="min-w-0 flex-1 text-left font-mono text-[14px] leading-[1.2] font-medium tracking-[-0.25px] text-text-input">npm install @scritto/solid</span>
+              <span class="text-[12px] text-text-secondary" data-copy-label>copy</span>
+            </span>
+          </button>
+          <button class="stagger -m-1.5 cursor-pointer p-1.5" style="--i: 12" type="button" data-copy="npm install @scritto/core" aria-label="Copy npm install @scritto/core">
+            <span class="install-row">
+              <span class="min-w-0 flex-1 text-left font-mono text-[14px] leading-[1.2] font-medium tracking-[-0.25px] text-text-input">npm install @scritto/core</span>
+              <span class="text-[12px] text-text-secondary" data-copy-label>copy</span>
+            </span>
+          </button>
+        </section>
         </div>
-        <span>
-          playground inspired by
-          <a class="font-medium text-accent no-underline hover:text-fg" href="https://calligraph.raphaelsalaja.com/lab" target="_blank" rel="noreferrer">calligraph/lab</a>
-        </span>
-      </footer>
-    </div>
-    <script type="module" src="/src/main.ts"></script>
+
+        <footer class="flex w-full flex-col gap-5">
+          <div class="stagger" style="--i: 14">
+            <div class="divider" role="separator"></div>
+          </div>
+          <nav id="site-nav" class="stagger site-nav flex w-full items-start gap-4 text-[14px] leading-[1.2] font-medium tracking-[-0.25px] text-text-primary whitespace-nowrap" style="--i: 15" aria-label="Site">
+            <span class="nav-slot" data-nav-home hidden>
+              <a class="footer-link py-2 -my-2" href="./" data-route>
+                <span class="footer-link-underline">Home</span>
+              </a>
+            </span>
+            <span class="nav-slot">
+              <a class="footer-link py-2 -my-2" href="./playground.html" data-route>
+                <span class="footer-link-underline">Playground</span>
+              </a>
+            </span>
+            <span class="nav-slot">
+              <a class="footer-link py-2 -my-2" href="https://github.com/JaceThings/Scritto" target="_blank" rel="noreferrer">
+                <span class="footer-link-underline">GitHub</span>
+              </a>
+            </span>
+            <span class="nav-slot ml-auto">
+              <a class="footer-link py-2 -my-2" href="https://x.com/JaceThings" target="_blank" rel="noreferrer">
+                <span class="footer-link-underline">Follow</span>
+              </a>
+            </span>
+          </nav>
+        </footer>
+      </article>
+    </main>
+    <script type="module" src="/src/app.ts"></script>
   </body>
 </html>

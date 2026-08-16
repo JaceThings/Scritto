@@ -14,11 +14,16 @@ export default defineConfig({
     strictPort: true,
   },
   build: {
+    target: 'esnext',
     rollupOptions: {
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
+        playground: fileURLToPath(new URL('./playground.html', import.meta.url)),
         bench: fileURLToPath(new URL('./bench.html', import.meta.url)),
         stress: fileURLToPath(new URL('./stress.html', import.meta.url)),
+        suite: fileURLToPath(new URL('./suite.html', import.meta.url)),
+        look: fileURLToPath(new URL('./look.html', import.meta.url)),
+        values: fileURLToPath(new URL('./values.html', import.meta.url)),
       },
     },
   },
