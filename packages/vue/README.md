@@ -1,3 +1,3 @@
-# @numeric-text/vue
+# @scritto/vue
 
-Vue wrapper for @numeric-text/core
+Vue wrapper for @scritto/core

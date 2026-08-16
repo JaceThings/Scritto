@@ -1,3 +1,3 @@
-# @numeric-text/core
+# @scritto/core
 
-Framework-agnostic animated numeric text web component
+Framework-agnostic rolling text web component.

@@ -1,6 +1,6 @@
 <script lang="ts" setup>
-import '@numeric-text/core';
-import { type NumericTextProps, type NumericText as NumericTextElement, type Value, BROWSER } from '@numeric-text/core';
+import '@scritto/core';
+import { type NumericTextProps, type NumericText as NumericTextElement, type Value, BROWSER } from '@scritto/core';
 import { onMounted, ref, watch } from 'vue';
 
 interface Props extends /* @vue-ignore */ NumericTextProps {

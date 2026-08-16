@@ -1,7 +1,7 @@
 {
-  "name": "@numeric-text/vue",
+  "name": "@scritto/vue",
   "version": "0.1.4",
-  "description": "Vue wrapper for @numeric-text/core",
+  "description": "Vue wrapper for @scritto/core",
   "keywords": [
     "NumericText",
     "animated-number",
@@ -13,12 +13,12 @@
     "text"
   ],
   "bugs": {
-    "url": "https://github.com/shizukushq/numeric-text/issues"
+    "url": "https://github.com/JaceThings/scritto/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/shizukushq/numeric-text.git"
+    "url": "git+https://github.com/JaceThings/scritto.git"
   },
   "files": [
     "dist",
@@ -41,7 +41,7 @@
     "dev": "vite build --watch"
   },
   "dependencies": {
-    "@numeric-text/core": "workspace:*"
+    "@scritto/core": "workspace:*"
   },
   "devDependencies": {
     "@vitejs/plugin-vue": "^6.0.3",

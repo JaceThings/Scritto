@@ -1,3 +1,3 @@
-# @numeric-text/svelte
+# @scritto/svelte
 
-Svelte wrapper for @numeric-text/core
+Svelte wrapper for @scritto/core

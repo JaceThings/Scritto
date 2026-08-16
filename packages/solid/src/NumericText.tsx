@@ -1,5 +1,5 @@
-import '@numeric-text/core'
-import type { NumericTextProps, NumericText as NumericTextElement } from '@numeric-text/core'
+import '@scritto/core'
+import type { NumericTextProps, NumericText as NumericTextElement } from '@scritto/core'
 import { createEffect, onMount, splitProps, type JSX } from 'solid-js'
 import { isServer } from 'solid-js/web'
 

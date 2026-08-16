@@ -1,3 +1,3 @@
-# @numeric-text/react
+# @scritto/react
 
-React wrapper for @numeric-text/core
+React wrapper for @scritto/core

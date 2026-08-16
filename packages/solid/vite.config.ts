@@ -20,7 +20,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['solid-js', 'solid-js/web', 'solid-js/store', '@numeric-text/core'],
+      external: ['solid-js', 'solid-js/web', 'solid-js/store', '@scritto/core'],
     },
   },
 })

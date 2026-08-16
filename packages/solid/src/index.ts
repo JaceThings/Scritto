@@ -1,7 +1,7 @@
-import '@numeric-text/core/ssr.css'
+import '@scritto/core/ssr.css'
 
 export { default } from './NumericText'
-export type * from '@numeric-text/core'
+export type * from '@scritto/core'
 
 declare module 'solid-js' {
   namespace JSX {

@@ -1,9 +1,9 @@
-import type { NumericText } from '@numeric-text/core'
+import type { NumericText } from '@scritto/core'
 import './styles.css'
 import { bindThemeToggle } from './theme'
 
 const baseline = new URLSearchParams(location.search).has('baseline')
-if (baseline) await import('https://esm.sh/@numeric-text/core@0.1.4')
+if (baseline) await import('https://esm.sh/@scritto/core@0.1.4')
 else await import('../../packages/core/dist/index.js')
 
 const COUNT = 100

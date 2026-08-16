@@ -25,7 +25,7 @@ export default defineConfig({
       formats: ['es'],
     },
     rollupOptions: {
-      external: ['vue', '@numeric-text/core'],
+      external: ['vue', '@scritto/core'],
     },
   },
 });

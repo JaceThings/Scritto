@@ -1,3 +1,3 @@
-# @numeric-text/solid
+# @scritto/solid
 
-Solid.js wrapper for @numeric-text/core
+Solid.js wrapper for @scritto/core

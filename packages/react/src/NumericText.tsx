@@ -1,7 +1,7 @@
 'use client';
 
-import '@numeric-text/core';
-import { type NumericTextProps, type NumericText as NumericTextElement, BROWSER } from '@numeric-text/core';
+import '@scritto/core';
+import { type NumericTextProps, type NumericText as NumericTextElement, BROWSER } from '@scritto/core';
 import { type HTMLAttributes, useLayoutEffect, useRef } from 'react';
 
 type Props = NumericTextProps & HTMLAttributes<HTMLElement>;

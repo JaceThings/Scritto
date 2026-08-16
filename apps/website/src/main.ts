@@ -1,5 +1,5 @@
-import '@numeric-text/core'
-import type { NumericText, Trend } from '@numeric-text/core'
+import '@scritto/core'
+import type { NumericText, Trend } from '@scritto/core'
 import './styles.css'
 import { bindThemeToggle } from './theme'
 

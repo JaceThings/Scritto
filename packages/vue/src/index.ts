@@ -1,4 +1,4 @@
-import '@numeric-text/core/ssr.css';
+import '@scritto/core/ssr.css';
 
 export { default } from './NumericText.vue';
-export type * from '@numeric-text/core';
+export type * from '@scritto/core';

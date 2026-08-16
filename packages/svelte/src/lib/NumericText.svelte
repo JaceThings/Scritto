@@ -1,6 +1,6 @@
 <script lang="ts">
-  import '@numeric-text/core';
-  import { type NumericTextProps, type NumericText as NumericTextElement, BROWSER } from '@numeric-text/core';
+  import '@scritto/core';
+  import { type NumericTextProps, type NumericText as NumericTextElement, BROWSER } from '@scritto/core';
   import type { HTMLAttributes } from 'svelte/elements';
   import { onMount, untrack } from 'svelte';
 
