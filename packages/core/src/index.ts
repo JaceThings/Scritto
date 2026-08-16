@@ -15,7 +15,7 @@ import {
   box,
   type Box,
 } from './helpers'
-import { CONFIG, DEFAULT_TRANSITION, SPACE, STYLES } from './const'
+import { BOUNCE_TRANSITION, CONFIG, DEFAULT_TRANSITION, SPACE, STYLES } from './const'
 import { ScrittoFlow, playFlows, prepareFlows } from './flow'
 
 let styleSheet: CSSStyleSheet
@@ -103,6 +103,7 @@ class Scritto extends ServerSafeHTMLElement {
   public transition: Transition = DEFAULT_TRANSITION
   public trend: Trend = 0
   public respectMotionPreference = true
+  public bounce = false
 
   constructor() {
     super()
@@ -149,7 +150,10 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   setOptions(opts: ScrittoOptions) {
-    if (opts.transition) this.transition = { ...DEFAULT_TRANSITION, ...opts.transition }
+    if (typeof opts.bounce === 'boolean') this.bounce = opts.bounce
+    const base = this.bounce ? BOUNCE_TRANSITION : DEFAULT_TRANSITION
+    if (opts.transition) this.transition = { ...base, ...opts.transition }
+    else if (typeof opts.bounce === 'boolean') this.transition = { ...base }
     if (typeof opts.trend === 'number') this.trend = opts.trend
     if (typeof opts.respectMotionPreference === 'boolean') this.respectMotionPreference = opts.respectMotionPreference
   }

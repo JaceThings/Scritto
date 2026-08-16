@@ -37,6 +37,7 @@ let flowAIndex = 0
 let flowBIndex = 0
 let align = 'center'
 let trend: keyof typeof TREND = 'auto'
+let bounce = false
 let slow = false
 let debug = false
 let drift: Animation | null = null
@@ -44,6 +45,7 @@ let drift: Animation | null = null
 const parts = () => variants.split('|').map((part) => part.trim()).filter(Boolean)
 
 const options = () => ({
+  bounce,
   trend: TREND[trend],
   respectMotionPreference: false,
   transition: { duration: slow ? 1100 : 550 },
@@ -141,6 +143,10 @@ tabs(document.querySelector('#align')!, Object.keys(ALIGN), () => align, (value)
 })
 tabs(document.querySelector('#trend')!, Object.keys(TREND), () => trend, (value) => {
   trend = value as keyof typeof TREND
+  apply(false)
+})
+tabs(document.querySelector('#bounce')!, ['off', 'on'], () => (bounce ? 'on' : 'off'), (value) => {
+  bounce = value === 'on'
   apply(false)
 })
 tabs(document.querySelector('#slow')!, ['off', 'on'], () => (slow ? 'on' : 'off'), (value) => {

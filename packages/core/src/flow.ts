@@ -1,4 +1,5 @@
 import { BROWSER, ServerSafeHTMLElement } from './helpers'
+import { SHRINK_EASING } from './const'
 import type { Transition } from './types'
 
 export type ScrittoChangeDetail = { phase: 'before' | 'after'; animate: boolean }
@@ -170,6 +171,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   _playMeasured(host: FlowHost) {
     const gen = this._gen
     const { duration, easing } = host.transition
+    const widthEasing = SHRINK_EASING
     const words = this._wordEls
     const last = this._last
     const toW = this._toW
@@ -181,7 +183,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     if (toW < fromW) host.setAttribute('data-shrink-clip', '')
     const hostAnim = host.animate(
       { width: [`${fromW}px`, `${toW}px`], marginRight: [`${toW - fromW}px`, '0px'] },
-      { duration, easing, fill: 'forwards' },
+      { duration, easing: widthEasing, fill: 'forwards' },
     )
     this._run(hostAnim, gen, () => {
       host.style.width = ''

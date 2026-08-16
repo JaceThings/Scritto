@@ -5,7 +5,7 @@ import { isServer } from 'solid-js/web'
 
 type Props = ScrittoProps & JSX.HTMLAttributes<HTMLElement>
 const Scritto = (props: Props) => {
-  const [p, rest] = splitProps(props, ['value', 'trend', 'transition', 'respectMotionPreference', 'animated'])
+  const [p, rest] = splitProps(props, ['value', 'trend', 'transition', 'respectMotionPreference', 'bounce', 'animated'])
 
   let ref: ScrittoElement | undefined
   let isMounted = false
@@ -20,6 +20,7 @@ const Scritto = (props: Props) => {
         trend: p.trend,
         transition: p.transition,
         respectMotionPreference: p.respectMotionPreference,
+        bounce: p.bounce,
       })
     }
   })

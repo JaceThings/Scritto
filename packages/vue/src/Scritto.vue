@@ -24,13 +24,14 @@ watch(
 );
 
 watch(
-  () => [props.trend, props.transition, props.respectMotionPreference],
+  () => [props.trend, props.transition, props.respectMotionPreference, props.bounce],
   () => {
     if (el.value) {
       el.value.setOptions({
         trend: props.trend,
         transition: props.transition,
         respectMotionPreference: props.respectMotionPreference,
+        bounce: props.bounce,
       });
     }
   },
@@ -39,11 +40,12 @@ watch(
 
 onMounted(() => {
   if (el.value) {
-    el.value.setOptions({
-      trend: props.trend,
-      transition: props.transition,
-      respectMotionPreference: props.respectMotionPreference,
-    });
+      el.value.setOptions({
+        trend: props.trend,
+        transition: props.transition,
+        respectMotionPreference: props.respectMotionPreference,
+        bounce: props.bounce,
+      });
 
     el.value.update(props.value, false);
   }

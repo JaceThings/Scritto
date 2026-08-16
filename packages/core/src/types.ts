@@ -15,6 +15,8 @@ export type ScrittoOptions = {
   trend?: Trend
   /** @default true */
   respectMotionPreference?: boolean
+  /** Extra overshoot on enter/exit. Motion stays the same. @default false */
+  bounce?: boolean
 }
 
 export type ScrittoProps = ScrittoOptions & {
