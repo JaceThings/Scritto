@@ -9,7 +9,11 @@ export const isReducedMotion = () =>
   BROWSER && (reducedMotionQuery ??= window.matchMedia('(prefers-reduced-motion: reduce)')).matches
 
 const CHAR_POOL: HTMLElement[] = []
-const CHAR_POOL_MAX = 64
+const CHAR_POOL_MAX = 1024
+
+export type Box = { left: number; right: number; width: number }
+
+export const box = (left: number, width: number): Box => ({ left, right: left + width, width })
 
 export const createEl = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) => {
   const el = document.createElement(tag)
@@ -39,13 +43,17 @@ export const cancelAnim = (el: HTMLElement) => {
   for (let i = 0; i < anims.length; i++) anims[i].cancel()
 }
 
-export const resetAnim = (el: HTMLElement) => {
-  cancelAnim(el)
+export const clearAnimStyle = (el: HTMLElement) => {
   if (!el.hasAttribute('style')) return
   el.style.removeProperty('opacity')
   el.style.removeProperty('transform')
   el.style.removeProperty('filter')
   if (!el.getAttribute('style')) el.removeAttribute('style')
+}
+
+export const resetAnim = (el: HTMLElement) => {
+  cancelAnim(el)
+  clearAnimStyle(el)
 }
 
 export const finishIdentityAnim = (event: AnimationPlaybackEvent) => {
@@ -56,8 +64,9 @@ export const finishIdentityAnim = (event: AnimationPlaybackEvent) => {
 export const flip = (el: HTMLElement, dx: number, transition: Transition, alreadyCancelled = false) => {
   if (!dx) return
   if (!alreadyCancelled) cancelAnim(el)
-  el.animate({ transform: [`translateX(${dx}px)`, ''] }, { ...transition, fill: 'both' }).onfinish =
-    finishIdentityAnim
+  const anim = el.animate({ transform: [`translateX(${dx}px)`, ''] }, { ...transition, fill: 'both' })
+  anim.onfinish = finishIdentityAnim
+  return anim
 }
 
 export const reconcileChildren = (parent: HTMLElement, nodes: HTMLElement[], start: number, end: number) => {

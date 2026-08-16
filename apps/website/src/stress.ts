@@ -1,5 +1,5 @@
 import { measureNaturalWidth, prepareWithSegments } from '@chenglou/pretext'
-import type { NumericText } from '@scritto/core'
+import { flushStats, type Scritto } from '@scritto/core'
 import '@scritto/core'
 import './styles.css'
 
@@ -15,7 +15,7 @@ const VALUES = ['104', '1.3', '1,204', '88', '9,999', '12', '1,000', '1,000,000'
 const page = document.querySelector('#page')!
 const out = document.querySelector('#out')!
 const form = document.querySelector<HTMLFormElement>('#form')!
-const hosts: NumericText[] = []
+const hosts: Scritto[] = []
 
 for (const [id, value] of [
   ['scenario', scenario],
@@ -28,7 +28,7 @@ for (const [id, value] of [
 }
 
 const makeHost = () => {
-  const el = document.createElement('numeric-text') as NumericText
+  const el = document.createElement('scritto-text') as Scritto
   el.setOptions({ respectMotionPreference: false, transition: { duration: 280 } })
   el.update(VALUES[0], false)
   hosts.push(el)
@@ -45,7 +45,7 @@ const slotFor = (i: number) => {
   const host = makeHost()
   const kind = scenario === 'mixed' ? (i % 2 === 0 ? 'span' : 'div') : scenario === 'divs' ? 'div' : 'span'
   if (scenario === 'flow') {
-    const flow = document.createElement('numeric-flow')
+    const flow = document.createElement('scritto-flow')
     const p = document.createElement('p')
     p.append('Used ', host, ' tokens this month, enough that nearby words have to slide when the figure grows or shrinks.')
     flow.append(p)
@@ -128,6 +128,7 @@ const oneRun = async () => {
     const value = VALUES[(round + 1) % VALUES.length]
     const u0 = performance.now()
     for (const host of hosts) host.update(value, true)
+    await Promise.resolve()
     updateMs += performance.now() - u0
     await new Promise((resolve) => requestAnimationFrame(resolve))
   }
@@ -151,6 +152,10 @@ const oneRun = async () => {
 
 const run = async () => {
   out.textContent = 'running…'
+  flushStats.prepare = 0
+  flushStats.commit = 0
+  flushStats.finish = 0
+  flushStats.hosts = 0
   const results = []
   for (let i = 0; i < RUNS; i++) {
     results.push(await oneRun())
@@ -159,6 +164,7 @@ const run = async () => {
   const pretext = samplePretext()
   const fps = results.map((r) => r.fps)
   const report = {
+    flush: { ...flushStats },
     scenario,
     hosts: COUNT,
     rounds: ROUNDS,

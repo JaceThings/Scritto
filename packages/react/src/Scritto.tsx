@@ -1,12 +1,12 @@
 'use client';
 
 import '@scritto/core';
-import { type NumericTextProps, type NumericText as NumericTextElement, BROWSER } from '@scritto/core';
+import { type ScrittoProps, type Scritto as ScrittoElement, BROWSER } from '@scritto/core';
 import { type HTMLAttributes, useLayoutEffect, useRef } from 'react';
 
-type Props = NumericTextProps & HTMLAttributes<HTMLElement>;
-const NumericText = ({ value, trend, transition, respectMotionPreference, animated = true, ...rest }: Props) => {
-  const ref = useRef<NumericTextElement>(null);
+type Props = ScrittoProps & HTMLAttributes<HTMLElement>;
+const Scritto = ({ value, trend, transition, respectMotionPreference, animated = true, ...rest }: Props) => {
+  const ref = useRef<ScrittoElement>(null);
   const isMounted = useRef(false);
 
   useLayoutEffect(() => {
@@ -19,7 +19,7 @@ const NumericText = ({ value, trend, transition, respectMotionPreference, animat
   }, [trend, transition, respectMotionPreference]);
 
   return (
-    <numeric-text
+    <scritto-text
       ref={ref}
       role="img"
       aria-label={value + ''}
@@ -30,4 +30,4 @@ const NumericText = ({ value, trend, transition, respectMotionPreference, animat
   );
 };
 
-export default NumericText;
+export default Scritto;

@@ -1,4 +1,4 @@
-import type { NumericText } from '@scritto/core'
+import type { Scritto } from '@scritto/core'
 import './styles.css'
 import { bindThemeToggle } from './theme'
 
@@ -12,10 +12,10 @@ const VALUES = ['104', '1.3', '1,204', '88', '9,999', '12']
 
 const grid = document.querySelector('#grid')!
 const out = document.querySelector('#out')!
-const hosts: NumericText[] = []
+const hosts: Scritto[] = []
 
 for (let i = 0; i < COUNT; i++) {
-  const el = document.createElement('numeric-text') as NumericText
+  const el = document.createElement('scritto-text') as Scritto
   el.setOptions({ respectMotionPreference: false })
   el.update(VALUES[0], false)
   grid.append(el)

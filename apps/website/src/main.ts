@@ -1,5 +1,5 @@
 import '@scritto/core'
-import type { NumericText, Trend } from '@scritto/core'
+import type { Scritto, Trend } from '@scritto/core'
 import './styles.css'
 import { bindThemeToggle } from './theme'
 
@@ -24,9 +24,9 @@ const TREND: Record<string, Trend> = { up: 1, auto: 0, down: -1 }
 const FLOW_A = ['104', '1.3']
 const FLOW_B = ['1,234,567', '12']
 
-const el = document.querySelector<NumericText>('#test')!
-const flowA = document.querySelector<NumericText>('#flow-a')!
-const flowB = document.querySelector<NumericText>('#flow-b')!
+const el = document.querySelector<Scritto>('#test')!
+const flowA = document.querySelector<Scritto>('#flow-a')!
+const flowB = document.querySelector<Scritto>('#flow-b')!
 const stage = document.querySelector<HTMLButtonElement>('#stage')!
 const hint = document.querySelector<HTMLElement>('#hint')!
 const variantsInput = document.querySelector<HTMLInputElement>('#variants')!
@@ -49,7 +49,7 @@ const options = () => ({
   transition: { duration: slow ? 1100 : 550 },
 })
 
-const paint = (node: NumericText, value: string, animate: boolean) => {
+const paint = (node: Scritto, value: string, animate: boolean) => {
   node.setOptions(options())
   node.update(value, animate)
   node.setAttribute('aria-label', value)

@@ -10,7 +10,7 @@ concurrency: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   release:
     # prevents this action from running on forks
-    if: github.repository == 'shizukushq/numeric-text'
+    if: github.repository == 'JaceThings/Scritto'
     name: Release
     runs-on: ubuntu-latest
     steps:

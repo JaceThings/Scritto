@@ -1,13 +1,13 @@
 import '@scritto/core'
-import type { NumericTextProps, NumericText as NumericTextElement } from '@scritto/core'
+import type { ScrittoProps, Scritto as ScrittoElement } from '@scritto/core'
 import { createEffect, onMount, splitProps, type JSX } from 'solid-js'
 import { isServer } from 'solid-js/web'
 
-type Props = NumericTextProps & JSX.HTMLAttributes<HTMLElement>
-const NumericText = (props: Props) => {
+type Props = ScrittoProps & JSX.HTMLAttributes<HTMLElement>
+const Scritto = (props: Props) => {
   const [p, rest] = splitProps(props, ['value', 'trend', 'transition', 'respectMotionPreference', 'animated'])
 
-  let ref: NumericTextElement | undefined
+  let ref: ScrittoElement | undefined
   let isMounted = false
 
   createEffect(() => {
@@ -29,10 +29,10 @@ const NumericText = (props: Props) => {
   })
 
   return (
-    <numeric-text ref={ref} role="img" aria-label={p.value + ''} {...rest}>
+    <scritto-text ref={ref} role="img" aria-label={p.value + ''} {...rest}>
       {isServer ? p.value : ''}
-    </numeric-text>
+    </scritto-text>
   )
 }
 
-export default NumericText
+export default Scritto

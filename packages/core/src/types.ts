@@ -9,7 +9,7 @@ export type Transition = {
 
 export type Trend = -1 | 0 | 1
 
-export type NumericTextOptions = {
+export type ScrittoOptions = {
   transition?: Partial<Transition>
   /** @default 0 */
   trend?: Trend
@@ -17,7 +17,7 @@ export type NumericTextOptions = {
   respectMotionPreference?: boolean
 }
 
-export type NumericTextProps = NumericTextOptions & {
+export type ScrittoProps = ScrittoOptions & {
   value: Value
   /** @default true */
   animated?: boolean

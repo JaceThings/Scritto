@@ -3,22 +3,20 @@
   "version": "0.1.4",
   "description": "React wrapper for @scritto/core",
   "keywords": [
-    "NumericText",
-    "animated-number",
+    "scritto",
     "animated-text",
+    "animated-number",
     "animation",
-    "numeric-text",
-    "numericText",
     "swiftui",
     "text"
   ],
   "bugs": {
-    "url": "https://github.com/JaceThings/scritto/issues"
+    "url": "https://github.com/JaceThings/Scritto/issues"
   },
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/JaceThings/scritto.git"
+    "url": "git+https://github.com/JaceThings/Scritto.git"
   },
   "files": [
     "dist",

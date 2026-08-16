@@ -1,6 +1,6 @@
 <script lang="ts">
   import '@scritto/core';
-  import { type NumericTextProps, type NumericText as NumericTextElement, BROWSER } from '@scritto/core';
+  import { type ScrittoProps, type Scritto as ScrittoElement, BROWSER } from '@scritto/core';
   import type { HTMLAttributes } from 'svelte/elements';
   import { onMount, untrack } from 'svelte';
 
@@ -11,9 +11,9 @@
     respectMotionPreference,
     animated = true,
     ...rest
-  }: NumericTextProps & HTMLAttributes<HTMLElement> = $props();
+  }: ScrittoProps & HTMLAttributes<HTMLElement> = $props();
 
-  let text = $state<NumericTextElement>()!;
+  let text = $state<ScrittoElement>()!;
   let isMounted = false;
 
   $effect(() => {
@@ -32,6 +32,6 @@
   });
 </script>
 
-<numeric-text bind:this={text} role="img" aria-label={value} {...rest}>
+<scritto-text bind:this={text} role="img" aria-label={value} {...rest}>
   {BROWSER ? '' : value}
-</numeric-text>
+</scritto-text>

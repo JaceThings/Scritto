@@ -1,20 +1,22 @@
-import type { NumericTextOptions, Transition, Trend, Value } from './types'
+import type { ScrittoOptions, Transition, Trend, Value } from './types'
 import {
   ServerSafeHTMLElement,
   createEl,
   createChar,
   releaseChar,
-  getRect,
   BROWSER,
   flip,
   isReducedMotion,
   diff,
   reconcileChildren,
-  resetAnim,
+  clearAnimStyle,
   finishIdentityAnim,
+  getRect,
+  box,
+  type Box,
 } from './helpers'
 import { CONFIG, DEFAULT_TRANSITION, SPACE, STYLES } from './const'
-import { NumericFlow } from './flow'
+import { ScrittoFlow, playFlows, prepareFlows } from './flow'
 
 let styleSheet: CSSStyleSheet
 if (BROWSER) {
@@ -22,7 +24,69 @@ if (BROWSER) {
   styleSheet.replaceSync(STYLES)
 }
 
-class NumericText extends ServerSafeHTMLElement {
+type Plan = {
+  prefixCount: number
+  mid: number
+  suffixCount: number
+  oldSuffix: number
+  labels: string[]
+  midEnd: number
+  tail: number
+  exitingTail: HTMLElement[]
+  next: HTMLElement[]
+  enters: HTMLElement[]
+  trend: number
+  oldPrefix: Box
+  oldMiddle: Box
+  oldSuffixBox: Box
+  exitingX: number
+  tailX: number
+}
+
+const pending = new Set<Scritto>()
+let flushScheduled = false
+export const flushStats = { prepare: 0, commit: 0, finish: 0, hosts: 0 }
+
+const enqueue = (el: Scritto) => {
+  pending.add(el)
+  if (flushScheduled) return
+  flushScheduled = true
+  queueMicrotask(flushAnimated)
+}
+
+const flushAnimated = () => {
+  flushScheduled = false
+  const list = [...pending]
+  pending.clear()
+  let t = performance.now()
+  for (const el of list) {
+    if (!el.isConnected) continue
+    el._emit('before', true)
+  }
+  prepareFlows()
+  for (const el of list) {
+    if (!el.isConnected) continue
+    el._prepareAnimated()
+  }
+  flushStats.prepare += performance.now() - t
+  t = performance.now()
+  for (const el of list) {
+    if (!el.isConnected) continue
+    el._commitAnimated()
+  }
+  flushStats.commit += performance.now() - t
+  t = performance.now()
+  for (const el of list) {
+    if (!el.isConnected) continue
+    el._finishAnimated()
+    el._emit('after', true)
+  }
+  playFlows()
+  flushStats.finish += performance.now() - t
+  flushStats.hosts += list.length
+}
+
+class Scritto extends ServerSafeHTMLElement {
   private _prefix = createEl('span', 'section')
   private _middle = createEl('span', 'section')
   private _suffix = createEl('span', 'section')
@@ -33,6 +97,8 @@ class NumericText extends ServerSafeHTMLElement {
   private _isRTL = false
   private _value = ''
   private _prevValue = ''
+  private _readyPlan: Plan | null = null
+  private _anims: Animation[] = []
 
   public transition: Transition = DEFAULT_TRANSITION
   public trend: Trend = 0
@@ -51,6 +117,8 @@ class NumericText extends ServerSafeHTMLElement {
   }
 
   disconnectedCallback() {
+    pending.delete(this)
+    this._readyPlan = null
     this._reset()
   }
 
@@ -67,23 +135,83 @@ class NumericText extends ServerSafeHTMLElement {
     this._prevValue = this._value
     this._value = v
     const animate = withAnimation && !(this.respectMotionPreference && isReducedMotion())
-    this.dispatchEvent(new CustomEvent('numericchange', { bubbles: true, detail: { phase: 'before', animate } }))
-    this._render(animate)
-    this.dispatchEvent(new CustomEvent('numericchange', { bubbles: true, detail: { phase: 'after', animate } }))
+    if (!animate) {
+      this._emit('before', false)
+      this._render(false)
+      this._emit('after', false)
+      return
+    }
+    enqueue(this)
   }
 
-  setOptions(opts: NumericTextOptions) {
+  _emit(phase: 'before' | 'after', animate: boolean) {
+    this.dispatchEvent(new CustomEvent('scrittochange', { bubbles: true, detail: { phase, animate } }))
+  }
+
+  setOptions(opts: ScrittoOptions) {
     if (opts.transition) this.transition = { ...DEFAULT_TRANSITION, ...opts.transition }
     if (typeof opts.trend === 'number') this.trend = opts.trend
     if (typeof opts.respectMotionPreference === 'boolean') this.respectMotionPreference = opts.respectMotionPreference
   }
 
   private _render(animate: boolean) {
-    const { prefixCount, suffixCount, labels } = diff(this._chars, this._value)
-    if (prefixCount === this._chars.length && prefixCount === labels.length) {
+    if (!animate) {
+      const plan = this._buildPlan(false)
+      if (!plan) {
+        this._reset()
+        return
+      }
+      this._reset()
+      for (let i = plan.prefixCount; i < plan.oldSuffix; i++) releaseChar(this._chars[i])
+      for (let i = 0; i < plan.exitingTail.length; i++) releaseChar(plan.exitingTail[i])
+      this._commit(plan.next, plan.prefixCount, plan.midEnd, plan.suffixCount)
+      return
+    }
+    this._prepareAnimated()
+    this._commitAnimated()
+    this._finishAnimated()
+  }
+
+  _prepareAnimated() {
+    this._readyPlan = this._buildPlan(true)
+  }
+
+  _commitAnimated() {
+    const plan = this._readyPlan
+    if (!plan) {
       this._reset()
       return
     }
+    for (let i = 0; i < plan.enters.length; i++) if (plan.enters[i].textContent !== SPACE) plan.enters[i].style.opacity = '0'
+    this._cancelTracked()
+    this._queueExit(this._chars.slice(plan.prefixCount, plan.oldSuffix), plan.exitingX, plan.trend)
+    this._queueExit(plan.exitingTail, plan.tailX, plan.trend)
+    this._commit(plan.next, plan.prefixCount, plan.midEnd, plan.suffixCount)
+    clearAnimStyle(this._prefix)
+    clearAnimStyle(this._suffix)
+  }
+
+  _finishAnimated() {
+    const plan = this._readyPlan
+    this._readyPlan = null
+    if (!plan) return
+    const newPrefix = getRect(this._prefix)
+    const newSuffix = getRect(this._suffix)
+    const edge = this._isRTL ? newPrefix.right : newPrefix.left
+    for (let i = 0; i < this._exitingChars.length; i++) {
+      const [el, x] = this._exitingChars[i]
+      el.style.transform = `translateX(${x - edge}px)`
+    }
+    const prefixFlip = flip(this._prefix, this._edgeDx(plan.oldPrefix, newPrefix, plan.oldMiddle, true), this.transition, true)
+    const suffixFlip = flip(this._suffix, this._edgeDx(plan.oldSuffixBox, newSuffix, plan.oldMiddle, false), this.transition, true)
+    if (prefixFlip) this._anims.push(prefixFlip)
+    if (suffixFlip) this._anims.push(suffixFlip)
+    this._armEnters(plan.enters, plan.trend)
+  }
+
+  private _buildPlan(animate: boolean): Plan | null {
+    const { prefixCount, suffixCount, labels } = diff(this._chars, this._value)
+    if (prefixCount === this._chars.length && prefixCount === labels.length) return null
 
     let mid = labels.length - prefixCount - suffixCount
     let tail = 0
@@ -99,14 +227,26 @@ class NumericText extends ServerSafeHTMLElement {
     if (oldLead > 0 && prefixCount + oldLead < oldSuffix) oldSuffix = prefixCount + oldLead
     const midEnd = prefixCount + mid
     const exitingTail = this._chars.slice(oldSuffix + suffixCount)
-
+    const next = this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels)
     if (!animate) {
-      this._reset()
-      const next = this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels)
-      for (let i = prefixCount; i < oldSuffix; i++) releaseChar(this._chars[i])
-      for (let i = 0; i < exitingTail.length; i++) releaseChar(exitingTail[i])
-      this._commit(next, prefixCount, midEnd, suffixCount)
-      return
+      return {
+        prefixCount,
+        mid,
+        suffixCount,
+        oldSuffix,
+        labels,
+        midEnd,
+        tail,
+        exitingTail,
+        next,
+        enters: [],
+        trend: 0,
+        oldPrefix: box(0, 0),
+        oldMiddle: box(0, 0),
+        oldSuffixBox: box(0, 0),
+        exitingX: 0,
+        tailX: 0,
+      }
     }
 
     let trend = this.trend
@@ -130,30 +270,25 @@ class NumericText extends ServerSafeHTMLElement {
         ? parentRect.left + anchor.offsetLeft + anchor.offsetWidth
         : parentRect.left + anchor.offsetLeft
     }
-    const exitingX = prefixCount < oldSuffix ? exitX(this._chars[prefixCount]) : 0
-    const tailX = exitingTail.length ? exitX(exitingTail[0]) : 0
 
-    const next = this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels)
-    const enters = next.slice(prefixCount, midEnd).concat(tail ? next.slice(midEnd + suffixCount) : [])
-    for (let i = 0; i < enters.length; i++) if (enters[i].textContent !== SPACE) enters[i].style.opacity = '0'
-    this._queueExit(this._chars.slice(prefixCount, oldSuffix), exitingX, trend)
-    this._queueExit(exitingTail, tailX, trend)
-    this._commit(next, prefixCount, midEnd, suffixCount)
-
-    resetAnim(this._prefix)
-    resetAnim(this._suffix)
-
-    const newPrefix = getRect(this._prefix)
-    const newSuffix = getRect(this._suffix)
-    const edge = this._isRTL ? newPrefix.right : newPrefix.left
-    for (let i = 0; i < this._exitingChars.length; i++) {
-      const [el, x] = this._exitingChars[i]
-      el.style.transform = `translateX(${x - edge}px)`
+    return {
+      prefixCount,
+      mid,
+      suffixCount,
+      oldSuffix,
+      labels,
+      midEnd,
+      tail,
+      exitingTail,
+      next,
+      enters: next.slice(prefixCount, midEnd).concat(tail ? next.slice(midEnd + suffixCount) : []),
+      trend,
+      oldPrefix: box(oldPrefix.left, oldPrefix.width),
+      oldMiddle: box(oldMiddle.left, oldMiddle.width),
+      oldSuffixBox: box(oldSuffixRect.left, oldSuffixRect.width),
+      exitingX: prefixCount < oldSuffix ? exitX(this._chars[prefixCount]) : 0,
+      tailX: exitingTail.length ? exitX(exitingTail[0]) : 0,
     }
-
-    flip(this._prefix, this._edgeDx(oldPrefix, newPrefix, oldMiddle, true), this.transition, true)
-    flip(this._suffix, this._edgeDx(oldSuffixRect, newSuffix, oldMiddle, false), this.transition, true)
-    this._armEnters(enters, trend)
   }
 
   private _nextChars(
@@ -184,7 +319,7 @@ class NumericText extends ServerSafeHTMLElement {
     const group = createEl('span')
     group.toggleAttribute('inert', true)
     for (let i = 0; i < nodes.length; i++) {
-      resetAnim(nodes[i])
+      clearAnimStyle(nodes[i])
       group.appendChild(nodes[i])
     }
     const entry: [HTMLElement, number] = [group, x]
@@ -216,12 +351,19 @@ class NumericText extends ServerSafeHTMLElement {
     }
   }
 
+  private _cancelTracked() {
+    for (let i = 0; i < this._anims.length; i++) this._anims[i].cancel()
+    this._anims.length = 0
+  }
+
   private _reset() {
     this._enterGen += 1
-    resetAnim(this._prefix)
-    resetAnim(this._suffix)
-    resetAnim(this._tail)
-    for (let i = 0; i < this._chars.length; i++) resetAnim(this._chars[i])
+    this._cancelTracked()
+    clearAnimStyle(this._prefix)
+    clearAnimStyle(this._middle)
+    clearAnimStyle(this._suffix)
+    clearAnimStyle(this._tail)
+    for (let i = 0; i < this._chars.length; i++) clearAnimStyle(this._chars[i])
 
     const exiting = this._exitingChars
     this._exitingChars = []
@@ -239,7 +381,7 @@ class NumericText extends ServerSafeHTMLElement {
     return (this.transition.duration * CONFIG.stagger) / (n || 1)
   }
 
-  private _edgeDx(oldRect: DOMRect, newRect: DOMRect, oldMiddle: DOMRect, isPrefix: boolean) {
+  private _edgeDx(oldRect: Box, newRect: Box, oldMiddle: Box, isPrefix: boolean) {
     if (this._isRTL === isPrefix) return (oldRect.width ? oldRect.right : oldMiddle.right) - newRect.right
     return (oldRect.width ? oldRect.left : oldMiddle.left) - newRect.left
   }
@@ -261,6 +403,7 @@ class NumericText extends ServerSafeHTMLElement {
       },
       { ...this.transition, fill: 'both', delay },
     )
+    this._anims.push(anim)
 
     if (!onFinish) {
       anim.onfinish = finishIdentityAnim
@@ -277,16 +420,16 @@ class NumericText extends ServerSafeHTMLElement {
   }
 }
 
-if (BROWSER && !customElements.get('numeric-text')) {
-  customElements.define('numeric-text', NumericText)
+if (BROWSER && !customElements.get('scritto-text')) {
+  customElements.define('scritto-text', Scritto)
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'numeric-text': NumericText
+    'scritto-text': Scritto
   }
 }
 
 export type * from './types'
-export type { NumericChangeDetail } from './flow'
-export { NumericText, NumericFlow, BROWSER }
+export type { ScrittoChangeDetail } from './flow'
+export { Scritto, ScrittoFlow, BROWSER }

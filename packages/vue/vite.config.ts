@@ -8,7 +8,7 @@ export default defineConfig({
     vue({
       template: {
         compilerOptions: {
-          isCustomElement: (tag) => tag === 'numeric-text',
+          isCustomElement: (tag) => tag.startsWith('scritto-'),
         },
       },
     }),

@@ -1,7 +1,7 @@
 import { BROWSER, ServerSafeHTMLElement } from './helpers'
 import type { Transition } from './types'
 
-export type NumericChangeDetail = { phase: 'before' | 'after'; animate: boolean }
+export type ScrittoChangeDetail = { phase: 'before' | 'after'; animate: boolean }
 
 type FlowHost = HTMLElement & { transition: Transition }
 
@@ -17,7 +17,7 @@ const wordify = (root: HTMLElement) => {
   const nodes: Text[] = []
   while (walker.nextNode()) nodes.push(walker.currentNode as Text)
   for (const node of nodes) {
-    if (node.parentElement?.closest('numeric-text')) continue
+    if (node.parentElement?.closest('scritto-text')) continue
     const parts = node.textContent?.split(/(\s+)/) ?? []
     if (parts.length < 2) continue
     const frag = document.createDocumentFragment()
@@ -37,13 +37,36 @@ const wordify = (root: HTMLElement) => {
   }
 }
 
-class NumericFlow extends ServerSafeHTMLElement {
+const pendingFlows = new Set<ScrittoFlow>()
+
+export const prepareFlows = () => {
+  for (const flow of pendingFlows) flow._prepareWrites()
+  for (const flow of pendingFlows) flow._prepareReads()
+}
+
+export const playFlows = () => {
+  const list = [...pendingFlows]
+  pendingFlows.clear()
+  const measured = list.map((flow) => flow._measureLast())
+  for (let i = 0; i < list.length; i++) {
+    const last = measured[i]
+    if (last) list[i]._playMeasured(last)
+  }
+}
+
+class ScrittoFlow extends ServerSafeHTMLElement {
   private _clip = document.createElement('span')
   private _gen = 0
   private _anims: Animation[] = []
   private _first: DOMRect[] = []
   private _fromW = 0
   private _host: FlowHost | null = null
+  private _wordEls: HTMLElement[] = []
+  private _insetX = 0
+  private _insetY = 0
+  private _pendingHost: FlowHost | null = null
+  private _last: DOMRect[] = []
+  private _toW = 0
 
   constructor() {
     super()
@@ -53,44 +76,68 @@ class NumericFlow extends ServerSafeHTMLElement {
   }
 
   connectedCallback() {
-    if (getComputedStyle(this).position === 'static') this.style.position = 'relative'
+    const css = getComputedStyle(this)
+    if (css.position === 'static') this.style.position = 'relative'
+    this._insetX = parseFloat(css.borderLeftWidth) || 0
+    this._insetY = parseFloat(css.borderTopWidth) || 0
     wordify(this)
+    this._wordEls = [...this.querySelectorAll<HTMLElement>('[data-word]')]
     this.append(this._clip)
-    this.addEventListener('numericchange', this._onChange)
+    this.addEventListener('scrittochange', this._onChange)
   }
 
   disconnectedCallback() {
-    this.removeEventListener('numericchange', this._onChange)
+    pendingFlows.delete(this)
+    this.removeEventListener('scrittochange', this._onChange)
     this._drop()
   }
 
   private _onChange = (event: Event) => {
-    const custom = event as CustomEvent<NumericChangeDetail>
+    const custom = event as CustomEvent<ScrittoChangeDetail>
     if (!(custom.target instanceof HTMLElement)) return
-    if (custom.target.closest('numeric-flow') !== this) return
+    if (custom.target.closest('scritto-flow') !== this) return
     const host = custom.target as FlowHost
     if (custom.detail.phase === 'before') {
-      const prev = this._host
-      this._host = host
-      this._first = this._words().map((word) => word.getBoundingClientRect())
-      this._fromW = host.getBoundingClientRect().width
-      this._gen += 1
-      this._drop()
-      if (prev && prev !== host) this._clearHost(prev)
-      this._resetWords()
+      this._pendingHost = host
+      pendingFlows.add(this)
+      if (!custom.detail.animate) {
+        this._prepareWrites()
+        this._prepareReads()
+        pendingFlows.delete(this)
+      }
       return
     }
-    if (!custom.detail.animate) return
-    this._play(host, this._gen)
+    if (!custom.detail.animate) pendingFlows.delete(this)
   }
 
-  private _words() {
-    return [...this.querySelectorAll<HTMLElement>('[data-word]')]
+  _prepareWrites() {
+    const host = this._pendingHost
+    if (!host) return
+    const prev = this._host
+    this._host = host
+    this._gen += 1
+    this._drop()
+    if (prev && prev !== host) this._clearHost(prev)
+    this._resetWords()
+  }
+
+  _prepareReads() {
+    const host = this._pendingHost
+    if (!host) return
+    this._first = this._wordEls.map((word) => word.getBoundingClientRect())
+    this._fromW = host.getBoundingClientRect().width
+  }
+
+  _measureLast() {
+    const host = this._pendingHost
+    if (!host) return null
+    this._last = this._wordEls.map((word) => word.getBoundingClientRect())
+    this._toW = host.getBoundingClientRect().width
+    return host
   }
 
   private _resetWords() {
-    for (const word of this._words()) {
-      for (const anim of word.getAnimations()) anim.cancel()
+    for (const word of this._wordEls) {
       word.style.opacity = ''
       word.style.transform = ''
       word.style.visibility = ''
@@ -120,17 +167,15 @@ class NumericFlow extends ServerSafeHTMLElement {
     }
   }
 
-  private _play(host: FlowHost, gen: number) {
-    if (gen !== this._gen) return
+  _playMeasured(host: FlowHost) {
+    const gen = this._gen
     const { duration, easing } = host.transition
-    for (const anim of host.getAnimations()) if (isWidthAnim(anim)) anim.finish()
-    const words = this._words()
-    const last = words.map((word) => word.getBoundingClientRect())
-    const toW = host.getBoundingClientRect().width
+    const words = this._wordEls
+    const last = this._last
+    const toW = this._toW
     const first = this._first
     const fromW = this._fromW
 
-    for (const anim of host.getAnimations()) if (isWidthAnim(anim)) anim.cancel()
     host.style.width = `${fromW}px`
     host.style.marginRight = `${toW - fromW}px`
     if (toW < fromW) host.setAttribute('data-shrink-clip', '')
@@ -149,9 +194,8 @@ class NumericFlow extends ServerSafeHTMLElement {
 
     const lineH = first[0]?.height || 1
     const origin = this.getBoundingClientRect()
-    const css = getComputedStyle(this)
-    const insetX = parseFloat(css.borderLeftWidth)
-    const insetY = parseFloat(css.borderTopWidth)
+    const insetX = this._insetX
+    const insetY = this._insetY
     const wrapped = words.map((_, i) => Math.abs((last[i]?.top ?? 0) - (first[i]?.top ?? 0)) >= lineH * 0.5)
     const enterShift = new Map<number, number>()
     const leaveShift = new Map<number, number>()
@@ -218,14 +262,14 @@ class NumericFlow extends ServerSafeHTMLElement {
   }
 }
 
-if (BROWSER && !customElements.get('numeric-flow')) {
-  customElements.define('numeric-flow', NumericFlow)
+if (BROWSER && !customElements.get('scritto-flow')) {
+  customElements.define('scritto-flow', ScrittoFlow)
 }
 
 declare global {
   interface HTMLElementTagNameMap {
-    'numeric-flow': NumericFlow
+    'scritto-flow': ScrittoFlow
   }
 }
 
-export { NumericFlow }
+export { ScrittoFlow }

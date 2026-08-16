@@ -1,9 +1,9 @@
 <script lang="ts" setup>
 import '@scritto/core';
-import { type NumericTextProps, type NumericText as NumericTextElement, type Value, BROWSER } from '@scritto/core';
+import { type ScrittoProps, type Scritto as ScrittoElement, type Value, BROWSER } from '@scritto/core';
 import { onMounted, ref, watch } from 'vue';
 
-interface Props extends /* @vue-ignore */ NumericTextProps {
+interface Props extends /* @vue-ignore */ ScrittoProps {
   value: Value;
 }
 
@@ -11,7 +11,7 @@ const props = withDefaults(defineProps<Props>(), {
   animated: true,
 });
 
-const el = ref<NumericTextElement>();
+const el = ref<ScrittoElement>();
 let isMounted = false;
 
 watch(
@@ -52,8 +52,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <!-- @vue-expect-error types... -->
-  <numeric-text
+  <scritto-text
     ref="el"
     v-bind="$attrs"
     role="img"

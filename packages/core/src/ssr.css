@@ -1,4 +1,4 @@
-numeric-text:not(:defined) {
+scritto-text:not(:defined) {
   display: inline-flex;
   white-space: nowrap !important;
 }
