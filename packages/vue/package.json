@@ -1,6 +1,6 @@
 {
   "name": "@scritto/vue",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "Vue wrapper for @scritto/core",
   "keywords": [
     "scritto",
