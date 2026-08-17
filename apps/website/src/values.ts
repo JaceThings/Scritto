@@ -4,7 +4,7 @@
 
 import '@scritto/core'
 import type { Scritto } from '@scritto/core'
-import './values.css'
+import { bindCorners } from './corners'
 import { createPills } from './pills'
 import { playClick } from './sounds'
 import { springEasing } from './spring'
@@ -143,7 +143,6 @@ const createCard = (parent: Element, variant: Variant, order: number) => {
 
   const pillRow = el('div', 'row')
   const pillMount = el('div', 'pill-group')
-  pillMount.setAttribute('role', 'radiogroup')
   pillMount.setAttribute('aria-label', 'Value set')
   pillRow.append(pillMount)
 
@@ -1372,3 +1371,5 @@ const quietMount = document.querySelector('#quiet')
 if (quietMount) {
   for (const [i, variant] of QUIET.entries()) createCard(quietMount, variant, VARIANTS.length + i)
 }
+
+bindCorners()

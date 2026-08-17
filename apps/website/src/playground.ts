@@ -1,5 +1,6 @@
 import '@scritto/core'
 import type { Scritto, Trend } from '@scritto/core'
+import { bindCorners } from './corners'
 import { createPills } from './pills'
 import { createSlider } from './slider'
 import { playClick } from './sounds'
@@ -43,7 +44,7 @@ const TREND = { up: 1, auto: 0, down: -1 } as const satisfies Record<string, Tre
 const BOUNCE_DEFAULT = 0.2
 const BOUNCE_BOUNCY = 0.3
 
-// Matches Lisse's preset tween, so an alignment change reads as one beat.
+// The site's preset tween, so an alignment change reads as one beat.
 const STATE_CHANGE_MS = 350
 const STATE_CHANGE_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)'
 
@@ -96,20 +97,12 @@ const HINT_ID = 'values-hint'
  * a separator — the trade is that a value cannot contain one.
  */
 const createHops = (mount: HTMLElement, onChange: (values: string[]) => void) => {
-  const mirror = document.createElement('span')
-  mirror.className = 'hop-mirror'
-  mirror.setAttribute('aria-hidden', 'true')
-  mount.append(mirror)
-
   let values: string[] = []
   let reported: string[] = []
+  let current = 0
 
   const inputs = () => [...mount.querySelectorAll<HTMLInputElement>('.hop-value')]
-
-  const autosize = (input: HTMLInputElement) => {
-    mirror.textContent = input.value || ' '
-    input.style.width = `${mirror.getBoundingClientRect().width + 1}px`
-  }
+  const liveHops = () => [...mount.querySelectorAll<HTMLElement>('.hop:not([data-exit])')]
 
   const caretTo = (input: HTMLInputElement, at: number) => {
     input.focus()
@@ -126,19 +119,56 @@ const createHops = (mount: HTMLElement, onChange: (values: string[]) => void) =>
     onChange(live)
   }
 
+  const paintFace = (face: HTMLElement, value: string) => {
+    face.textContent = value || '\u00a0'
+  }
+
+  const setSep = (hop: HTMLElement, show: boolean) => {
+    const sep = hop.querySelector('.hop-sep')
+    if (show === !!sep) return
+    if (!show) {
+      sep?.remove()
+      return
+    }
+    const next = document.createElement('span')
+    next.className = 'hop-sep'
+    next.textContent = SEP
+    next.setAttribute('aria-hidden', 'true')
+    hop.append(next)
+  }
+
+  const syncCurrent = () => {
+    let live = -1
+    for (const hop of liveHops()) {
+      const input = hop.querySelector<HTMLInputElement>('.hop-value')
+      if (input?.value) live += 1
+      if (input?.value && live === current) hop.setAttribute('aria-current', 'true')
+      else hop.removeAttribute('aria-current')
+    }
+  }
+
   const hopFor = (value: string, index: number) => {
     const hop = document.createElement('span')
     hop.className = 'hop'
 
+    const slot = document.createElement('span')
+    slot.className = 'hop-slot'
+
+    const face = document.createElement('span')
+    face.className = 'hop-face'
+    face.setAttribute('aria-hidden', 'true')
+    paintFace(face, value)
+
     const input = document.createElement('input')
     input.className = 'hop-value'
     input.type = 'text'
+    input.size = 1
     input.value = value
     input.spellcheck = false
     input.autocomplete = 'off'
     input.setAttribute('aria-label', `Value ${index + 1}`)
     input.setAttribute('aria-describedby', HINT_ID)
-    autosize(input)
+    slot.append(face, input)
 
     const splitAt = (from: number, to: number, incoming: string) => {
       const parts = incoming.split(',')
@@ -154,6 +184,19 @@ const createHops = (mount: HTMLElement, onChange: (values: string[]) => void) =>
       emit()
     }
 
+    input.addEventListener('focus', () => {
+      // Tab into a field selects the value. That paints a system fill
+      // behind the word; keep a caret so the surface does not change.
+      const collapse = () => {
+        if (document.activeElement !== input) return
+        if (input.selectionStart !== 0 || input.selectionEnd !== input.value.length) return
+        if (!input.value.length) return
+        input.setSelectionRange(0, 0)
+      }
+      collapse()
+      requestAnimationFrame(collapse)
+      setTimeout(collapse, 0)
+    })
     input.addEventListener('beforeinput', (event) => {
       if (!input.isConnected) return
       if (event.inputType !== 'insertText' || !event.data?.includes(',')) return
@@ -171,7 +214,7 @@ const createHops = (mount: HTMLElement, onChange: (values: string[]) => void) =>
         return
       }
       values[index] = input.value
-      autosize(input)
+      paintFace(face, input.value)
       emit()
     })
 
@@ -225,23 +268,50 @@ const createHops = (mount: HTMLElement, onChange: (values: string[]) => void) =>
       }
     })
 
-    hop.append(input)
-    if (index < values.length - 1) {
-      const sep = document.createElement('span')
-      sep.className = 'hop-sep'
-      sep.textContent = SEP
-      sep.setAttribute('aria-hidden', 'true')
-      hop.append(sep)
-    }
+    hop.append(slot)
+    setSep(hop, index < values.length - 1)
     return hop
   }
 
   const render = (focus?: { index: number; caret: number }) => {
-    const hops = values.map(hopFor)
-    mount.replaceChildren(mirror, ...hops)
+    mount.replaceChildren(...values.map(hopFor))
+    syncCurrent()
     if (!focus) return
     const input = inputs()[focus.index]
     if (input) caretTo(input, focus.caret)
+  }
+
+  let popGen = 0
+
+  const morph = () => {
+    const gen = ++popGen
+    const outgoing = [...mount.querySelectorAll<HTMLElement>('.hop')]
+    const outs = outgoing.map((hop) => {
+      for (const anim of hop.getAnimations()) anim.cancel()
+      hop.dataset.exit = ''
+      const css = getComputedStyle(hop)
+      return hop.animate(
+        [
+          {
+            opacity: css.opacity,
+            transform: css.transform === 'none' ? 'scale(1)' : css.transform,
+          },
+          { opacity: 0, transform: `scale(${SWAP_SCALE})` },
+        ],
+        { duration: SWAP_OUT_MS, easing: STATE_CHANGE_EASE, fill: 'forwards' },
+      )
+    })
+    void Promise.all(outs.map((anim) => anim.finished.catch(() => {}))).then(() => {
+      if (gen !== popGen) return
+      for (const hop of outgoing) hop.remove()
+      render()
+      for (const hop of liveHops()) {
+        hop.animate(
+          { opacity: [0, 1], transform: [`scale(${SWAP_SCALE})`, 'scale(1)'] },
+          { duration: SWAP_IN_MS, easing: STATE_CHANGE_EASE },
+        )
+      }
+    })
   }
 
   mount.addEventListener('copy', (event) => {
@@ -257,28 +327,39 @@ const createHops = (mount: HTMLElement, onChange: (values: string[]) => void) =>
     event.clipboardData?.setData('text/plain', values.filter(Boolean).join(', '))
   })
 
-  void document.fonts.ready.then(() => {
-    for (const input of inputs()) autosize(input)
-  })
-
   return {
     /** Loads a list without reporting it back — whoever set it already knows. */
     set(next: readonly string[]) {
-      values = next.flatMap((value) => value.split(',').map((part) => part.trim()))
+      const incoming = next.flatMap((value) => value.split(',').map((part) => part.trim()))
+      const animate = values.length > 0 && mount.querySelector('.hop') && !same(values, incoming)
+      values = incoming
       reported = values.filter(Boolean)
-      render()
+      if (animate && !matchMedia('(prefers-reduced-motion: reduce)').matches) morph()
+      else render()
     },
     /** Somewhere to start typing, for when Custom is picked. */
     append() {
       values.push('')
+      popGen++
+      for (const hop of mount.querySelectorAll<HTMLElement>('.hop[data-exit]')) hop.remove()
       render({ index: values.length - 1, caret: 0 })
+    },
+    /** The hop that matches the card — idle values stay faded. */
+    mark(index: number) {
+      current = index
+      syncCurrent()
     },
   }
 }
 
 type StageOptions = { trend: Trend; duration: number; easing: string }
 
-const createStage = (root: ParentNode, id: string, values: string[]) => {
+const createStage = (
+  root: ParentNode,
+  id: string,
+  values: string[],
+  onIndex?: (index: number) => void,
+) => {
   const host = root.querySelector<Scritto>(`#${id}`)!
   const trigger = host.closest('button')!
   const options: StageOptions = {
@@ -298,6 +379,7 @@ const createStage = (root: ParentNode, id: string, values: string[]) => {
     })
     host.update(value, animate)
     host.setAttribute('aria-label', value)
+    onIndex?.(index % list.length)
   }
 
   const advance = () => {
@@ -401,8 +483,8 @@ const createStage = (root: ParentNode, id: string, values: string[]) => {
 
 export const initPlayground = (root: ParentNode = document) => {
   const find = <T extends HTMLElement>(selector: string) => root.querySelector<T>(selector)!
-
-  const roll = createStage(root, 'roll-demo', [...PRESETS.Words])
+  let hops: ReturnType<typeof createHops> | null = null
+  const roll = createStage(root, 'roll-demo', [...PRESETS.Words], (index) => hops?.mark(index))
   const align = createStage(root, 'align-demo', ['12', '1,204', '9', '88,900'])
   const trend = createStage(root, 'trend-demo', ['5', '12', '40', '9'])
   const bounce = createStage(root, 'bounce-demo', ['12', '48'])
@@ -414,20 +496,22 @@ export const initPlayground = (root: ParentNode = document) => {
   // to be reachable before it exists.
   let pills: { set: (value: Mode) => void } | null = null
 
-  const hops = createHops(find('#values'), (values) => {
+  const editor = createHops(find('#values'), (values) => {
     pills?.set(modeOf(values))
     // Typing is not a preset switch: the card has to answer each keystroke, and a
     // blur per character would be strobing.
     roll.replace(values)
   })
-  hops.set(PRESETS.Words)
+  hops = editor
+  editor.set(PRESETS.Words)
+  editor.mark(0)
 
   pills = createPills(find('#mode'), MODE_OPTIONS, 'Words', (mode) => {
     if (mode === 'Custom') {
-      hops.append()
+      editor.append()
       return
     }
-    hops.set(PRESETS[mode])
+    editor.set(PRESETS[mode])
     roll.swap([...PRESETS[mode]])
   })
 
@@ -551,7 +635,10 @@ export const initPlayground = (root: ParentNode = document) => {
     onRelease: () => duration.advance(),
   })
 
+  const corners = bindCorners(root)
+
   return () => {
+    corners()
     stopTicker()
     roll.dispose()
     watchRoom.disconnect()

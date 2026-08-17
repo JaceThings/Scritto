@@ -1,7 +1,7 @@
-// UI sounds, ported from Lisse. Short Opus files for discrete events (click,
-// copy, pill), a Web Audio synth for the slider tick (sub-millisecond
-// timing, fires dozens per second during drags), and a silent looper that keeps
-// iOS Safari on the media audio session so the synth ignores the silent switch.
+// UI sounds. Short Opus files for discrete events (click, copy, pill), a Web
+// Audio synth for the slider tick (sub-millisecond timing, fires dozens per
+// second during drags), and a silent looper that keeps iOS Safari on the media
+// audio session so the synth ignores the silent switch.
 
 // === File-based sounds =====================================================
 // Fresh `Audio` per play so rapid triggers overlap instead of cutting each

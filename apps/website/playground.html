@@ -5,23 +5,60 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f6f2" />
     <title>scritto · playground</title>
+    <link rel="stylesheet" href="/src/site.css" />
   </head>
   <body>
     <main class="flex min-h-dvh w-full items-stretch justify-center bg-bg">
       <article class="column gap-9">
         <header class="flex w-full flex-col gap-5">
-          <div class="stagger" style="--i: 0">
-            <h1 class="text-[16px] leading-none font-[550] tracking-[-0.25px] text-text-primary">
-              scritto
-            </h1>
+          <div class="flex w-full flex-col gap-2.5" role="group" aria-labelledby="scritto-heading">
+            <div class="stagger" style="--i: 0">
+              <!-- The gloss runs longer than the wordmark's own line, so it wraps on a
+                   phone: hang it off the baseline there instead of the row's bottom edge. -->
+              <div class="flex items-end gap-2 text-text-primary max-[560px]:items-baseline">
+                <h1 id="scritto-heading" class="text-[16px] leading-none font-[550] tracking-[-0.25px]">
+                  scritto
+                </h1>
+                <p class="entry-gloss text-[14px] leading-none font-[450] tracking-[-0.25px]">
+                  <span aria-hidden="true">
+                    /ˈskrit.to/ <em class="italic">adj. &amp; n.</em> [It., pp. of
+                    <em class="italic">scrivere</em>, <em class="italic">to write</em>]
+                  </span>
+                  <span class="sr-only">
+                    Pronounced skreet-toh. Adjective and noun, from Italian, past participle of
+                    scrivere, to write.
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 pl-2 text-text-secondary">
+              <div class="stagger" style="--i: 1">
+                <p class="text-[14px] leading-[1.2] font-medium tracking-[-0.25px]">
+                  <span class="font-[550] proportional-nums">1</span> a written; set down in letters
+                  rather than spoken (<em class="italic">un testo scritto</em>).
+                </p>
+              </div>
+              <div class="stagger" style="--i: 2">
+                <p class="pl-2 text-[14px] leading-[1.2] font-medium tracking-[-0.25px]">
+                  <span class="font-[550] proportional-nums">b</span> fig. settled in advance, as
+                  though already written (<em class="italic">era scritto</em>).
+                </p>
+              </div>
+              <div class="stagger" style="--i: 3">
+                <p class="text-[14px] leading-[1.2] font-medium tracking-[-0.25px]">
+                  <span class="font-[550] proportional-nums">2</span> n. a piece of writing; a text as
+                  it stands on the page (<em class="italic">gli scritti di Calvino</em>).
+                </p>
+              </div>
+            </div>
           </div>
-          <div class="stagger" style="--i: 1">
+          <div class="stagger" style="--i: 4">
             <div class="divider" role="separator"></div>
           </div>
         </header>
 
         <div id="page" class="flex w-full flex-col gap-12">
-          <section class="stagger flex w-full flex-col gap-4" style="--i: 2" id="roll">
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 5" id="roll">
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Roll</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
@@ -29,8 +66,8 @@
                 edit the list below to roll your own — a comma or Enter splits a value.
               </p>
             </div>
-            <div class="figure">
-              <button class="stage stage-tall" type="button" aria-label="Advance the value">
+            <div class="figure" data-focus-section="roll">
+              <button class="stage stage-tall" type="button" aria-label="Advance the value" data-focus-ring data-focus-radius-top="12" data-focus-radius-bottom="0">
                 <scritto-text
                   id="roll-demo"
                   class="text-[40px] leading-none font-[550] tracking-[-0.25px]"
@@ -38,7 +75,7 @@
                 ></scritto-text>
               </button>
               <div class="row">
-                <div class="pill-group" id="mode" role="radiogroup" aria-label="Value set"></div>
+                <div class="pill-group" id="mode" role="group" aria-label="Value set"></div>
               </div>
               <div class="row row-field">
                 <span class="row-label" id="values-label">Values</span>
@@ -51,16 +88,16 @@
             </div>
           </section>
 
-          <section class="stagger flex w-full flex-col gap-4" style="--i: 3">
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 6">
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Alignment</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                Where the value anchors as it changes width. Dynamic keeps it moving, so you can see
-                the roll hold its place while the host slides.
+                Which side the value holds when it gets wider or narrower. Dynamic slides the number
+                back and forth so you can watch the roll hold together while it moves.
               </p>
             </div>
-            <div class="figure">
-              <button class="stage" type="button" aria-label="Advance the value">
+            <div class="figure" data-focus-section="align">
+              <button class="stage" type="button" aria-label="Advance the value" data-focus-ring data-focus-radius-top="12" data-focus-radius-bottom="0">
                 <scritto-text
                   id="align-demo"
                   class="text-[28px] leading-none font-[550] tracking-[-0.25px]"
@@ -68,12 +105,12 @@
                 ></scritto-text>
               </button>
               <div class="row">
-                <div class="pill-group" id="align" role="radiogroup" aria-label="Alignment"></div>
+                <div class="pill-group" id="align" role="group" aria-label="Alignment"></div>
               </div>
             </div>
           </section>
 
-          <section class="stagger flex w-full flex-col gap-4" style="--i: 4">
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 7">
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Trend</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
@@ -81,8 +118,8 @@
                 override it.
               </p>
             </div>
-            <div class="figure">
-              <button class="stage" type="button" aria-label="Advance the value">
+            <div class="figure" data-focus-section="trend">
+              <button class="stage" type="button" aria-label="Advance the value" data-focus-ring data-focus-radius-top="12" data-focus-radius-bottom="0">
                 <scritto-text
                   id="trend-demo"
                   class="text-[28px] leading-none font-[550] tracking-[-0.25px]"
@@ -90,12 +127,12 @@
                 ></scritto-text>
               </button>
               <div class="row">
-                <div class="pill-group" id="trend" role="radiogroup" aria-label="Trend"></div>
+                <div class="pill-group" id="trend" role="group" aria-label="Trend"></div>
               </div>
             </div>
           </section>
 
-          <section class="stagger flex w-full flex-col gap-4" style="--i: 5">
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 8">
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Bounce</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
@@ -103,8 +140,8 @@
                 at 0.20 and its bouncy preset is 0.30.
               </p>
             </div>
-            <div class="figure">
-              <button class="stage" type="button" aria-label="Advance the value">
+            <div class="figure" data-focus-section="bounce">
+              <button class="stage" type="button" aria-label="Advance the value" data-focus-ring data-focus-radius-top="12" data-focus-radius-bottom="0">
                 <scritto-text
                   id="bounce-demo"
                   class="text-[28px] leading-none font-[550] tracking-[-0.25px]"
@@ -115,7 +152,7 @@
             </div>
           </section>
 
-          <section class="stagger flex w-full flex-col gap-4" style="--i: 6">
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 9">
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Duration</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
@@ -123,8 +160,8 @@
                 keys.
               </p>
             </div>
-            <div class="figure">
-              <button class="stage" type="button" aria-label="Advance the value">
+            <div class="figure" data-focus-section="duration">
+              <button class="stage" type="button" aria-label="Advance the value" data-focus-ring data-focus-radius-top="12" data-focus-radius-bottom="0">
                 <scritto-text
                   id="duration-demo"
                   class="text-[28px] leading-none font-[550] tracking-[-0.25px]"
@@ -135,7 +172,7 @@
             </div>
           </section>
 
-          <section class="stagger flex w-full flex-col gap-4" style="--i: 7">
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 10">
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">In a sentence</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
@@ -143,30 +180,34 @@
                 so the words shift as the figure grows and again when the minute starts it over.
               </p>
             </div>
-            <div class="figure">
+            <div class="figure" data-focus-section="sentence">
               <div class="p-4">
                 <scritto-flow class="copy" id="flow-sentence">
                   Light has traveled <scritto-text id="flow-a" class="live" role="img"></scritto-text>
-                  km since this minute began.
+                  km since
+                  <!-- Bound together so the shortest figures do not leave "began." alone on a
+                       second line once the column narrows. -->
+                  <span class="whitespace-nowrap">this minute began.</span>
                 </scritto-flow>
               </div>
             </div>
           </section>
 
-          <section class="stagger flex w-full flex-col gap-4" style="--i: 8">
+          <section class="stagger flex w-full flex-col gap-4" style="--i: 11">
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Wrapped</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                Neighbors slide when the number changes width and a line has to give.
+                Neighbors slide between lines when the number changes width, and the block keeps its
+                height.
               </p>
             </div>
-            <div class="figure">
-              <button class="copy-stage copy-stage-wrap" type="button" aria-label="Advance the number">
+            <div class="figure" data-focus-section="wrapped">
+              <button class="copy-stage copy-stage-wrap" type="button" aria-label="Advance the number" data-focus-ring data-focus-radius="12">
                 <scritto-flow class="copy" id="flow-wrap">
-                  The collector logged <scritto-text id="flow-b" class="live" role="img"></scritto-text>
-                  tokens across every running job in the queue this cycle, just enough extra width
-                  that a few words drop to the next line and climb back once the figure shrinks to a
-                  short tally.
+                  The cinema ledger records <scritto-text id="flow-b" class="live" role="img"></scritto-text>
+                  tickets this week. Late shows fill one column; Saturday's matinée starts the
+                  next, every entry written in the same hand on the same page of the
+                  box-office book before the usher locks up.
                 </scritto-flow>
               </button>
             </div>
@@ -174,27 +215,27 @@
         </div>
 
         <footer class="flex w-full flex-col gap-5">
-          <div class="stagger" style="--i: 11">
+          <div class="stagger" style="--i: 12">
             <div class="divider" role="separator"></div>
           </div>
-          <nav id="site-nav" class="stagger site-nav flex w-full items-start gap-4 text-[14px] leading-[1.2] font-medium tracking-[-0.25px] text-text-primary whitespace-nowrap" style="--i: 12" aria-label="Site">
-            <span class="nav-slot" data-nav-home>
-              <a class="footer-link py-2 -my-2" href="./" data-route>
-                <span class="footer-link-underline">Home</span>
+          <nav id="site-nav" class="stagger site-nav flex w-full items-start gap-4 text-[14px] leading-[1.2] font-medium tracking-[-0.25px] text-text-primary whitespace-nowrap" style="--i: 13" aria-label="Site">
+            <span class="nav-slot">
+              <a class="footer-link py-2 -my-2" data-focus-ring data-focus-inset-x="6" href="./" data-route>
+                <span class="footer-link-underline">What?</span>
               </a>
             </span>
             <span class="nav-slot">
-              <a class="footer-link py-2 -my-2" href="./playground.html" data-route>
+              <a class="footer-link py-2 -my-2" data-focus-ring data-focus-inset-x="6" href="./playground.html" data-route>
                 <span class="footer-link-underline">Playground</span>
               </a>
             </span>
             <span class="nav-slot">
-              <a class="footer-link py-2 -my-2" href="https://github.com/JaceThings/Scritto" target="_blank" rel="noreferrer">
-                <span class="footer-link-underline">GitHub</span>
+              <a class="footer-link py-2 -my-2" data-focus-ring data-focus-inset-x="6" href="./docs.html" data-route>
+                <span class="footer-link-underline">Docs</span>
               </a>
             </span>
             <span class="nav-slot ml-auto">
-              <a class="footer-link py-2 -my-2" href="https://x.com/JaceThings" target="_blank" rel="noreferrer">
+              <a class="footer-link py-2 -my-2" data-focus-ring data-focus-inset-x="6" href="https://x.com/JaceThings" target="_blank" rel="noreferrer">
                 <span class="footer-link-underline">Follow</span>
               </a>
             </span>

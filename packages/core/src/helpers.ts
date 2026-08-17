@@ -34,12 +34,19 @@ export const isOnscreen = (el: HTMLElement) => {
   return rect.bottom > clip.top && rect.top < clip.bottom && rect.right > clip.left && rect.left < clip.right
 }
 
-const CHAR_POOL: HTMLElement[] = []
+/**
+ * Chars outlive the host that drew them: one pool feeds every host on the page,
+ * so each char carries the two facts the pool needs. `pooled` is the pool's own
+ * claim on it, and `exitTimer` is the deferred release still armed for the life
+ * it is leaving.
+ */
+export type Char = HTMLElement & {
+  pooled?: boolean
+  exitTimer?: ReturnType<typeof setTimeout>
+}
+
+const CHAR_POOL: Char[] = []
 const CHAR_POOL_MAX = 1024
-
-export type Box = { left: number; right: number; width: number; top: number }
-
-export const box = (left: number, width: number, top = 0): Box => ({ left, right: left + width, width, top })
 
 export const createEl = <K extends keyof HTMLElementTagNameMap>(tag: K, className?: string, text?: string) => {
   const el = document.createElement(tag)
@@ -49,14 +56,24 @@ export const createEl = <K extends keyof HTMLElementTagNameMap>(tag: K, classNam
   return el
 }
 
-export const createChar = (text: string) => {
+export const createChar = (text: string): Char => {
   const el = CHAR_POOL.pop()
   if (!el) return createEl('span', 'char', text)
+  el.pooled = false
+  resetAnim(el)
   el.textContent = text
   return el
 }
 
-export const releaseChar = (el: HTMLElement) => {
+export const releaseChar = (el: Char) => {
+  // Teardown and a char's own exit callback can both hand it back, in either
+  // order, so only the first hand-back counts: the pool must never hold the
+  // same element twice, or a later value would be given a char that is already
+  // standing in another one.
+  if (el.pooled) return
+  el.pooled = true
+  clearTimeout(el.exitTimer)
+  el.exitTimer = undefined
   resetAnim(el)
   el.remove()
   if (CHAR_POOL.length < CHAR_POOL_MAX) CHAR_POOL.push(el)
@@ -126,6 +143,22 @@ const splitGraphemes = (value: string): string[] => {
   return ascii
 }
 
+/**
+ * How far from the end of a value the kept run may sit. A value that gains or
+ * loses a char or two at the end — a plural 's', an ordinal suffix, a unit that
+ * grew — moves the run it shares by that much, so the search covers the flush
+ * alignment and a couple either side: 2 * RUN_BAND + 1 alignments, each walked
+ * at most once, and pruned as soon as it cannot beat the run already found.
+ */
+const RUN_BAND = 2
+
+/**
+ * A run flush with neither end costs the row an extra torn-off tail, so it has
+ * to earn that: one letter shared by two unrelated words ('seven' -> 'nine'
+ * share an 'e') would fly across the value on its own while the rest rolled.
+ */
+const MIN_FLOAT_RUN = 2
+
 export const diff = (prev: HTMLElement[], newValue: string) => {
   const labels = splitGraphemes(newValue)
   const lenOld = prev.length
@@ -134,9 +167,39 @@ export const diff = (prev: HTMLElement[], newValue: string) => {
   let start = 0
   while (start < lenOld && start < lenNew && prev[start].textContent === labels[start]) start++
 
-  let end = 0
+  // The run both values end with, which is the whole answer whenever the value
+  // only changed in front of it.
+  let best = 0
   const maxSuffix = Math.min(lenOld - start, lenNew - start)
-  while (end < maxSuffix && prev[lenOld - 1 - end].textContent === labels[lenNew - 1 - end]) end++
+  while (best < maxSuffix && prev[lenOld - 1 - best].textContent === labels[lenNew - 1 - best]) best++
+  let oldSuffix = lenOld - best
+  let midEnd = lenNew - best
 
-  return { prefixCount: start, suffixCount: end, labels }
+  // A value can change at both ends at once — '1 second' -> '2 seconds' differs
+  // in its first char AND its last — and then the run it keeps is flush with
+  // neither end. `shift` aligns an old index with a new one (new = old + shift):
+  // the flush suffix sits at lenNew - lenOld, and the steps walk outwards from
+  // there, the side nearer no movement first, so that an equally long run is the
+  // one that travels least.
+  const near = lenNew < lenOld ? 1 : -1
+  for (let step = 0; step <= RUN_BAND * 2; step++) {
+    const shift = lenNew - lenOld + ((step + 1) >> 1) * (step & 1 ? near : -near)
+    // The run may not reach back into the prefix on either side.
+    const lo = shift < 0 ? start - shift : start
+    let run = 0
+    for (let i = Math.min(lenOld, lenNew - shift) - 1; i >= lo; i--) {
+      if (prev[i].textContent === labels[i + shift]) {
+        run++
+        if (run > best && run >= MIN_FLOAT_RUN) {
+          best = run
+          oldSuffix = i
+          midEnd = i + shift
+        }
+      } else run = 0
+      // What is left of this alignment can no longer beat the run in hand.
+      if (run + i - lo <= best) break
+    }
+  }
+
+  return { prefixCount: start, suffixCount: best, oldSuffix, midEnd, labels }
 }

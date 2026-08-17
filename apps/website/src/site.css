@@ -9,7 +9,7 @@
   --color-text-primary: #73574a;
   --color-text-secondary: rgba(154, 145, 138, 0.75);
   --color-text-input: #7e756c;
-  --color-accent-green: #425c30;
+  --color-accent-green: #5b793f;
   --color-live: #425c30;
   --color-divider-from: rgba(115, 87, 74, 0.08);
   --color-divider-to: rgba(115, 87, 74, 0);
@@ -18,6 +18,28 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
   --ease-out-quint: cubic-bezier(0.2, 0, 0, 1);
+  /* The core's default transition sampled as a curve, so a UI element that
+     swaps alongside rolling text settles on the same rhythm as the glyphs. */
+  --ease-spring: linear(
+    0,
+    0.1052,
+    0.3155,
+    0.532,
+    0.7112,
+    0.8414,
+    0.9265,
+    0.9765,
+    1.0023,
+    1.013,
+    1.0151,
+    1.0133,
+    1.01,
+    1.0068,
+    1.0041,
+    1.0022,
+    1.001,
+    1
+  );
 }
 
 html,
@@ -55,6 +77,11 @@ body {
 
 p {
   text-wrap: pretty;
+}
+
+/* Justified home copy is the only place a mid-word break earns its keep.
+   Playground blurbs share this `p` rule and must not hyphenate ("val-ue"). */
+p.text-justify {
   hyphens: auto;
   -webkit-hyphens: auto;
 }
@@ -81,33 +108,22 @@ h3 {
   animation-delay: calc(0.35s + var(--i, 0) * 0.08s);
 }
 
-/* The entrance cascade belongs to the first load. Once the router has swapped a
-   body, the cross-fade carries the change instead. */
-html.routed .stagger {
+/* The entrance cascade belongs to the first load, and only the body takes part
+   in a route change: the masthead and footer are never swapped, so their own
+   cascade is left alone (mid-cascade navigation keeps running instead of
+   snapping) while the incoming body rides the cross-fade. */
+html.routed #page .stagger {
   animation: none;
 }
 
-/* Ported from Lisse's masthead: the wordmark and its gloss share a bottom edge.
-   The class rides on the header row home.ts hangs the entry off, so the header
-   is back to a bare wordmark once the entry comes down. */
-.entry-head {
-  display: flex;
-  align-items: flex-end;
-  gap: 8px;
-}
-
-/* Longer than Lisse's gloss, so on a phone it takes a second line: hang it off
-   the wordmark's baseline rather than the row's bottom edge, and keep the
-   Italian out of the paragraph hyphenation. */
+/* The gloss wraps on a phone, and the Italian must not be broken across lines. */
 .entry-gloss {
   hyphens: none;
   -webkit-hyphens: none;
 }
 
-@media (max-width: 560px) {
-  .entry-head {
-    align-items: baseline;
-  }
+code {
+  font: inherit;
 }
 
 .site-nav {
@@ -158,10 +174,15 @@ html.routed .stagger {
   flex-direction: column;
   overflow: hidden;
   background: var(--color-figure);
+  /* First-paint fallback. JS swaps in a clip-path and clears this so the
+     two don't intersect and square the curve off. */
   border-radius: 12px 12px 20px 20px;
+  /* A white card gets a lighter lift than the compact rows below: a hairline
+     ring and one soft 2px drop, no umbra stack. The blur radius is twice the
+     intended Gaussian deviation, as CSS defines it. */
   box-shadow:
     0 0 0 1px rgba(119, 119, 119, 0.08),
-    0 2px 1px -0.5px rgba(119, 119, 119, 0.08);
+    0 2px 2px -0.5px rgba(119, 119, 119, 0.08);
 }
 
 /* The rounder bottom exists only to nest the controls sitting in those corners. */
@@ -169,18 +190,143 @@ html.routed .stagger {
   border-radius: 12px;
 }
 
+/* Copy-command rows. The 29px surface is well under the 40px minimum hit
+   target, so 6px of padding on the button and a matching negative margin buy a
+   41px target without moving the surface a pixel. */
+.install-copy {
+  display: block;
+  margin: -6px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+/* Keyboard focus is the squircle overlay in focus-ring.ts. Pointer leaves none. */
+.install-copy:focus,
+.install-copy:focus-visible {
+  outline: none;
+}
+
+/* Five shadow layers, bottom to top: a wide soft umbra, two tight ones that
+   seat the row on the page, a warm hairline, then a neutral 1px ring for the
+   edge. Blur radii are twice the intended Gaussian deviation because that is
+   how CSS defines the blur radius. */
 .install-row {
   display: flex;
   width: 100%;
   align-items: center;
-  gap: 0.375rem;
+  gap: 6px;
   overflow: hidden;
   background: var(--color-surface);
-  padding: 0.375rem 0.5rem;
+  padding: 6px 8px;
   border-radius: 8px;
   box-shadow:
-    0 0 0 1px rgba(119, 119, 119, 0.08),
-    0 2px 1px -0.5px rgba(119, 119, 119, 0.08);
+    0 0 0 1px rgba(119, 119, 119, 0.19),
+    0 0 0 0.5px rgba(115, 87, 74, 0.08),
+    0 1px 2px 0 rgba(115, 87, 74, 0.1),
+    0 2px 2px -1px rgba(115, 87, 74, 0.05),
+    0 1px 6px 0 rgba(115, 87, 74, 0.08);
+}
+
+/* Artwork only: the marks are drawn by the <use> instances in the rows. */
+.install-glyphs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+/* One slot for every mark, so the commands start on the same x whether the
+   mark is the widest of the set or the narrowest. */
+.install-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 17px;
+  color: var(--color-text-input);
+}
+
+/* This mark's four ribbons abut, and one flat tone welds them into a blob at
+   17px. A surface-coloured hairline reopens the seams the brand's own two-tone
+   fill would have drawn. */
+#mark-solid path {
+  stroke: var(--color-surface);
+  stroke-width: 0.9;
+  stroke-linejoin: round;
+}
+
+.install-command {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+  color: var(--color-text-input);
+}
+
+.install-swap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-input);
+  transition: color 300ms var(--ease-out-quint);
+}
+
+.install-copy[data-copied] .install-swap {
+  color: var(--color-accent-green);
+}
+
+/* Both glyphs stay in the slot: dropping one would close the cross-fade window
+   and the swap would read as a hard cut. Scale, blur and opacity only — no
+   translation, so the glyph never leaves the row's centre line. */
+.install-glyph {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.4);
+  filter: blur(3px);
+  transition:
+    opacity 300ms var(--ease-spring),
+    transform 300ms var(--ease-spring),
+    filter 300ms var(--ease-spring);
+  will-change: opacity, transform, filter;
+}
+
+.install-copy:not([data-copied]) .install-glyph[data-glyph='copy'],
+.install-copy[data-copied] .install-glyph[data-glyph='check'] {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+
+/* The confirmation still has to read, so the glyph cuts over instead of
+   travelling. */
+@media (prefers-reduced-motion: reduce) {
+  .install-swap,
+  .install-glyph {
+    transition-duration: 1ms;
+  }
+
+  .install-glyph {
+    transform: none;
+    filter: none;
+  }
 }
 
 .stage {
@@ -191,7 +337,7 @@ html.routed .stagger {
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  padding: 12px;
+  padding: 0;
   border: 0;
   background: transparent;
   cursor: pointer;
@@ -201,22 +347,46 @@ html.routed .stagger {
   height: 255px;
 }
 
+/* A CSS ring on the stage gets cut by the figure's clip; keyboard uses
+   the overlay. The surface stays the same color. */
+.stage:focus,
+.copy-stage:focus {
+  outline: none;
+}
+
+.stage:focus-visible,
+.copy-stage:focus-visible {
+  outline: none;
+}
+
+[data-focus-ring]:focus,
+[data-focus-ring]:focus-visible {
+  outline: none;
+}
+
+.footer-link:focus,
+.footer-link:focus-visible {
+  outline: none;
+}
+
 .copy-stage {
+  position: relative;
   display: block;
   width: 100%;
   border: 0;
   background: transparent;
-  padding: 16px;
+  padding: 24px;
   text-align: left;
   cursor: pointer;
   font: inherit;
 }
 
-/* 4-line wrap at the 510px column. Without this the card shrinks to 3 lines
-   and everything below it jumps. The flow box stays tall so line-4 ghosts
-   are not clipped by inset:0. */
+/* The copy is written to wrap to 4 lines at the 510px column at every value the
+   stage cycles, so this only backstops a browser whose metrics disagree: without
+   it a 3-line wrap would shrink the card and jump everything below. The flow box
+   stays tall so line-4 ghosts are not clipped by inset:0. */
 .copy-stage-wrap {
-  min-height: calc(32px + 15px * 1.5 * 4);
+  min-height: calc(48px + 15px * 1.5 * 4);
 }
 
 .copy-stage-wrap .copy {
@@ -248,7 +418,7 @@ html.routed .stagger {
   align-items: center;
   justify-content: center;
   gap: 12px;
-  padding: 12px;
+  padding: 24px;
 }
 
 /* Padding and negative margin grow the hit area without moving the pill. */
@@ -287,7 +457,7 @@ html.routed .stagger {
   transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1), var(--ease-out-quint);
 }
 
-.pill[aria-checked='true'] > span {
+.pill[aria-pressed='true'] > span {
   background: rgba(126, 117, 108, 0.12);
 }
 
@@ -295,13 +465,9 @@ html.routed .stagger {
   scale: 0.96;
 }
 
+.pill:focus,
 .pill:focus-visible {
   outline: none;
-}
-
-.pill:focus-visible > span {
-  outline: 2px solid var(--color-text-primary);
-  outline-offset: 2px;
 }
 
 @media (min-width: 561px) {
@@ -316,18 +482,19 @@ html.routed .stagger {
   }
 }
 
-.row-field,
-.row-slider {
-  padding: 16px;
-}
-
 .row-field {
+  /* 24px so the hops clear the 20px bottom corners. */
+  padding: 24px;
   gap: 12px;
   justify-content: space-between;
   font-size: 14px;
   line-height: 1.2;
   font-weight: 500;
   letter-spacing: -0.25px;
+}
+
+.row-slider {
+  padding: 24px;
 }
 
 .row-label {
@@ -350,10 +517,9 @@ html.routed .stagger {
   cursor: text;
 }
 
+.field:focus,
 .field:focus-visible {
-  outline: 2px solid var(--color-text-primary);
-  outline-offset: 4px;
-  border-radius: 2px;
+  outline: none;
 }
 
 /* Not `.collapse`: Tailwind ships that name as `visibility: collapse`, which wins
@@ -377,19 +543,75 @@ html.routed .stagger {
   display: inline-flex;
   flex: none;
   align-items: center;
+  transform-origin: 50% 50%;
+  color: var(--color-text-secondary);
+  transition: color 200ms var(--ease-out-quint);
 }
 
+.hop[aria-current='true'],
+.hop:focus-within {
+  color: var(--color-text-primary);
+}
+
+.hop[data-exit] {
+  pointer-events: none;
+}
+
+.hop-slot {
+  position: relative;
+  display: inline-block;
+  width: max-content;
+}
+
+.hop-face {
+  display: inline;
+  white-space: pre;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 200ms var(--ease-out-quint);
+}
+
+/* The face is the only in-flow child. The field is stretched over it and
+   clipped so a UA min-width cannot paint a padded fill beside the word. */
 .hop-value {
-  flex: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
   border: 0;
-  background: transparent;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  background-color: transparent;
+  box-shadow: none;
   padding: 0;
   margin: 0;
   font: inherit;
   letter-spacing: inherit;
-  color: var(--color-text-primary);
+  color: inherit;
   white-space: pre;
   outline: none;
+  caret-color: var(--color-text-primary);
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out-quint);
+}
+
+.hop-value:focus,
+.hop-value:focus-visible {
+  background: none;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.hop:focus-within .hop-face {
+  opacity: 0;
+}
+
+.hop:focus-within .hop-value {
+  opacity: 1;
 }
 
 /* Drawn, not typed: never a character, never in the hit target, never selected. */
@@ -399,23 +621,7 @@ html.routed .stagger {
   pointer-events: none;
   user-select: none;
   color: rgba(126, 117, 108, 0.4);
-}
-
-/* On the value, not on the line: the line is not the field. */
-.hop-value:focus-visible {
-  outline: 2px solid var(--color-text-primary);
-  outline-offset: 2px;
-  border-radius: 2px;
-}
-
-/* Sizes the fields. Lives inside the row so it inherits the very font it measures. */
-.hop-mirror {
-  position: absolute;
-  top: -100vh;
-  left: 0;
-  visibility: hidden;
-  white-space: pre;
-  pointer-events: none;
+  transition: color 200ms var(--ease-out-quint);
 }
 
 .slider {
@@ -475,10 +681,9 @@ html.routed .stagger {
   color: var(--color-text-input);
 }
 
+.slider-readout:focus,
 .slider-readout:focus-visible {
-  outline: 2px solid var(--color-text-primary);
-  outline-offset: 3px;
-  border-radius: 2px;
+  outline: none;
 }
 
 /* Padding plus negative margin widens the drag target past the 8px track. */
@@ -554,9 +759,7 @@ html.routed .stagger {
 }
 
 .slider-shell:has(.slider-range:focus-visible) {
-  outline: 2px solid var(--color-text-primary);
-  outline-offset: 4px;
-  border-radius: 4px;
+  outline: none;
 }
 
 scritto-text:not(:defined) {
@@ -586,5 +789,12 @@ scritto-text.live {
 @media (prefers-reduced-motion: reduce) {
   .stagger {
     animation: none;
+  }
+
+  .hop,
+  .hop-face,
+  .hop-value,
+  .hop-sep {
+    transition: none;
   }
 }

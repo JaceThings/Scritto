@@ -16,6 +16,7 @@
       "dependencies": {
         "@chenglou/pretext": "^0.0.8",
         "@fontsource-variable/inter": "^5.3.0",
+        "@lisse/core": "0.7.1",
         "@scritto/core": "workspace:*",
         "justif": "^0.8.1",
       },
@@ -248,6 +249,8 @@
     "@jridgewell/sourcemap-codec": ["@jridgewell/sourcemap-codec@1.5.5", "", {}, "sha512-cYQ9310grqxueWbl+WuIUIaiUaDcj7WOq5fVhEljNVgRfOUhY9fy2zTvfoqWsnebh8Sl70VScFbICvJnLKB0Og=="],
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
+
+    "@lisse/core": ["@lisse/core@0.7.1", "", {}, "sha512-FCFzcIcs3OxnygBqMd1rK450tBO8UTM1UCqDl+vIFe5h15m/XaDzdv1iyu4ywEDanrVcTG926AgZ/3r4RAFauQ=="],
 
     "@manypkg/find-root": ["@manypkg/find-root@1.1.0", "", { "dependencies": { "@babel/runtime": "^7.5.5", "@types/node": "^12.7.1", "find-up": "^4.1.0", "fs-extra": "^8.1.0" } }, "sha512-mki5uBvhHzO8kYYix/WRy2WX8S3B5wdVSc9D6KcU5lQNglP2yt58/VfLuAK49glRXChosY8ap2oJ1qgma3GUVA=="],
 

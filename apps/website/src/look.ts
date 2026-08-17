@@ -1,6 +1,5 @@
 import type { Scritto } from '@scritto/core'
 import '@scritto/core'
-import './styles.css'
 import { bindThemeToggle } from './theme'
 
 const TAB_CLASS =

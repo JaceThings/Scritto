@@ -1,7 +1,6 @@
 import { measureNaturalWidth, prepareWithSegments } from '@chenglou/pretext'
 import { flushStats, type Scritto } from '@scritto/core'
 import '@scritto/core'
-import './styles.css'
 
 const params = new URLSearchParams(location.search)
 const scenario = params.get('scenario') || 'spans'

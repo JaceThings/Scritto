@@ -19,6 +19,7 @@ export default defineConfig({
       input: {
         main: fileURLToPath(new URL('./index.html', import.meta.url)),
         playground: fileURLToPath(new URL('./playground.html', import.meta.url)),
+        docs: fileURLToPath(new URL('./docs.html', import.meta.url)),
         bench: fileURLToPath(new URL('./bench.html', import.meta.url)),
         stress: fileURLToPath(new URL('./stress.html', import.meta.url)),
         suite: fileURLToPath(new URL('./suite.html', import.meta.url)),

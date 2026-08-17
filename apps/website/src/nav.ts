@@ -1,21 +1,19 @@
-// Ported from Lisse's root route: the header and footer never unmount, the body
-// cross-fades on route change, and the footer slides to its new position while
-// the incoming body is still hidden.
+// The masthead and footer never unmount: only `#page` swaps. The outgoing body
+// cross-fades out, the footer slides to its new position while the incoming body
+// is still hidden, and then the new body fades in.
 
 import { playClick } from './sounds'
 
 const FADE_MS = 250
 const FOOTER_SLIDE_MS = 350
 const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)'
-// Governs the Home link's enter/exit and the sibling links sliding to fill it.
-const NAV_LAYOUT_MS = 420
-const NAV_EASE = 'cubic-bezier(0.22, 0.61, 0.36, 1)'
 
 export type PageInit = (root: ParentNode) => (() => void) | void
 
 const normalize = (pathname: string) => {
   const file = pathname.slice(pathname.lastIndexOf('/') + 1)
   if (file === 'playground.html') return '/playground'
+  if (file === 'docs.html') return '/docs'
   if (file === '' || file === 'index.html') return '/'
   return pathname
 }
@@ -39,64 +37,12 @@ const load = async (url: URL) => {
 export const startRouter = (pages: Record<string, PageInit>) => {
   const page = document.querySelector<HTMLElement>('#page')
   const footer = document.querySelector<HTMLElement>('footer')
-  const nav = document.querySelector<HTMLElement>('#site-nav')
   if (!page || !footer) return
 
   let route = normalize(location.pathname)
   let dispose = pages[route]?.(document) ?? undefined
   let busy = false
 
-  const slots = () => [...(nav?.querySelectorAll<HTMLElement>('.nav-slot') ?? [])]
-  const homeSlot = nav?.querySelector<HTMLElement>('[data-nav-home]') ?? null
-
-  /** Shows Home everywhere but the home page, sliding the other links across. */
-  const syncNav = (next: string) => {
-    if (!homeSlot || !nav) return
-    const wanted = next !== '/'
-    if (wanted === !homeSlot.hidden) return
-
-    const others = slots().filter((slot) => slot !== homeSlot)
-    const before = new Map(others.map((slot) => [slot, slot.getBoundingClientRect().left]))
-
-    if (wanted) {
-      homeSlot.hidden = false
-    } else {
-      // Take the outgoing link out of flow first, so the siblings' target
-      // positions are final before they start sliding.
-      const rect = homeSlot.getBoundingClientRect()
-      const navRect = nav.getBoundingClientRect()
-      homeSlot.style.position = 'absolute'
-      homeSlot.style.left = `${rect.left - navRect.left}px`
-      homeSlot.style.top = `${rect.top - navRect.top}px`
-    }
-
-    for (const slot of others) {
-      const shift = (before.get(slot) ?? 0) - slot.getBoundingClientRect().left
-      if (Math.abs(shift) < 0.5) continue
-      slot.animate(
-        { transform: [`translateX(${shift}px)`, 'none'] },
-        { duration: NAV_LAYOUT_MS, easing: NAV_EASE },
-      )
-    }
-
-    if (wanted) {
-      homeSlot.animate(
-        { opacity: [0, 1], transform: ['translateX(-6px)', 'none'] },
-        { duration: NAV_LAYOUT_MS, easing: NAV_EASE },
-      )
-      return
-    }
-    const exit = homeSlot.animate(
-      { opacity: [1, 0], transform: ['none', 'translateX(-6px)'] },
-      { duration: NAV_LAYOUT_MS, easing: NAV_EASE },
-    )
-    void settled(exit).then(() => {
-      homeSlot.hidden = true
-      homeSlot.style.position = ''
-      homeSlot.style.left = ''
-      homeSlot.style.top = ''
-    })
-  }
 
   const navigate = async (url: URL, push: boolean) => {
     if (busy) return
@@ -123,7 +69,6 @@ export const startRouter = (pages: Record<string, PageInit>) => {
       document.title = doc.title
       if (push) history.pushState(null, '', url)
       route = normalize(url.pathname)
-      syncNav(route)
       dispose = pages[route]?.(document) ?? undefined
 
       const shift = footerBefore - footer.getBoundingClientRect().top

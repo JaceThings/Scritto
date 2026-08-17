@@ -1,6 +1,5 @@
 import { flushStats, type Scritto } from '@scritto/core'
 import '@scritto/core'
-import './styles.css'
 import { bindThemeToggle } from './theme'
 
 type Built = { hosts: Scritto[]; words?: number }

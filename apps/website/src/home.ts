@@ -1,31 +1,12 @@
 import '@scritto/core'
 import type { Scritto } from '@scritto/core'
+import { bindCorners } from './corners'
 import { bindJustif } from './justif'
 import { comma, company, connectLive, nth, sitting, type Stats } from './live'
 import { playCopySuccess } from './sounds'
 
-// The wordmark lives in the header the router never swaps, so the dictionary
-// entry has to be hung off it on mount and taken down again on the way out.
-const mountEntry = (root: ParentNode) => {
-  const entry = root.querySelector<HTMLTemplateElement>('#entry')
-  const heading = root.querySelector('h1')
-  const head = heading?.parentElement
-  if (!entry || !heading || !head) return
-  const parts = [...entry.content.cloneNode(true).childNodes].filter(
-    (node): node is HTMLElement => node instanceof HTMLElement,
-  )
-  const [gloss, senses] = parts
-  head.classList.add('entry-head')
-  heading.after(gloss)
-  head.after(senses)
-  return () => {
-    head.classList.remove('entry-head')
-    for (const part of parts) part.remove()
-  }
-}
-
 export const initHome = (root: ParentNode = document) => {
-  const unmountEntry = mountEntry(root)
+  const corners = bindCorners(root)
   const justified = bindJustif(root)
   const node = (id: string) => root.querySelector<Scritto>(id)!
 
@@ -71,34 +52,51 @@ export const initHome = (root: ParentNode = document) => {
   }, 1000)
 
   const timers = new Set<number>()
+  const status = root.querySelector('[data-copy-status]')
+  // One row is confirmed at a time, and every press owns the reset that follows
+  // it: an earlier timer must not cut a later row's confirmation short.
+  let confirmed: HTMLButtonElement | null = null
+  let press = 0
+
+  const settle = () => {
+    confirmed?.removeAttribute('data-copied')
+    confirmed = null
+    if (status) status.textContent = ''
+  }
+
+  const hold = (mine: number, after: number) => {
+    timers.add(
+      window.setTimeout(() => {
+        if (press === mine) settle()
+      }, after),
+    )
+  }
+
   for (const button of root.querySelectorAll<HTMLButtonElement>('[data-copy]')) {
-    const label = button.querySelector('[data-copy-label]')
     button.addEventListener('click', async () => {
       const command = button.dataset.copy
-      if (!command || !label) return
-      const restore = (text: string, after: number) => {
-        timers.add(
-          window.setTimeout(() => {
-            label.textContent = text
-            label.classList.remove('text-accent-green')
-          }, after),
-        )
-      }
+      if (!command) return
+      const pkg = button.dataset.pkg ?? command
+      const mine = ++press
+      settle()
       try {
         await navigator.clipboard.writeText(command)
         playCopySuccess()
-        label.textContent = 'copied'
-        label.classList.add('text-accent-green')
-        restore('copy', 1400)
+        confirmed = button
+        button.setAttribute('data-copied', '')
+        // The check mark is the sighted feedback; the row's own label never
+        // changes, so the announcement is what a screen reader has to go on.
+        if (status) status.textContent = `Copied ${pkg} install command to clipboard`
+        hold(mine, 1400)
       } catch {
-        label.textContent = 'failed'
-        restore('copy', 2400)
+        if (status) status.textContent = `Unable to copy ${pkg} install command`
+        hold(mine, 2400)
       }
     })
   }
 
   return () => {
-    unmountEntry?.()
+    corners()
     justified?.destroy()
     disconnect()
     window.clearInterval(ticking)

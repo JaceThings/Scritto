@@ -11,9 +11,9 @@ import {
   diff,
   reconcileChildren,
   clearAnimStyle,
+  resetAnim,
   finishIdentityAnim,
-  box,
-  type Box,
+  type Char,
 } from './helpers'
 import { BOUNCE_TRANSITION, CONFIG, DEFAULT_TRANSITION, SPACE, STYLES } from './const'
 import { ScrittoFlow, playFlows, prepareFlows } from './flow'
@@ -36,13 +36,15 @@ type Layout = {
 type Plan = Layout & {
   enters: HTMLElement[]
   trend: number
-  oldPrefix: Box
-  oldMiddle: Box
-  oldSuffixBox: Box
+  oldPrefixX: number
+  oldPrefixTop: number
+  oldRunX: number
+  oldRunTop: number
   exitingX: number
   tailX: number
 }
 
+const centerX = (rect: DOMRect) => (rect.left + rect.right) * 0.5
 const pending = new Set<Scritto>()
 let flushScheduled = false
 export const flushStats = { prepare: 0, commit: 0, finish: 0, hosts: 0 }
@@ -138,6 +140,8 @@ class Scritto extends ServerSafeHTMLElement {
     const animate =
       withAnimation && !(this.respectMotionPreference && isReducedMotion()) && isOnscreen(this)
     if (!animate) {
+      pending.delete(this)
+      this._readyPlan = null
       this._emit('before', false)
       this._render()
       this._emit('after', false)
@@ -180,11 +184,11 @@ class Scritto extends ServerSafeHTMLElement {
       this._reset()
       return
     }
-    for (let i = 0; i < plan.enters.length; i++) if (plan.enters[i].textContent !== SPACE) plan.enters[i].style.opacity = '0'
     this._cancelTracked()
     this._queueExit(this._chars.slice(plan.prefixCount, plan.oldSuffix), plan.exitingX, plan.trend)
     this._queueExit(plan.exitingTail, plan.tailX, plan.trend)
     this._commit(plan.next, plan.prefixCount, plan.midEnd, plan.suffixCount)
+    for (let i = 0; i < plan.enters.length; i++) if (plan.enters[i].textContent !== SPACE) plan.enters[i].style.opacity = '0'
     clearAnimStyle(this._prefix)
     clearAnimStyle(this._suffix)
   }
@@ -195,6 +199,8 @@ class Scritto extends ServerSafeHTMLElement {
     if (!plan) return
     const newPrefix = this._prefix.getBoundingClientRect()
     const newSuffix = this._suffix.getBoundingClientRect()
+    const prefixAnchor = plan.prefixCount ? this._chars[0].getBoundingClientRect() : null
+    const suffixAnchor = plan.suffixCount ? this._chars[plan.midEnd].getBoundingClientRect() : null
     const edge = this._isRTL ? newPrefix.right : newPrefix.left
     for (let i = 0; i < this._exitingChars.length; i++) {
       const [el, x] = this._exitingChars[i]
@@ -202,13 +208,13 @@ class Scritto extends ServerSafeHTMLElement {
     }
     const line = newPrefix.height || 1
     const prefixDx =
-      Math.abs(newPrefix.top - plan.oldPrefix.top) >= line * 0.5
+      !prefixAnchor || Math.abs(newPrefix.top - plan.oldPrefixTop) >= line * 0.5
         ? 0
-        : this._edgeDx(plan.oldPrefix, newPrefix, plan.oldMiddle, true)
+        : plan.oldPrefixX - centerX(prefixAnchor)
     const suffixDx =
-      Math.abs(newSuffix.top - plan.oldSuffixBox.top) >= line * 0.5
+      !suffixAnchor || Math.abs(newSuffix.top - plan.oldRunTop) >= line * 0.5
         ? 0
-        : this._edgeDx(plan.oldSuffixBox, newSuffix, plan.oldMiddle, false)
+        : plan.oldRunX - centerX(suffixAnchor)
     const prefixFlip = flip(this._prefix, prefixDx, this.transition, true)
     const suffixFlip = flip(this._suffix, suffixDx, this.transition, true)
     if (prefixFlip) this._anims.push(prefixFlip)
@@ -217,25 +223,35 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   private _buildLayout(): Layout | null {
-    const { prefixCount, suffixCount, labels } = diff(this._chars, this._value)
+    const found = diff(this._chars, this._value)
+    const { prefixCount, suffixCount, labels } = found
     if (prefixCount === this._chars.length && prefixCount === labels.length) return null
 
-    let mid = labels.length - prefixCount - suffixCount
-    let peel = 0
-    while (peel < mid && labels[prefixCount + peel] === ',') peel++
-    if (peel > 0 && peel < mid) mid = peel
-    let oldSuffix = this._chars.length - suffixCount
-    let oldLead = 0
-    while (prefixCount + oldLead < oldSuffix && this._chars[prefixCount + oldLead].textContent === ',') oldLead++
-    if (oldLead > 0 && prefixCount + oldLead < oldSuffix) oldSuffix = prefixCount + oldLead
-    const midEnd = prefixCount + mid
+    // Where the kept run starts on each side. Everything between the prefix and
+    // it is replaced; everything past it is fresh on the new side and dropped on
+    // the old one.
+    let oldSuffix = found.oldSuffix
+    let midEnd = found.midEnd
+    // A run of commas at the front of the change is a group arriving or leaving,
+    // so it is peeled off to roll on its own while the digits behind it are kept
+    // and shifted. That only lines up while nothing is kept from the end of the
+    // value: kept chars are placed straight after the peeled run, which is where
+    // they belong only when they are the whole rest of the row.
+    if (!suffixCount) {
+      let peel = prefixCount
+      while (peel < midEnd && labels[peel] === ',') peel++
+      if (peel > prefixCount && peel < midEnd) midEnd = peel
+      let oldLead = prefixCount
+      while (oldLead < oldSuffix && this._chars[oldLead].textContent === ',') oldLead++
+      if (oldLead > prefixCount && oldLead < oldSuffix) oldSuffix = oldLead
+    }
     return {
       prefixCount,
       suffixCount,
       oldSuffix,
       midEnd,
       exitingTail: this._chars.slice(oldSuffix + suffixCount),
-      next: this._nextChars(prefixCount, mid, suffixCount, oldSuffix, labels),
+      next: this._nextChars(prefixCount, midEnd, suffixCount, oldSuffix, labels),
     }
   }
 
@@ -254,27 +270,42 @@ class Scritto extends ServerSafeHTMLElement {
     const oldSuffixRect = this._suffix.getBoundingClientRect()
     const midRect = this._middle.getBoundingClientRect()
     const oldTail = this._tail.getBoundingClientRect()
-    const oldMiddle = midRect.width ? midRect : oldPrefix.width && oldSuffixRect.width ? oldPrefix : midRect
     const sectionRect = (el: HTMLElement) =>
       el === this._prefix ? oldPrefix : el === this._suffix ? oldSuffixRect : el === this._tail ? oldTail : midRect
 
     const exitX = (anchor: HTMLElement) => {
       const parent = anchor.parentElement
-      if (!parent) return 0
-      const parentRect = sectionRect(parent)
-      return this._isRTL
-        ? parentRect.left + anchor.offsetLeft + anchor.offsetWidth
-        : parentRect.left + anchor.offsetLeft
+      const rect = parent ? sectionRect(parent) : midRect
+      const left = rect.left + anchor.offsetLeft
+      return this._isRTL ? left + anchor.offsetWidth : left
     }
 
     const { prefixCount, suffixCount, oldSuffix, midEnd, exitingTail, next } = layout
+    // The same kept glyph is the only exact reference on both sides of the
+    // commit. offsetLeft/offsetWidth round its old edge to whole CSS pixels;
+    // comparing that reconstructed edge with a fractional section rect invents
+    // a sub-pixel FLIP even when layout did not move.
+    const prefixAnchor = prefixCount ? this._chars[0] : null
+    const runAnchor = suffixCount ? this._chars[oldSuffix] : null
+    // Section boxes above retain an interrupted FLIP's current position. A
+    // glyph's own roll carries no horizontal layout information and can skew
+    // its visual centre, so cancel it now; the commit cancels it later in this
+    // same microtask either way.
+    for (let i = 0; i < this._anims.length; i++) {
+      const effect = this._anims[i].effect
+      const target = effect instanceof KeyframeEffect ? effect.target : null
+      if (target && (target === prefixAnchor || target === runAnchor)) this._anims[i].cancel()
+    }
+    const prefixAnchorRect = prefixAnchor?.getBoundingClientRect()
+    const runAnchorRect = runAnchor?.getBoundingClientRect()
     return {
       ...layout,
       enters: next.slice(prefixCount, midEnd).concat(next.slice(midEnd + suffixCount)),
       trend,
-      oldPrefix: box(oldPrefix.left, oldPrefix.width, oldPrefix.top),
-      oldMiddle: box(oldMiddle.left, oldMiddle.width, oldMiddle.top),
-      oldSuffixBox: box(oldSuffixRect.left, oldSuffixRect.width, oldSuffixRect.top),
+      oldPrefixX: prefixAnchorRect ? centerX(prefixAnchorRect) : 0,
+      oldPrefixTop: prefixAnchor ? sectionRect(prefixAnchor.parentElement!).top : oldPrefix.top,
+      oldRunX: runAnchorRect ? centerX(runAnchorRect) : 0,
+      oldRunTop: runAnchor ? sectionRect(runAnchor.parentElement!).top : oldSuffixRect.top,
       exitingX: prefixCount < oldSuffix ? exitX(this._chars[prefixCount]) : 0,
       tailX: exitingTail.length ? exitX(exitingTail[0]) : 0,
     }
@@ -282,16 +313,16 @@ class Scritto extends ServerSafeHTMLElement {
 
   private _nextChars(
     prefixCount: number,
-    mid: number,
+    midEnd: number,
     suffixCount: number,
     oldSuffix: number,
     labels: string[],
   ) {
     const next = new Array<HTMLElement>(labels.length)
     for (let i = 0; i < prefixCount; i++) next[i] = this._chars[i]
-    for (let i = 0; i < mid; i++) next[prefixCount + i] = createChar(labels[prefixCount + i])
-    for (let i = 0; i < suffixCount; i++) next[prefixCount + mid + i] = this._chars[oldSuffix + i]
-    for (let i = prefixCount + mid + suffixCount; i < labels.length; i++) next[i] = createChar(labels[i])
+    for (let i = prefixCount; i < midEnd; i++) next[i] = createChar(labels[i])
+    for (let i = 0; i < suffixCount; i++) next[midEnd + i] = this._chars[oldSuffix + i]
+    for (let i = midEnd + suffixCount; i < labels.length; i++) next[i] = createChar(labels[i])
     return next
   }
 
@@ -300,6 +331,7 @@ class Scritto extends ServerSafeHTMLElement {
     reconcileChildren(this._middle, chars, prefixCount, midEnd)
     reconcileChildren(this._suffix, chars, midEnd, midEnd + suffixCount)
     reconcileChildren(this._tail, chars, midEnd + suffixCount, chars.length)
+    for (let i = 0; i < chars.length; i++) resetAnim(chars[i])
     this._chars = chars
   }
 
@@ -319,6 +351,11 @@ class Scritto extends ServerSafeHTMLElement {
     const stagger = this._stagger(nodes)
     for (let i = 0; i < nodes.length; i++) {
       this._animateChar(nodes[i], true, trend, i * stagger, () => {
+        // The group owns these chars until they are released, and releasing one
+        // detaches it. A char that has left the group was torn down early and is
+        // already back in the pool, or already standing in another value, where
+        // releasing it a second time would take a glyph off the screen.
+        if (nodes[i].parentNode !== group) return
         releaseChar(nodes[i])
         if (--left === 0) {
           group.remove()
@@ -350,7 +387,7 @@ class Scritto extends ServerSafeHTMLElement {
     clearAnimStyle(this._middle)
     clearAnimStyle(this._suffix)
     clearAnimStyle(this._tail)
-    for (let i = 0; i < this._chars.length; i++) clearAnimStyle(this._chars[i])
+    for (let i = 0; i < this._chars.length; i++) resetAnim(this._chars[i])
 
     const exiting = this._exitingChars
     this._exitingChars = []
@@ -368,14 +405,13 @@ class Scritto extends ServerSafeHTMLElement {
     return (this.transition.duration * CONFIG.stagger) / (n || 1)
   }
 
-  private _edgeDx(oldRect: Box, newRect: Box, oldMiddle: Box, isPrefix: boolean) {
-    if (this._isRTL === isPrefix) return (oldRect.width ? oldRect.right : oldMiddle.right) - newRect.right
-    return (oldRect.width ? oldRect.left : oldMiddle.left) - newRect.left
-  }
-
-  private _animateChar(el: HTMLElement, isOut: boolean, trend: number, delay: number, onFinish?: () => void) {
+  private _animateChar(el: Char, isOut: boolean, trend: number, delay: number, onFinish?: () => void) {
     if (el.textContent === SPACE) {
-      if (isOut && onFinish) setTimeout(onFinish, this.transition.duration + delay)
+      // A space has nothing to animate, so its release rides a bare timer. The
+      // char keeps the handle because releasing the char has to disarm it: by
+      // the time it would fire, the char can already be standing in another
+      // value, and its release there would collapse the gap it was holding.
+      if (isOut && onFinish) el.exitTimer = setTimeout(onFinish, this.transition.duration + delay)
       return
     }
 
@@ -390,7 +426,8 @@ class Scritto extends ServerSafeHTMLElement {
       },
       { ...this.transition, fill: 'both', delay },
     )
-    this._anims.push(anim)
+    // Tracked animations are section FLIPs only. Glyph rolls keep playing
+    // so a rapid update can stack outgoing digits instead of popping them.
 
     if (!onFinish) {
       anim.onfinish = finishIdentityAnim

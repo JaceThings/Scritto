@@ -1,5 +1,4 @@
 import type { Scritto } from '@scritto/core'
-import './styles.css'
 import { bindThemeToggle } from './theme'
 
 const baseline = new URLSearchParams(location.search).has('baseline')

@@ -1,9 +1,8 @@
 import type { Scritto } from '@scritto/core'
 import { cancelPendingTicks, playTick } from './sounds'
 
-// Ported from Lisse's playground Slider (Slider.tsx + useRubberBand +
-// usePointerDrag + useEditableValue + slider-utils), with framer-motion's
-// motion values replaced by a rAF driver.
+// Slider with rubber-band overscroll, pointer drag, and an editable value, all
+// driven by a rAF loop rather than a motion library.
 
 const PROP_CHANGE_DURATION = 350
 const PROP_CHANGE_EASE = [0.32, 0.72, 0, 1] as const
@@ -176,7 +175,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     <div class="slider">
       <div class="slider-head">
         <label class="slider-label" for="${id}"><scritto-text data-role="label"></scritto-text></label>
-        <span class="slider-readout" data-role="readout" role="button" tabindex="0"
+        <span class="slider-readout" data-role="readout"
           ><scritto-text data-role="value"></scritto-text
         ></span>
         <input class="slider-input" data-role="input" type="text" inputmode="decimal" hidden />
@@ -186,7 +185,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
           <div class="slider-stretch" data-role="stretch">
             <div class="slider-track" aria-hidden="true"><div class="slider-fill" data-role="fill"></div></div>
           </div>
-          <input class="slider-range" data-role="range" type="range" id="${id}"
+          <input class="slider-range" data-role="range" type="range" id="${id}" data-focus-ring
             min="${min}" max="${max}" step="${step}" value="${value}" />
         </div>
       </div>
@@ -269,7 +268,31 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
   // --- value plumbing ----------------------------------------------------
   let stopProp: Stop = NOOP
   let stopPointer: Stop = NOOP
-  let stopSnap: Stop = NOOP
+  let snapFrame = 0
+  let snapFrom = reported
+  let snapTarget = reported
+  let snapStarted = 0
+  const stopSnap = () => {
+    cancelAnimationFrame(snapFrame)
+    snapFrame = 0
+  }
+  const updateSnap = (now: number) => {
+    const progress = Math.min(1, (now - snapStarted) / STEP_SNAP_DURATION)
+    setReported(snapFrom + (snapTarget - snapFrom) * SNAP_EASE(progress))
+    return progress
+  }
+  const retargetSnap = (next: number) => {
+    const now = performance.now()
+    if (snapFrame) updateSnap(now)
+    snapFrom = reported
+    snapTarget = next
+    snapStarted = now
+    if (snapFrame) return
+    snapFrame = requestAnimationFrame(function tick(frameNow) {
+      if (updateSnap(frameNow) < 1) snapFrame = requestAnimationFrame(tick)
+      else snapFrame = 0
+    })
+  }
   let dragging = false
 
   const commit = (next: number, fromDrag: boolean) => {
@@ -303,11 +326,14 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
       const crossed = Math.round(Math.abs(stepped - (lastStepped ?? stepped)) / step)
       playTick()
       lastStepped = stepped
-      stopSnap()
-      // Slow drag (one detent): magnetic snap. Fast drag: hard set, so the bar
-      // tracks the cursor instead of trailing through a tween it can't keep up with.
-      if (prefersReducedMotion() || crossed > 1) setReported(stepped)
-      else stopSnap = tween(reported, stepped, STEP_SNAP_DURATION, SNAP_EASE, setReported)
+      // Keep one rAF loop alive while retargeting. Cancel-and-restart can drop
+      // every update when pointer events arrive faster than display frames.
+      if (prefersReducedMotion() || crossed > 1) {
+        stopSnap()
+        setReported(stepped)
+      } else {
+        retargetSnap(stepped)
+      }
     }
     commit(stepped, true)
   }
@@ -441,11 +467,6 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
   }
 
   readout.addEventListener('click', beginEdit)
-  readout.addEventListener('keydown', (event) => {
-    if (event.key !== 'Enter' && event.key !== ' ') return
-    event.preventDefault()
-    beginEdit()
-  })
   input.addEventListener('blur', commitEdit)
   input.addEventListener('keydown', (event) => {
     if (event.key === 'Enter') {

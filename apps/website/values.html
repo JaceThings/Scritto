@@ -5,26 +5,67 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="theme-color" content="#f7f6f2" />
     <title>scritto · picking a value editor</title>
+    <link rel="stylesheet" href="/src/values.css" />
   </head>
   <body>
     <main class="flex min-h-dvh w-full items-stretch justify-center bg-bg">
       <article class="column gap-9">
         <header class="flex w-full flex-col gap-5">
-          <div class="stagger flex flex-col gap-3" style="--i: 0">
-            <h1 class="text-[16px] leading-none font-[550] tracking-[-0.25px] text-text-primary">
-              Picking a value editor
-            </h1>
-            <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px] text-text-primary">
-              Six ways to edit the list, all live. Every card behaves the same underneath: the presets
-              load a starting set, the Values editor is always there to change it, and the pills follow
-              what you type — the moment a list stops matching a preset it reads as Custom. Click a card
-              to roll through its values.
-            </p>
+          <div class="flex w-full flex-col gap-2.5" role="group" aria-labelledby="scritto-heading">
+            <div class="stagger" style="--i: 0">
+              <!-- The gloss runs longer than the wordmark's own line, so it wraps on a
+                   phone: hang it off the baseline there instead of the row's bottom edge. -->
+              <div class="flex items-end gap-2 text-text-primary max-[560px]:items-baseline">
+                <h1 id="scritto-heading" class="text-[16px] leading-none font-[550] tracking-[-0.25px]">
+                  scritto
+                </h1>
+                <p class="entry-gloss text-[14px] leading-none font-[450] tracking-[-0.25px]">
+                  <span aria-hidden="true">
+                    /ˈskrit.to/ <em class="italic">adj. &amp; n.</em> [It., pp. of
+                    <em class="italic">scrivere</em>, <em class="italic">to write</em>]
+                  </span>
+                  <span class="sr-only">
+                    Pronounced skreet-toh. Adjective and noun, from Italian, past participle of
+                    scrivere, to write.
+                  </span>
+                </p>
+              </div>
+            </div>
+            <div class="flex flex-col gap-2 pl-2 text-text-secondary">
+              <div class="stagger" style="--i: 1">
+                <p class="text-[14px] leading-[1.2] font-medium tracking-[-0.25px]">
+                  <span class="font-[550] proportional-nums">1</span> a written; set down in letters
+                  rather than spoken (<em class="italic">un testo scritto</em>).
+                </p>
+              </div>
+              <div class="stagger" style="--i: 2">
+                <p class="pl-2 text-[14px] leading-[1.2] font-medium tracking-[-0.25px]">
+                  <span class="font-[550] proportional-nums">b</span> fig. settled in advance, as
+                  though already written (<em class="italic">era scritto</em>).
+                </p>
+              </div>
+              <div class="stagger" style="--i: 3">
+                <p class="text-[14px] leading-[1.2] font-medium tracking-[-0.25px]">
+                  <span class="font-[550] proportional-nums">2</span> n. a piece of writing; a text as
+                  it stands on the page (<em class="italic">gli scritti di Calvino</em>).
+                </p>
+              </div>
+            </div>
           </div>
-          <div class="stagger" style="--i: 1">
+          <div class="stagger" style="--i: 4">
             <div class="divider" role="separator"></div>
           </div>
         </header>
+
+        <div class="stagger flex w-full flex-col gap-3 px-1 text-text-primary" style="--i: 5">
+          <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Picking a value editor</h2>
+          <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+            Six ways to edit the list, all live. Every card behaves the same underneath: the presets
+            load a starting set, the Values editor is always there to change it, and the pills follow
+            what you type — the moment a list stops matching a preset it reads as Custom. Click a card
+            to roll through its values.
+          </p>
+        </div>
 
         <div id="variants" class="flex w-full flex-col gap-12"></div>
 

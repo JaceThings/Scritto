@@ -1,6 +1,7 @@
-// Ported from Lisse's RadioPillGroup: a segmented radiogroup that wraps, with
-// the hit area grown past the visible pill and the selected background
-// crossfading on the same curve as the rest of a preset change.
+// A segmented group that wraps, with the hit area grown past the visible
+// pill and the selected background crossfading on the same curve as the rest of
+// a preset change. Every pill stays in the tab order so each option is
+// reachable without arrows.
 
 import { playPillSelect } from './sounds'
 
@@ -13,13 +14,12 @@ export const createPills = <T extends string>(
   onPick: (value: T) => void,
 ) => {
   if (options.length === 4) mount.dataset.columns = '4'
+  mount.setAttribute('role', 'group')
   let current = initial
 
   const sync = () => {
     for (const [i, button] of buttons.entries()) {
-      const checked = options[i].value === current
-      button.setAttribute('aria-checked', String(checked))
-      button.tabIndex = checked ? 0 : -1
+      button.setAttribute('aria-pressed', String(options[i].value === current))
     }
   }
 
@@ -36,7 +36,7 @@ export const createPills = <T extends string>(
     const button = document.createElement('button')
     button.type = 'button'
     button.className = 'pill'
-    button.setAttribute('role', 'radio')
+    button.setAttribute('data-focus-ring', '')
     const label = document.createElement('span')
     label.textContent = option.label
     button.append(label)
