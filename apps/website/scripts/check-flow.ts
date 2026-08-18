@@ -84,8 +84,15 @@ const install = () => {
       (a, b) => a - b,
     )
     if (!tops.length) return null
-    const lineH = tops.length > 1 ? (tops[tops.length - 1] - tops[0]) / (tops.length - 1) : 0
-    return { base: tops[0], lineH, lines: tops.length }
+    // Averaging the gaps assumes every line is occupied, which a paragraph with
+    // a stanza break in it is not — its gaps are two line heights and the mean
+    // lands on a grid no word sits on. Take the closest pair as a first guess,
+    // then divide the whole span by however many steps that implies, so the
+    // rounding in each top averages out instead of accumulating.
+    const gaps = tops.slice(1).map((top, i) => top - tops[i]).filter((gap) => gap > 2.5)
+    const span = tops[tops.length - 1] - tops[0]
+    const steps = gaps.length ? Math.round(span / Math.min(...gaps)) : 0
+    return { base: tops[0], lineH: steps ? span / steps : 0, lines: tops.length }
   }
 
   const offGrid = (top: number, grid: Grid) => {
