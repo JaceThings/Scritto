@@ -6,6 +6,9 @@ import { playClick } from './sounds'
 const FADE_MS = 250
 const FOOTER_SLIDE_MS = 350
 const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)'
+const NAV_MS = 420
+const NAV_EASE = 'cubic-bezier(0.22, 0.61, 0.36, 1)'
+const NAV_SHIFT = 6
 
 export type PageInit = (root: ParentNode) => (() => void) | void
 
@@ -33,20 +36,55 @@ const load = async (url: URL) => {
   return doc
 }
 
+/**
+ * The Home link comes and goes with the route: it fades and slides in from
+ * the left while its siblings slide over to make room, and leaves the same
+ * way — taken out of the flow first, so the siblings close the gap while it
+ * fades where it stood.
+ */
+const toggleHome = (nav: HTMLElement, show: boolean) => {
+  const home = nav.querySelector<HTMLElement>('.nav-home')
+  if (!home || home.hidden === !show) return
+  const siblings = [...nav.querySelectorAll<HTMLElement>('.nav-slot:not(.nav-home)')]
+  const before = siblings.map((el) => el.getBoundingClientRect().left)
+  const timing = { duration: NAV_MS, easing: NAV_EASE }
+  if (show) {
+    home.hidden = false
+    home.animate({ opacity: [0, 1], transform: [`translateX(${-NAV_SHIFT}px)`, 'none'] }, timing)
+  } else {
+    const { left, top } = home.getBoundingClientRect()
+    const origin = nav.getBoundingClientRect()
+    home.style.cssText = `position:absolute;left:${left - origin.left}px;top:${top - origin.top}px`
+    const fade = home.animate({ opacity: [1, 0], transform: ['none', `translateX(${-NAV_SHIFT}px)`] }, timing)
+    void settled(fade).then(() => {
+      home.hidden = true
+      home.style.cssText = ''
+    })
+  }
+  siblings.forEach((el, i) => {
+    const dx = before[i] - el.getBoundingClientRect().left
+    if (Math.abs(dx) > 0.5) el.animate({ transform: [`translateX(${dx}px)`, 'none'] }, timing)
+  })
+}
+
 export const startRouter = (pages: Record<string, PageInit>) => {
   const page = document.querySelector<HTMLElement>('#page')
   const footer = document.querySelector<HTMLElement>('footer')
-  if (!page || !footer) return
+  const nav = footer?.querySelector<HTMLElement>('#site-nav')
+  if (!page || !footer || !nav) return
 
   let route = normalize(location.pathname)
   let dispose = pages[route]?.(document) ?? undefined
   let busy = false
+  const home = nav.querySelector<HTMLElement>('.nav-home')
+  if (home) home.hidden = route === '/'
 
 
   const navigate = async (url: URL, push: boolean) => {
     if (busy) return
     busy = true
     document.documentElement.classList.add('routed')
+    toggleHome(nav, normalize(url.pathname) !== '/')
     try {
       const doc = await load(url)
       const next = doc.querySelector<HTMLElement>('#page')
@@ -67,7 +105,6 @@ export const startRouter = (pages: Record<string, PageInit>) => {
       document.title = doc.title
       if (push) history.pushState(null, '', url)
       route = normalize(url.pathname)
-      document.documentElement.dataset.route = route
       dispose = pages[route]?.(document) ?? undefined
 
       const shift = footerBefore - footer.getBoundingClientRect().top

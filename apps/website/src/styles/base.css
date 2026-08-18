@@ -90,8 +90,9 @@ code {
   display: inline-flex;
 }
 
-/* The footer outlives the page swap, so the home link hides by route. */
-html[data-route='/'] .nav-home {
+/* Home is routed by the script; this only covers the homepage's first paint. */
+html:not(.routed)[data-route='/'] .nav-home,
+.nav-home[hidden] {
   display: none;
 }
 
