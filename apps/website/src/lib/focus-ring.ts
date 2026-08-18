@@ -1,9 +1,8 @@
 import { APPLE_SMOOTHING, generatePath } from '@lisse/core'
 
-// Squircle overlay tracking the keyboard-focused `[data-focus-ring]`. Position
-// is in page coordinates on an absolute SVG, so scroll needs no listener.
-// The 14px default is concentric with the site's 8px surfaces: the hit areas
-// pad them by 6px. Override it only where the outset is not 6.
+// Squircle overlay tracking the keyboard-focused `[data-focus-ring]`, drawn in
+// page coordinates so scrolling needs no listener. The 14px default is
+// concentric with the site's 8px surfaces, whose hit areas pad them by 6px.
 
 const RING = '[data-focus-ring]'
 const SECTION = '[data-focus-section]'
@@ -34,10 +33,10 @@ const KEYS = ['x', 'y', 'w', 'h', 'tl', 'tr', 'br', 'bl'] as const
 type Key = (typeof KEYS)[number]
 type State = Record<Key, number>
 
-const zeroed = (): State => ({ x: 0, y: 0, w: 0, h: 0, tl: 0, tr: 0, br: 0, bl: 0 })
+const zeroed = () => ({ x: 0, y: 0, w: 0, h: 0, tl: 0, tr: 0, br: 0, bl: 0 }) satisfies State
 
-const hostOf = (el: HTMLElement | null) => el?.closest<HTMLElement>(RING) ?? null
-const sectionOf = (el: HTMLElement | null) => el?.closest(SECTION) ?? null
+const hostOf = (el: EventTarget | null) => (el instanceof Element ? el.closest<HTMLElement>(RING) : null)
+const sectionOf = (el: Element | null) => el?.closest(SECTION) ?? null
 
 const num = (value: string | undefined) => {
   const n = Number(value)
@@ -49,7 +48,7 @@ const insetOf = (el: HTMLElement) => ({
   y: num(el.dataset.focusInsetY) ?? 0,
 })
 
-const stateOf = (el: HTMLElement): State => {
+const stateOf = (el: HTMLElement) => {
   const r = el.getBoundingClientRect()
   const inset = insetOf(el)
   const base = num(el.dataset.focusRadius) ?? RADIUS
@@ -65,12 +64,12 @@ const stateOf = (el: HTMLElement): State => {
     tr: top,
     br: bottom,
     bl: bottom,
-  }
+  } satisfies State
 }
 
 // generatePath opens each side with a line back to where the previous corner
-// would have ended if the two radii matched. A fill ignores that backtrack; a
-// stroke draws it as a spur up the edge, so keep the second line of each pair.
+// would have ended if the radii matched: harmless to a fill, a spur to a
+// stroke. Each pair's second line is the real edge.
 const trimSpurs = (d: string) => {
   const cmds = d.match(/[A-Za-z][^A-Za-z]*/g) ?? []
   const kept: string[] = []
@@ -108,10 +107,8 @@ const pathOf = (s: State) => {
   )
 }
 
-// The ring is part of its target, so it inherits whatever the target's
-// ancestors are doing to it: the entrance cascade, a route cross-fade, a
-// section collapse. Tracking the product keeps it from painting over a card
-// that has not arrived yet, and no case has to be recognised by name.
+// The ring fades with its target, so it inherits whatever the ancestors are
+// doing — entrance cascade, route cross-fade, collapse — without naming a case.
 const inheritedOpacity = (el: HTMLElement) => {
   let opacity = 1
   for (let node: HTMLElement | null = el; node && node !== document.body; node = node.parentElement) {
@@ -267,7 +264,7 @@ export const startFocusRing = () => {
   }
 
   const onFocusIn = (event: FocusEvent) => {
-    const host = hostOf(event.target as HTMLElement | null)
+    const host = hostOf(event.target)
     cancelAnimationFrame(focusOutRaf)
     focusOutRaf = 0
     if (!host || modality !== 'keyboard') hide()
@@ -279,7 +276,7 @@ export const startFocusRing = () => {
     // A Tab lands its focusin next frame; hide only if nothing caught the focus.
     focusOutRaf = requestAnimationFrame(() => {
       focusOutRaf = 0
-      if (!hostOf(document.activeElement as HTMLElement | null)) hide()
+      if (!hostOf(document.activeElement)) hide()
     })
   }
 

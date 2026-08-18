@@ -1,8 +1,11 @@
+/** What a Redis command answers with, over RESP. */
+type RedisReply = string | number | null | RedisReply[]
+
 type Redis = {
   get(key: string): Promise<string | null>
   set(key: string, value: string, ...args: (string | number)[]): Promise<string | null>
   incr(key: string): Promise<number>
-  send(command: string, args: string[]): Promise<unknown>
+  send(command: string, args: string[]): Promise<RedisReply>
 }
 
 type Env = {
@@ -32,14 +35,30 @@ type Stats = {
   npm: number
 }
 
-type HelloBody = {
-  vid?: string
-  sid?: string
+/** A request body, already validated: every field is either usable or absent. */
+type Body = {
+  vid: string | null
+  sid: string | null
+  run: string | null
+  seq: number | null
 }
 
-type ClickBody = HelloBody & {
-  run?: unknown
-  seq?: unknown
+/** Anything this server answers with. */
+type JsonBody = { [key: string]: string | number | boolean | null | JsonBody }
+
+const ID_PATTERN = /^[a-z0-9-]{8,64}$/i
+
+const fieldOf = (raw: unknown, key: string) =>
+  typeof raw === 'object' && raw !== null ? Object.getOwnPropertyDescriptor(raw, key)?.value : undefined
+
+const idAt = (raw: unknown, key: string) => {
+  const value = fieldOf(raw, key)
+  return typeof value === 'string' && ID_PATTERN.test(value) ? value : null
+}
+
+const countAt = (raw: unknown, key: string) => {
+  const value = fieldOf(raw, key)
+  return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null
 }
 
 const sockets = new Set<WebSocket>()
@@ -88,7 +107,7 @@ const cors = {
   'access-control-max-age': String(CORS_MAX_AGE_S),
 }
 
-const json = (data: unknown, status = 200) =>
+const json = (data: JsonBody, status = 200) =>
   new Response(JSON.stringify(data), {
     status,
     headers: { 'content-type': 'application/json; charset=utf-8', ...cors },
@@ -224,8 +243,7 @@ const refreshNpm = async (env: Env) => {
         answered = false
         continue
       }
-      const body = (await res.json()) as { downloads?: number }
-      total += Number(body.downloads) || 0
+      total += countAt(await res.json(), 'downloads') ?? 0
     } catch {
       answered = false
     }
@@ -270,18 +288,15 @@ const gatedIncr = async (env: Env, gate: string, counter: string, ttl: number) =
   return true
 }
 
-const readBody = async (req: Request): Promise<HelloBody> => {
-  try {
-    return (await req.json()) as HelloBody
-  } catch {
-    return {}
-  }
+const readBody = async (req: Request): Promise<Body> => {
+  const raw = await req.json().catch(() => null)
+  return { vid: idAt(raw, 'vid'), sid: idAt(raw, 'sid'), run: idAt(raw, 'run'), seq: countAt(raw, 'seq') }
 }
 
 const hello = async (req: Request, env: Env, ctx: Ctx) => {
   const body = await readBody(req)
-  const vid = body.vid && /^[a-z0-9-]{8,64}$/i.test(body.vid) ? body.vid : crypto.randomUUID()
-  const sid = body.sid && /^[a-z0-9-]{8,64}$/i.test(body.sid) ? body.sid : crypto.randomUUID()
+  const vid = body.vid ?? crypto.randomUUID()
+  const sid = body.sid ?? crypto.randomUUID()
   const ipHash = await digest(`${env.IP_SALT ?? 'scritto'}:${clientIp(req, env)}`)
   const [you, here] = await Promise.all([
     identify(env, vid, ipHash),
@@ -346,16 +361,14 @@ const bank = async (env: Env, ipHash: string, run: string, seq: number) => {
 }
 
 const click = async (req: Request, env: Env) => {
-  const body = (await readBody(req)) as ClickBody
-  const run = typeof body.run === 'string' && /^[a-z0-9-]{8,64}$/i.test(body.run) ? body.run : null
-  const seq = typeof body.seq === 'number' && Number.isSafeInteger(body.seq) && body.seq >= 0 ? body.seq : null
+  const { run, seq, sid } = await readBody(req)
   const ipHash = await digest(`${env.IP_SALT ?? 'scritto'}:${clientIp(req, env)}`)
   const [acked, here] = await Promise.all([
     run && seq !== null
       ? bank(env, ipHash, run, seq)
       // A bundle cached before this endpoint counted still posts a bare poke.
       : gatedIncr(env, `legacygate:${ipHash}`, 'clicks', CLICK_GATE_S).then(() => 0),
-    typeof body.sid === 'string' ? touchPresence(env, body.sid) : zcard(env, 'here'),
+    sid ? touchPresence(env, sid) : zcard(env, 'here'),
   ])
   const stats = await snapshot(env, 0, here)
   broadcast(stats)

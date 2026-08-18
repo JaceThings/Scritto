@@ -1,5 +1,6 @@
 import { chromium } from 'playwright'
 import { writeFileSync } from 'node:fs'
+import type { Report } from '../src/dev/suite'
 
 const suiteUrl = process.env.SUITE_URL ?? 'http://localhost:5175/suite.html?auto=1'
 const OUT = process.env.SUITE_OUT ?? '/tmp/scritto-bench.json'
@@ -30,13 +31,13 @@ const browser = await chromium.launch({ channel: 'chrome', headless: true })
 const page = await browser.newPage()
 page.setDefaultTimeout(600_000)
 await page.goto(suiteUrl, { waitUntil: 'domcontentloaded' })
-await page.waitForFunction(() => (window as Window & { __BENCH__?: { done?: boolean } }).__BENCH__?.done === true)
-const report = await page.evaluate(() => (window as Window & { __BENCH__?: unknown }).__BENCH__)
+await page.waitForFunction(() => window.__BENCH__?.done === true)
+const report = await page.evaluate(() => window.__BENCH__)
 await browser.close()
 
 writeFileSync(OUT, JSON.stringify(report, null, 2))
 
-const cases = (report as { cases: { id: string; error: string | null }[] }).cases
+const cases: Report[] = report?.cases ?? []
 const only = new URL(suiteUrl).searchParams.get('case')
 const expected = only ? [only] : EXPECTED
 const ids = new Set(cases.map((item) => item.id))

@@ -5,6 +5,7 @@
 // anchoring; and two rapid arms prove a later tick does not cancel an earlier
 // roll. Run with `bun run check:churn` against a dev server (or CHURN_URL).
 import { chromium, type Page } from 'playwright'
+import type { Scritto } from '@scritto/core'
 
 const BASE = (process.env.CHURN_URL ?? 'http://localhost:5175').replace(/\/$/, '')
 
@@ -86,6 +87,20 @@ const POSITION_CASES: {
   { from: 'Default – 0.20', to: '0.21', kept: '0.2', direction: 'rtl', align: 'end', moves: false },
 ]
 
+declare global {
+  interface Window {
+    __churn(from: string, to: string, duration: number): Promise<Sample>
+    __position(
+      from: string,
+      to: string,
+      duration: number,
+      direction: 'ltr' | 'rtl',
+      align: Align,
+    ): Promise<PositionSample>
+    __stack(duration: number): Promise<StackSample>
+  }
+}
+
 type Violation = { at: string; rule: string; detail: string }
 
 type Sample = {
@@ -119,11 +134,6 @@ type StackSample = {
 }
 
 const install = () => {
-  type Host = HTMLElement & {
-    value: string
-    update: (value: string, animate?: boolean) => void
-    setOptions: (options: Record<string, unknown>) => void
-  }
   const positionTolerance = 0.1
 
   const flat = (text: string) => text.replace(/\u200b/g, '').replace(/\u00a0/g, ' ')
@@ -133,7 +143,7 @@ const install = () => {
     return promise
   }
 
-  let host: Host | null = null
+  let host: Scritto | null = null
   let frame: HTMLElement | null = null
 
   // Outside every <scritto-flow>, whose wrapping would move the row for
@@ -146,7 +156,7 @@ const install = () => {
     frame.style.cssText =
       'position:fixed;top:24px;left:24px;width:700px;z-index:2147483647;font:600 44px ui-sans-serif,system-ui;font-variant-numeric:tabular-nums;letter-spacing:-0.25px;color:#111;background:#fff'
     frame.style.textAlign = align
-    const el = document.createElement('scritto-text') as Host
+    const el = document.createElement('scritto-text')
     el.dir = direction
     frame.append(el)
     document.body.append(frame)
@@ -177,12 +187,12 @@ const install = () => {
     for (const char of glyphs(shadow)) (before.has(char) ? kept : fresh).push(char)
 
     // getKeyframes() mixes timing bookkeeping in with the properties.
-    const BOOKKEEPING: Record<string, true> = { offset: true, computedOffset: true, easing: true, composite: true }
+    const BOOKKEEPING = new Set(['offset', 'computedOffset', 'easing', 'composite'])
     const animatedProps = (el: Element) => {
       const props = new Set<string>()
       for (const anim of el.getAnimations()) {
         for (const frame of anim.effect instanceof KeyframeEffect ? anim.effect.getKeyframes() : []) {
-          for (const prop of Object.keys(frame)) if (!BOOKKEEPING[prop]) props.add(prop)
+          for (const prop of Object.keys(frame)) if (!BOOKKEEPING.has(prop)) props.add(prop)
         }
       }
       return props
@@ -337,13 +347,11 @@ const install = () => {
 }
 
 const run = (page: Page, from: string, to: string): Promise<Sample> =>
-  page.evaluate(
-    ({ from, to, duration }) => {
-      const probe = window as unknown as { __churn: (a: string, b: string, d: number) => Promise<Sample> }
-      return probe.__churn(from, to, duration)
-    },
-    { from, to, duration: DURATION },
-  )
+  page.evaluate(({ from, to, duration }) => window.__churn(from, to, duration), {
+    from,
+    to,
+    duration: DURATION,
+  })
 
 const runPosition = (
   page: Page,
@@ -352,21 +360,16 @@ const runPosition = (
   direction: 'ltr' | 'rtl',
   align: Align,
 ): Promise<PositionSample> =>
-  page.evaluate(
-    ({ from, to, duration, direction, align }) => {
-      const probe = window as unknown as {
-        __position: (a: string, b: string, d: number, dir: 'ltr' | 'rtl', align: Align) => Promise<PositionSample>
-      }
-      return probe.__position(from, to, duration, direction, align)
-    },
-    { from, to, duration: DURATION, direction, align },
-  )
+  page.evaluate(({ from, to, duration, direction, align }) => window.__position(from, to, duration, direction, align), {
+    from,
+    to,
+    duration: DURATION,
+    direction,
+    align,
+  })
 
 const runStack = (page: Page): Promise<StackSample> =>
-  page.evaluate((duration) => {
-    const probe = window as unknown as { __stack: (d: number) => Promise<StackSample> }
-    return probe.__stack(duration)
-  }, DURATION)
+  page.evaluate((duration) => window.__stack(duration), DURATION)
 
 const reachable = await fetch(BASE, { signal: AbortSignal.timeout(4000) }).then(
   (res) => res.ok,

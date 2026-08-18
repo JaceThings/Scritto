@@ -1,5 +1,5 @@
-// Only `#page` swaps: the outgoing body fades out, the footer slides to its new
-// position while the incoming body is hidden, then the new body fades in.
+// Only `#page` swaps: the old body fades out, the footer slides to its new
+// position while the new body is hidden, then that fades in.
 
 import { playClick } from './sounds'
 
@@ -120,7 +120,7 @@ export const startRouter = (pages: Record<string, PageInit>) => {
   document.addEventListener('click', (event) => {
     if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return
     if (event.button !== 0) return
-    const anchor = (event.target as Element | null)?.closest<HTMLAnchorElement>('.footer-link')
+    const anchor = event.target instanceof Element ? event.target.closest<HTMLAnchorElement>('.footer-link') : null
     const link = anchor?.hasAttribute('data-route') ? anchor : null
     if (!link) {
       if (anchor) playClick()

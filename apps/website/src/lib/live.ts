@@ -25,6 +25,29 @@ const id = (key: string) => {
 const body = (extra: Record<string, string | number>) =>
   JSON.stringify({ vid: id(VID), sid: id(SID), ...extra })
 
+type Reply = Stats & { acked: number }
+
+// Error bodies are valid JSON too, so anything short of every count being a
+// real number is not an answer — one undefined reaching the arithmetic would
+// stick "NaN" on screen.
+const parseReply = (raw: unknown): Reply | null => {
+  if (typeof raw !== 'object' || raw === null) return null
+  const at = (key: string) => {
+    const value = Object.getOwnPropertyDescriptor(raw, key)?.value
+    return typeof value === 'number' && Number.isFinite(value) ? value : null
+  }
+  const views = at('views')
+  const uniques = at('uniques')
+  const you = at('you')
+  const here = at('here')
+  const clicks = at('clicks')
+  const npm = at('npm')
+  if (views === null || uniques === null || you === null || here === null || clicks === null || npm === null) {
+    return null
+  }
+  return { views, uniques, you, here, clicks, npm, acked: at('acked') ?? 0 }
+}
+
 const post = async (path: string, extra: Record<string, string | number> = {}) => {
   const res = await fetch(`${LIVE_URL}${path}`, {
     method: 'POST',
@@ -32,7 +55,9 @@ const post = async (path: string, extra: Record<string, string | number> = {}) =
     body: body(extra),
   })
   if (!res.ok) throw new Error(`${path} ${res.status}`)
-  return (await res.json()) as Stats & { vid?: string; sid?: string; acked?: number }
+  const reply = parseReply(await res.json())
+  if (!reply) throw new Error(`${path} malformed`)
+  return reply
 }
 
 const CLICK_WRITE_MS = 2000
@@ -41,18 +66,12 @@ const SOCKET_BASE_MS = 400
 const SOCKET_MAX_MS = 30_000
 const SOCKET_HEALTHY_MS = 10_000
 
-const COUNTS = ['views', 'uniques', 'you', 'here', 'clicks', 'npm'] as const
-
-// Our error bodies are valid JSON, so a failed request parses into undefined
-// counts, and one of those reaching the arithmetic sticks "NaN" on screen.
-const sane = (stats: Stats) => COUNTS.every((field) => Number.isFinite(stats[field]))
-
 export const connectLive = (onStats: (stats: Stats) => void) => {
   let you = 0
   let latest: Stats | null = null
 
-  // Pokes go up as a running total per page load, not one write per click: the
-  // server banks the difference, so a retried write credits nothing twice.
+  // A running total per page load, not one write per click: the server banks
+  // the difference, so a retry credits nothing twice.
   let run = crypto.randomUUID()
   let seq = 0
   let acked = 0
@@ -60,8 +79,7 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
   let queued = 0
   let sending = false
 
-  // The server's total plus our unbanked pokes; clamping to our own count would
-  // hide everyone else's while we are ahead.
+  // Clamping to our own count would hide everyone else's while we are ahead.
   let server = 0
   const shown = () => server + Math.max(0, seq - acked)
 
@@ -71,10 +89,8 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
   }
 
   const apply = (stats: Stats, from: 'hello' | 'write' | 'feed' = 'feed') => {
-    if (!sane(stats)) return
     if (from === 'hello' && stats.you) you = stats.you
-    // A frame that overlapped one of our writes may already count the pokes that
-    // write is banking, which against a stale `acked` would count them twice.
+    // A frame overlapping one of our writes may already count what it banks.
     if (from === 'write' || !sending) server = Math.max(server, stats.clicks)
     emit({ ...stats, you, clicks: shown() })
   }
@@ -104,9 +120,10 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
     let openedAt = 0
     socket.onmessage = (event) => {
       try {
-        apply(JSON.parse(String(event.data)) as Stats)
+        const frame = parseReply(JSON.parse(String(event.data)))
+        if (frame) apply(frame)
       } catch {
-        // ignore malformed frames
+        // ignore unparseable frames
       }
     }
     socket.onopen = () => {
@@ -116,8 +133,8 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
       socket = null
       // A close we started must not reconnect: the timer would outlive the page.
       if (stopped) return
-      // Only a connection that lasted counts as healthy, or a server that accepts
-      // and drops is retried at 400ms forever. Jitter avoids a lockstep stampede.
+      // Only a lasting connection counts as healthy, or a server that accepts
+      // and drops is retried at 400ms forever. Jitter avoids a stampede.
       if (openedAt && Date.now() - openedAt >= SOCKET_HEALTHY_MS) retries = 0
       const wait = Math.min(SOCKET_MAX_MS, SOCKET_BASE_MS * 2 ** retries++)
       reconnect = window.setTimeout(listen, wait / 2 + Math.random() * (wait / 2))
@@ -133,7 +150,7 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
     const total = seq
     try {
       const stats = await post('/click', { run, seq: total })
-      acked = Math.max(acked, stats.acked ?? total)
+      acked = Math.max(acked, stats.acked || total)
       apply(stats, 'write')
     } catch {
       // Leave acked alone; the next write re-sends the same total.
@@ -144,8 +161,8 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
       schedule()
       return
     }
-    // Square with the server so the next poke opens a fresh run; a run only ever
-    // lives while it has unbanked pokes, so its expiry can strand nothing.
+    // Square up so the next poke opens a fresh run; a run only lives while it
+    // has unbanked pokes, so expiry strands nothing.
     run = crypto.randomUUID()
     seq = 0
     acked = 0

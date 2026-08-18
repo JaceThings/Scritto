@@ -3,6 +3,7 @@
 // leaked, no glyph over its neighbour, a stable line height, no console error.
 // Run with `bun run check:stress` against a dev server.
 import { chromium, type Page } from 'playwright'
+import type { Scritto, ScrittoOptions } from '@scritto/core'
 
 const BASE = (process.env.STRESS_URL ?? 'http://localhost:5175').replace(/\/$/, '')
 const OUT = process.env.STRESS_SHOTS ?? '/tmp/scritto-stress'
@@ -14,11 +15,19 @@ type Case = {
   values: string[]
   hostStyle?: string
   containerStyle?: string
-  options?: Record<string, unknown>
+  options?: ScrittoOptions
   /** ms between updates; small values exercise interruption. */
   gap?: number
   /** Skip the neighbour-overlap check when text is deliberately laid on top of the host. */
   skipOverlap?: boolean
+}
+
+type Result = { violations: string[] }
+
+declare global {
+  interface Window {
+    __stress: { run(spec: Omit<Case, 'name'>): Promise<Result> }
+  }
 }
 
 const HOST = '<scritto-text id="probe"></scritto-text>'
@@ -73,22 +82,14 @@ const CASES: Case[] = [
 ]
 
 const install = () => {
-  ;(window as any).__stress = {
-    async run(spec: {
-      frame: string
-      values: string[]
-      hostStyle?: string
-      containerStyle?: string
-      options?: Record<string, unknown>
-      gap?: number
-      skipOverlap?: boolean
-    }) {
+  window.__stress = {
+    async run(spec: Omit<Case, 'name'>): Promise<Result> {
       const wrap = document.createElement('div')
       wrap.style.cssText = `position:fixed;top:40px;left:40px;background:#fff;font:16px/1.5 Inter,sans-serif;color:#333;padding:12px;${spec.containerStyle ?? ''}`
       wrap.innerHTML = spec.frame.replace('HOST', '<scritto-text id="probe"></scritto-text>')
       document.body.append(wrap)
-      const host = wrap.querySelector('#probe') as any
-      const host2 = wrap.querySelector('#probe2') as any
+      const host = wrap.querySelector<Scritto>('#probe')!
+      const host2 = wrap.querySelector<Scritto>('#probe2')
       if (spec.hostStyle) host.style.cssText += ';' + spec.hostStyle
       await customElements.whenDefined('scritto-text')
       const opts = { respectMotionPreference: false, transition: { duration: 320 }, ...(spec.options ?? {}) }
@@ -105,7 +106,7 @@ const install = () => {
       const neighbourOverlap = () => {
         if (spec.skipOverlap) return 0
         const hr = host.getBoundingClientRect()
-        const exits = host.shadowRoot?.querySelector('.exits') as HTMLElement | null
+        const exits = host.shadowRoot?.querySelector<HTMLElement>('.exits')
         if (!exits) return 0
         const clipped = host.hasAttribute('data-shrink-clip')
         let glyphRight = -Infinity
@@ -123,7 +124,7 @@ const install = () => {
         let neighbourLeft = Infinity
         const walker = document.createTreeWalker(wrap, NodeFilter.SHOW_TEXT)
         while (walker.nextNode()) {
-          const node = walker.currentNode as Text
+          const node = walker.currentNode
           if (host.contains(node) || host2?.contains(node)) continue
           if (!node.textContent?.trim()) continue
           const range = document.createRange()
@@ -148,7 +149,7 @@ const install = () => {
           let y = 0
           while (el && el !== host) {
             y += el.offsetTop
-            el = el.offsetParent as HTMLElement | null
+            el = el.offsetParent instanceof HTMLElement ? el.offsetParent : null
           }
           return y
         }
@@ -240,7 +241,7 @@ const main = async () => {
   let failed = 0
   for (const c of CASES) {
     const before = consoleErrors.length
-    const result = await page.evaluate((spec) => (window as any).__stress.run(spec), c)
+    const result = await page.evaluate((spec) => window.__stress.run(spec), c)
     const errs = consoleErrors.slice(before)
     const problems = [...result.violations, ...errs.map((e) => `console: ${e}`)]
     const ok = problems.length === 0

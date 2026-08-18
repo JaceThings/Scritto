@@ -5,10 +5,9 @@ const SEP = ','
 const HINT_ID = 'values-hint'
 
 /**
- * The values as one comma-separated line whose commas are drawn rather than typed.
- * Each value is its own field: a comma or Enter splits the one under the caret,
- * Backspace at its start joins it back to the one before, and the arrows step across
- * the boundaries. The trade is that a value cannot contain a comma.
+ * The values as one comma-separated line, each its own field and the commas
+ * drawn rather than typed: comma or Enter splits, Backspace at a start joins,
+ * arrows step across. The trade is that a value cannot contain a comma.
  */
 export const createHops = (mount: HTMLElement, onChange: (values: string[]) => void) => {
   let values: string[] = []
@@ -26,8 +25,7 @@ export const createHops = (mount: HTMLElement, onChange: (values: string[]) => v
 
   const emit = () => {
     const live = values.filter(Boolean)
-    // A half-typed blank is not a change: reporting one would roll the card back
-    // to its first value and read the preset as Custom.
+    // Reporting a half-typed blank would roll the card back and read as Custom.
     if (same(live, reported)) return
     reported = live
     onChange(live)
@@ -99,8 +97,7 @@ export const createHops = (mount: HTMLElement, onChange: (values: string[]) => v
     }
 
     input.addEventListener('focus', () => {
-      // Tab into a field selects the value, painting a system fill behind the
-      // word; collapse to a caret so the surface does not change.
+      // Tab selects the value, painting a system fill; collapse to a caret.
       const collapse = () => {
         if (document.activeElement !== input) return
         if (input.selectionStart !== 0 || input.selectionEnd !== input.value.length) return

@@ -10,6 +10,8 @@ type FlowHost = HTMLElement & {
   _exitEndPx?: () => number
 }
 type Box = { left: number; top: number; width: number; height: number }
+
+const isFlowHost = (el: EventTarget | null): el is FlowHost => el instanceof HTMLElement && 'transition' in el
 type Play = (el: HTMLElement, frames: Keyframe[], done?: () => void) => Animation
 
 /** Roughly a word space: what a ghost clears so it isn't fading on top of its old neighbour. */
@@ -139,12 +141,11 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   }
 
   private _onChange = (event: Event) => {
-    if (!(event instanceof CustomEvent) || !(event.target instanceof HTMLElement)) return
+    if (!(event instanceof CustomEvent) || !isFlowHost(event.target)) return
     if (event.target.closest('scritto-flow') !== this) return
-    if (!('transition' in event.target)) return
     const { phase, animate } = event.detail
     if (phase === 'before') {
-      this._pending.add(event.target as FlowHost)
+      this._pending.add(event.target)
       pendingFlows.add(this)
       if (!animate) {
         this._prepareReads()
@@ -381,6 +382,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
 
     const gutterPx = this.getBoundingClientRect().left - this._clip.getBoundingClientRect().left
     const pin = (word: HTMLElement, at: Box) => {
+      // SAFETY: cloning an HTMLElement yields one; `cloneNode` is typed as Node.
       const ghost = word.cloneNode(true) as HTMLElement
       ghost.dataset.wrapGhost = ''
       ghost.removeAttribute('data-word')

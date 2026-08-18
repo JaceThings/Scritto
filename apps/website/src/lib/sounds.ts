@@ -1,6 +1,5 @@
-// Short files for discrete events, a Web Audio synth for the slider tick (it
-// fires dozens of times a second during a drag), and a silent looper that keeps
-// iOS Safari on the media audio session so the synth ignores the silent switch.
+// Files for discrete events, a synth for the slider tick (dozens a second on a
+// drag), and a silent loop keeping iOS on the session the silent switch spares.
 
 const SOUND_FILES = ['/click.webm', '/copy-success.webm', '/pill-select.webm', '/silent.webm'] as const
 
@@ -32,11 +31,16 @@ const audio = () => {
   return ctx
 }
 
-// Two iOS Safari quirks, both only fixable inside a user gesture: the context
-// starts suspended and a tick from pointermove is too late to resume it, and
-// WebAudio defaults to the ringer session that the silent switch mutes. iOS
-// honours the playback session only while an HTML5 source is live, hence the
-// silent loop.
+declare global {
+  interface Navigator {
+    /** Safari only; setting `type` keeps WebAudio off the muted ringer session. */
+    audioSession?: { type: string }
+  }
+}
+
+// Two iOS quirks, both only fixable inside a gesture: the context starts
+// suspended (pointermove is too late to resume it), and WebAudio defaults to
+// the muted ringer session unless an HTML5 source is live.
 const unlock = () => {
   try {
     const c = audio()
@@ -46,10 +50,9 @@ const unlock = () => {
     src.connect(c.destination)
     src.start(0)
 
-    const nav = navigator as Navigator & { audioSession?: { type: string } }
-    if (nav.audioSession) {
+    if (navigator.audioSession) {
       try {
-        nav.audioSession.type = 'playback'
+        navigator.audioSession.type = 'playback'
       } catch {}
     }
 
@@ -78,7 +81,7 @@ const getNoise = (c: AudioContext) => {
   return noiseBuffer
 }
 
-// ~25 Hz cap: past that the ear smears the clicks into a buzz. The matching
+// ~25 Hz: past that the ear smears the clicks into a buzz. The matching
 // queue-ahead keeps at most one tick pending, so a release feels sharp.
 const TICK_MIN_GAP_SEC = 0.04
 const MAX_QUEUE_AHEAD_SEC = 0.04

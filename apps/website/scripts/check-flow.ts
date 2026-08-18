@@ -150,10 +150,7 @@ const install = () => {
     }
   }
 
-  const hostOf = (flow: HTMLElement) =>
-    flow.querySelector('scritto-text') as
-      | (HTMLElement & { value: string; update(v: string, a?: boolean): void; setOptions(o: unknown): void })
-      | null
+  const hostOf = (flow: HTMLElement) => flow.querySelector<Host>('scritto-text')
 
   const drive = (flow: HTMLElement, value: string) => {
     const host = hostOf(flow)
@@ -218,7 +215,7 @@ const install = () => {
   // Host width belongs here: it keeps growing after the roll ends, when the
   // value collapses from spans to a text node, while the line count has not
   // moved — so watching the words alone reads as settled mid-growth.
-  const shapeOf = (flow: HTMLElement) =>
+  const geometryOf = (flow: HTMLElement) =>
     `${lineTops(flow).join(',')}|${hostsIn(flow)
       .map((host) => Math.round(host.getBoundingClientRect().width))
       .join(',')}`
@@ -227,7 +224,7 @@ const install = () => {
   // is briefly idle between a value landing and its animations existing.
   // Teardown runs off a timer, so each turn yields a macrotask.
   const rest = async (flow: HTMLElement, limit = 300) => {
-    let shape = ''
+    let geometry = ''
     let quiet = 0
     for (let i = 0; i < limit; i++) {
       await frame()
@@ -237,9 +234,9 @@ const install = () => {
         rollAnims(flow) ||
         ghostsIn(flow).length ||
         wordsIn(flow).some((word) => word.style.visibility === 'hidden' || word.style.transform)
-      const next = shapeOf(flow)
-      quiet = !busy && next === shape ? quiet + 1 : 0
-      shape = next
+      const next = geometryOf(flow)
+      quiet = !busy && next === geometry ? quiet + 1 : 0
+      geometry = next
       if (quiet >= 5) return true
     }
     return false
@@ -342,7 +339,7 @@ const install = () => {
           peakAnims: Math.max(0, ...shots.map((shot) => shot.anims)),
           seedTops: [...new Set(tops)].sort((a, b) => a - b),
           settledTops: [...new Set(settledTops)].sort((a, b) => a - b),
-          hostW: Math.round((host as HTMLElement).getBoundingClientRect().width),
+          hostW: Math.round(host.getBoundingClientRect().width),
           seedRested,
           rested,
         }
@@ -372,6 +369,19 @@ const install = () => {
       },
     },
   })
+}
+
+declare global {
+  interface Window {
+    __FLOW__: FlowApi
+  }
+}
+
+/** What a `<scritto-text>` exposes to the harness, in the page's own context. */
+type Host = HTMLElement & {
+  value: string
+  update(value: string, animate?: boolean): void
+  setOptions(options: { respectMotionPreference: boolean }): void
 }
 
 type FlowApi = {
@@ -452,33 +462,24 @@ const api = (page: Page) => {
   }
 
   return {
-    count: () => run(() => (window as unknown as { __FLOW__: FlowApi }).__FLOW__.count(), undefined),
-    masks: () => run(() => (window as unknown as { __FLOW__: FlowApi }).__FLOW__.masks(), undefined),
-    settled: (selector: string) =>
-      run((sel: string) => (window as unknown as { __FLOW__: FlowApi }).__FLOW__.settled(sel), selector),
+    count: () => run(() => window.__FLOW__.count(), undefined),
+    masks: () => run(() => window.__FLOW__.masks(), undefined),
+    settled: (selector: string) => run((sel: string) => window.__FLOW__.settled(sel), selector),
     record: (selector: string, from: string, to: string, frames = 90, recentre = true) =>
-      run(
-        ([sel, a, b, n, c]) =>
-          (window as unknown as { __FLOW__: FlowApi }).__FLOW__.record(
-            sel as string,
-            a as string,
-            b as string,
-            n as number,
-            c as boolean,
-          ),
-        [selector, from, to, frames, recentre] as const,
-      ),
+      run((args) => window.__FLOW__.record(args.selector, args.from, args.to, args.frames, args.recentre), {
+        selector,
+        from,
+        to,
+        frames,
+        recentre,
+      }),
     hammer: (selector: string, values: string[], gap = 70, scroll = 0) =>
-      run(
-        ([sel, vals, g, s]) =>
-          (window as unknown as { __FLOW__: FlowApi }).__FLOW__.hammer(
-            sel as string,
-            vals as string[],
-            g as number,
-            s as number,
-          ),
-        [selector, values, gap, scroll] as const,
-      ),
+      run((args) => window.__FLOW__.hammer(args.selector, args.values, args.gap, args.scroll), {
+        selector,
+        values,
+        gap,
+        scroll,
+      }),
   }
 }
 
@@ -685,18 +686,18 @@ const checkTransition = async (
   const where = before
     ? `flow top ${before.top} bottom ${before.bottom} in a ${before.viewportH}px viewport at scrollY ${before.scrollY}, host onscreen ${before.hostOnscreen}`
     : 'no context captured'
-  const shape = `text ${JSON.stringify(before?.text ?? '')}→${JSON.stringify(after?.text ?? '')}, lines ${before?.lines ?? 0}→${after?.lines ?? 0}`
+  const rendered = `text ${JSON.stringify(before?.text ?? '')}→${JSON.stringify(after?.text ?? '')}, lines ${before?.lines ?? 0}→${after?.lines ?? 0}`
 
   if (movedLines > 0) {
     out.violations.push({
       flow: label,
       rule: 'missed-handoff',
-      detail: `${movedLines} word(s) did change line going ${from} → ${to}, but no ghost and no hidden word was ever sampled across ${shots.length} frames (${shape}, peak ${peakAnims} animation(s), ${where}) — the re-wrap happened with no handoff`,
+      detail: `${movedLines} word(s) did change line going ${from} → ${to}, but no ghost and no hidden word was ever sampled across ${shots.length} frames (${rendered}, peak ${peakAnims} animation(s), ${where}) — the re-wrap happened with no handoff`,
     })
     return
   }
 
-  const detail = `no word changed line going ${from} → ${to}, so the ghost handoff never ran — this case exists to exercise it (${shape}, line tops ${JSON.stringify(result.seedTops)}→${JSON.stringify(result.settledTops)}, host ${result.hostW}px wide, ${where})`
+  const detail = `no word changed line going ${from} → ${to}, so the ghost handoff never ran — this case exists to exercise it (${rendered}, line tops ${JSON.stringify(result.seedTops)}→${JSON.stringify(result.settledTops)}, host ${result.hostW}px wide, ${where})`
   if (expectWrap) out.violations.push({ flow: label, rule: 'no-wrap', detail })
   else out.notes.push(`${label}: ${detail}`)
 }
@@ -806,9 +807,7 @@ await scenario('playground wrapped card keeps its height', async () => {
   await visit('/playground')
   const measure = async (value: string) => {
     await page.evaluate((next) => {
-      const host = document.querySelector('#flow-b') as
-        | (HTMLElement & { update(v: string, a?: boolean): void; setOptions(o: unknown): void })
-        | null
+      const host = document.querySelector<Host>('#flow-b')
       if (!host) return
       host.setOptions({ respectMotionPreference: false })
       host.update(next, false)
@@ -816,7 +815,7 @@ await scenario('playground wrapped card keeps its height', async () => {
     await page.waitForTimeout(200)
     return page.evaluate(() => {
       const flow = document.querySelector<HTMLElement>('#flow-wrap')
-      const figure = flow?.closest('.figure') as HTMLElement | null
+      const figure = flow?.closest<HTMLElement>('.figure') ?? null
       const footer = document.querySelector('footer')
       return {
         figureH: figure ? Math.round(figure.getBoundingClientRect().height * 10) / 10 : 0,

@@ -55,8 +55,7 @@ const attach = (el: HTMLElement, options: SmoothCornerOptions) => {
     const { width, height } = measured ?? extracted.size ?? getLayoutSize(el)
     if (width <= 0 || height <= 0) return
     el.style.clipPath = generateClipPath(width, height, options)
-    // The stylesheet radius is a first-paint fallback; leaving it on would
-    // intersect the path and square the curve off.
+    // The stylesheet radius is a first-paint fallback, and would clip the path.
     el.style.borderRadius = '0'
     if (!effectsHandle) return
     const placed = measured && 'offsetLeft' in measured ? measured : undefined

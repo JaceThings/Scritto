@@ -1,4 +1,15 @@
 import { flushStats, type Scritto } from '@scritto/core'
+
+declare global {
+  interface Performance {
+    /** Chromium only. */
+    memory?: { usedJSHeapSize: number }
+  }
+  interface Window {
+    /** What `run-suite.ts` reads once the page has finished measuring. */
+    __BENCH__?: { done: boolean; cases: Report[] }
+  }
+}
 import '@scritto/core'
 import { bindThemeToggle } from './theme'
 
@@ -14,7 +25,7 @@ type Case = {
   setup: (root: HTMLElement) => Built
 }
 
-type Report = {
+export type Report = {
   id: string
   label: string
   hosts: number
@@ -279,7 +290,7 @@ const leftoverOf = (hosts: Scritto[]) => {
 }
 
 const heapMb = () => {
-  const memory = (performance as Performance & { memory?: { usedJSHeapSize: number } }).memory
+  const { memory } = performance
   return memory ? memory.usedJSHeapSize / 1024 / 1024 : null
 }
 
@@ -399,7 +410,7 @@ const paintRow = (report: Report) => {
 }
 
 const publish = (done: boolean) => {
-  Object.assign(window, { __BENCH__: { done, cases: reports } })
+  window.__BENCH__ = { done, cases: reports }
 }
 
 const runOne = async (spec: Case) => {

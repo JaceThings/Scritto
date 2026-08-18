@@ -16,7 +16,9 @@ const PRESETS = {
   Emoji: ['Hello 👋', 'Hola 👋', 'Hey 👋'],
 }
 
-type Mode = keyof typeof PRESETS | 'Custom'
+const PRESET_NAMES = ['Words', 'Numbers', 'Emoji'] as const satisfies readonly (keyof typeof PRESETS)[]
+
+type Mode = (typeof PRESET_NAMES)[number] | 'Custom'
 
 const MODE_OPTIONS = [
   { value: 'Words', label: 'Words' },
@@ -25,12 +27,8 @@ const MODE_OPTIONS = [
   { value: 'Custom', label: 'Custom' },
 ] as const satisfies readonly { value: Mode; label: string }[]
 
-const modeOf = (list: readonly string[]): Mode => {
-  for (const name of Object.keys(PRESETS) as (keyof typeof PRESETS)[]) {
-    if (same(list, PRESETS[name])) return name
-  }
-  return 'Custom'
-}
+const modeOf = (list: readonly string[]): Mode =>
+  PRESET_NAMES.find((name) => same(list, PRESETS[name])) ?? 'Custom'
 
 // === bits ==================================================================
 
@@ -126,7 +124,7 @@ const createCard = (parent: Element, variant: Variant, order: number) => {
   const trigger = el('button', 'stage stage-short')
   trigger.type = 'button'
   trigger.setAttribute('aria-label', 'Advance the value')
-  const host = document.createElement('scritto-text') as Scritto
+  const host = document.createElement('scritto-text')
   host.className = STAGE_TEXT
   host.setAttribute('role', 'img')
   trigger.append(host)

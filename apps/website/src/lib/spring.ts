@@ -1,12 +1,11 @@
-// Bounce is the Apple parameter, 1 - damping ratio, so the slider stays
-// continuous with the core's own easings: 0.20 is its default, 0.30 its bouncy.
-// The core ships these two: its default curve and its bouncy one.
+// Bounce is Apple's parameter, 1 - damping ratio, so the slider stays
+// continuous with the two curves the core ships: 0.20 default, 0.30 bouncy.
 export const BOUNCE_DEFAULT = 0.2
 export const BOUNCE_BOUNCY = 0.3
 
 const OMEGA_PER_ZETA = 11.19
-// Below damping ratio 0.7 the frequency tracks a fixed decay rate instead, so a
-// loose spring still settles inside the window.
+// Below damping ratio 0.7 the frequency tracks a fixed decay rate, so a loose
+// spring still settles inside the window.
 const SETTLED_DECAY = 5.48
 const SAMPLES = 48
 

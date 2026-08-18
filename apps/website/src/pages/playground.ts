@@ -16,18 +16,17 @@ const PRESETS = {
   Emoji: ['Hello 👋', 'Hola 👋', 'Hey 👋'],
 } as const
 
-type Preset = keyof typeof PRESETS
+const PRESET_NAMES = ['Words', 'Numbers', 'Emoji'] as const satisfies readonly (keyof typeof PRESETS)[]
+
+type Preset = (typeof PRESET_NAMES)[number]
 type Mode = Preset | 'Custom'
 
-const MODE_OPTIONS = [
-  { value: 'Words', label: 'Words' },
-  { value: 'Numbers', label: 'Numbers' },
-  { value: 'Emoji', label: 'Emoji' },
-  { value: 'Custom', label: 'Custom' },
-] as const satisfies readonly { value: Mode; label: string }[]
+const MODE_OPTIONS: readonly { value: Mode; label: Mode }[] = [...PRESET_NAMES, 'Custom' as const].map(
+  (value) => ({ value, label: value }),
+)
 
 const modeOf = (values: readonly string[]): Mode =>
-  (Object.keys(PRESETS) as Preset[]).find((name) => same(values, PRESETS[name])) ?? 'Custom'
+  PRESET_NAMES.find((name) => same(values, PRESETS[name])) ?? 'Custom'
 
 const JUSTIFY = {
   left: 'flex-start',
