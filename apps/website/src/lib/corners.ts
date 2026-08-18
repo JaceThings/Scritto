@@ -87,15 +87,38 @@ const attach = (el: HTMLElement, options: SmoothCornerOptions) => {
 
 /** Clips the site's rounded surfaces to a smooth-corner path, shadows following. */
 export const bindCorners = (root: ParentNode = document) => {
-  const stops = SURFACES.flatMap(([selector, corners]) =>
-    [...root.querySelectorAll<HTMLElement>(selector)].map((el) => attach(el, corners)),
-  )
-
-  for (const el of root.querySelectorAll<HTMLElement>('.figure')) {
-    stops.push(attach(el, el.querySelector('.row') ? FIGURE_CORNERS : FIGURE_PLAIN))
+  const bindAll = () => {
+    const stops = SURFACES.flatMap(([selector, corners]) =>
+      [...root.querySelectorAll<HTMLElement>(selector)].map((el) => attach(el, corners)),
+    )
+    for (const el of root.querySelectorAll<HTMLElement>('.figure')) {
+      stops.push(attach(el, el.querySelector('.row') ? FIGURE_CORNERS : FIGURE_PLAIN))
+    }
+    return stops
   }
 
+  let stops = bindAll()
+
+  // A shadow is read off the element once and redrawn as SVG, so the surface
+  // would keep the shadow of whichever theme it was bound under. Read it again
+  // when the theme changes, a frame later, once the new tokens have resolved.
+  let queued = 0
+  const rebind = () => {
+    cancelAnimationFrame(queued)
+    queued = requestAnimationFrame(() => {
+      for (const stop of stops) stop()
+      stops = bindAll()
+    })
+  }
+  const scheme = matchMedia('(prefers-color-scheme: dark)')
+  scheme.addEventListener('change', rebind)
+  const themed = new MutationObserver(rebind)
+  themed.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+
   return () => {
+    cancelAnimationFrame(queued)
+    scheme.removeEventListener('change', rebind)
+    themed.disconnect()
     for (const stop of stops) stop()
   }
 }
