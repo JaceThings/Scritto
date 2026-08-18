@@ -217,6 +217,7 @@ class Scritto extends ServerSafeHTMLElement {
       return
     }
     this._cancelTracked()
+    this._hurryExits()
     this._exitTail = 0
     this._queueExit(this._chars.slice(plan.prefixCount, plan.oldSuffix), plan.exitingX, plan.exitGlyphs)
     this._queueExit(plan.exitingTail, plan.tailX, plan.tailGlyphs)
@@ -532,6 +533,25 @@ class Scritto extends ServerSafeHTMLElement {
   /** How far along the row this update's exiting glyphs reach. */
   _exitEndPx() {
     return this._exitEnd
+  }
+
+  /**
+   * A roll is left running when the next update lands, so a rapid change
+   * stacks its outgoing glyphs rather than popping them. Spammed, that stacks
+   * whole values: each is legible, and they pile up over each other. Every
+   * change hurries the ink already on its way out instead, so what is leaving
+   * keeps rolling and clears the screen for what is arriving.
+   */
+  private _hurryExits() {
+    for (let i = 0; i < this._exitingChars.length; i++) {
+      const chars = this._exitingChars[i][0].querySelectorAll<HTMLElement>('.char')
+      for (let j = 0; j < chars.length; j++) {
+        const anims = chars[j].getAnimations()
+        for (let k = 0; k < anims.length; k++) {
+          anims[k].playbackRate = Math.min(CONFIG.hurryMax, anims[k].playbackRate * CONFIG.hurry)
+        }
+      }
+    }
   }
 
   private _queueExit(nodes: HTMLElement[], x: number, glyphs: Glyph[]) {

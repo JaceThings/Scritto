@@ -7,6 +7,9 @@ export const CONFIG = {
   blur: 0.1,
   rotate: 2,
   stagger: 0.3,
+  /** How much each new change speeds the ink already leaving, and the ceiling on it. */
+  hurry: 2.5,
+  hurryMax: 6,
 }
 
 export const DEFAULT_TRANSITION: Transition = {
