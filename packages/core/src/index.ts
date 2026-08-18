@@ -112,6 +112,7 @@ class Scritto extends ServerSafeHTMLElement {
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
   private _exitQueue: QueuedExit[] = []
+  private _crowded = false
   /**
    * How far along the row the old ink still on screen reaches. Held across
    * commits, since rapid updates leave earlier groups standing, and cleared
@@ -217,6 +218,9 @@ class Scritto extends ServerSafeHTMLElement {
       return
     }
     this._cancelTracked()
+    // Ink from an earlier change is still on screen, so this one lands on a
+    // crowded row: its own outgoing glyphs are hurried too, once they exist.
+    this._crowded = this._exitingChars.length > 0
     this._hurryExits()
     this._exitTail = 0
     this._queueExit(this._chars.slice(plan.prefixCount, plan.oldSuffix), plan.exitingX, plan.exitGlyphs)
@@ -242,6 +246,7 @@ class Scritto extends ServerSafeHTMLElement {
     const delayAt = this._sweep(enterGlyphs.concat(exits))
     const enterDelays = enterGlyphs.map((g) => delayAt(g.offset))
     this._startExits(plan.trend, delayAt)
+    if (this._crowded) this._hurryExits()
     this._exitEnd = exits.reduce((end, g) => Math.max(end, g.offset + g.width), this._exitEnd)
     const total = this.transition.duration + this._exitTail
     // A flow moves the row's own start as its line re-flows, and carries the
