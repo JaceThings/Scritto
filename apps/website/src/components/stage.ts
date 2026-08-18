@@ -55,18 +55,16 @@ export const createStage = (
   let gesture: Animation | null = null
 
   /**
-   * A preset switch replaces the whole string and its character set, so the host
-   * hands one piece of content to the next instead of rolling: it scales down and
-   * blurs away, the value swaps while it is invisible, and the same curve carries
-   * it back. Rolling "Creative" into "24" per glyph would read as noise.
+   * A preset switch replaces the whole string, so the card hands one piece of
+   * content to the next rather than rolling: it blurs away, swaps while
+   * invisible, and comes back. Rolling "Creative" into "24" reads as noise.
    */
   const handoff = (change: () => void) => {
     if (reducedMotion()) {
       change()
       return
     }
-    // Read before cancelling, so an interrupted swap turns around mid-gesture
-    // rather than popping back to full opacity.
+    // Read before cancelling, so an interrupted swap turns around mid-gesture.
     const css = getComputedStyle(host)
     const at: Keyframe = {
       opacity: css.opacity,

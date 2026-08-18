@@ -1,8 +1,7 @@
-// Odd-usage sweep for <scritto-text> and <scritto-flow>: every case renders a
-// host in an unusual context, drives a few transitions, and asserts the same
-// invariants — the settled text matches, nothing leaks after settle, no
-// glyph draws over its neighbour, the host's line never changes height, and
-// no console error fires. Run with `bun run check:stress` against a dev server.
+// Odd-usage sweep: every case renders a host in an unusual context, drives a
+// few transitions, and asserts the same invariants — settled text, nothing
+// leaked, no glyph over its neighbour, a stable line height, no console error.
+// Run with `bun run check:stress` against a dev server.
 import { chromium, type Page } from 'playwright'
 
 const BASE = (process.env.STRESS_URL ?? 'http://localhost:5175').replace(/\/$/, '')
@@ -140,8 +139,7 @@ const install = () => {
       }
 
       // Layout offsets, not rects: the roll animates translateY, so only the
-      // untransformed placement says whether an exiting glyph sits on the same
-      // line as the live glyph it is replacing.
+      // untransformed placement says which line a glyph is on.
       const glyphDrop = () => {
         const live = host.shadowRoot!.querySelector<HTMLElement>('.section .char')
         const exit = host.shadowRoot!.querySelector<HTMLElement>('.exits .char')

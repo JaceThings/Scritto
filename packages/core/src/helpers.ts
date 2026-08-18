@@ -33,12 +33,7 @@ export const isOnscreen = (el: HTMLElement) => {
   return rect.bottom > clip.top && rect.top < clip.bottom && rect.right > clip.left && rect.left < clip.right
 }
 
-/**
- * Chars outlive the host that drew them: one pool feeds every host on the page,
- * so each char carries the two facts the pool needs. `pooled` is the pool's own
- * claim on it, and `exitTimer` is the deferred release still armed for the life
- * it is leaving.
- */
+/** A pooled glyph: `pooled` is the pool's claim, `exitTimer` a release still armed. */
 export type Char = HTMLElement & {
   pooled?: boolean
   exitTimer?: ReturnType<typeof setTimeout>
@@ -65,10 +60,8 @@ export const createChar = (text: string): Char => {
 }
 
 export const releaseChar = (el: Char) => {
-  // Teardown and a char's own exit callback can both hand it back, in either
-  // order, so only the first hand-back counts: the pool must never hold the
-  // same element twice, or a later value would be given a char that is already
-  // standing in another one.
+  // Teardown and the char's own exit callback both hand it back, in either
+  // order; a second hand-back would put it in the pool twice.
   if (el.pooled) return
   el.pooled = true
   clearTimeout(el.exitTimer)
@@ -139,56 +132,25 @@ const splitGraphemes = (value: string): string[] => {
   return ascii
 }
 
-/**
- * How far from the end of a value the kept run may sit. A value that gains or
- * loses a char or two at the end — a plural 's', an ordinal suffix, a unit that
- * grew — moves the run it shares by that much, so the search covers the flush
- * alignment and a couple either side: 2 * RUN_BAND + 1 alignments, each walked
- * at most once, and pruned as soon as it cannot beat the run already found.
- */
+/** Alignments searched either side of the flush suffix, for an end that grew or shrank. */
 const RUN_BAND = 2
 
-/**
- * A run flush with neither end costs the row an extra torn-off tail, so it has
- * to earn that: one letter shared by two unrelated words ('seven' -> 'nine'
- * share an 'e') would fly across the value on its own while the rest rolled.
- */
+/** One letter shared by two unrelated words ('seven' -> 'nine') is noise, not a run. */
 const MIN_FLOAT_RUN = 2
 
 /**
- * How far a run flush with neither end may travel to be kept rather than
- * rolled. A run at an end has no say in where it goes — the layout carries it,
- * and SwiftUI's own numeric text will slide a matched suffix any distance at
- * all (measured: 'supercalifragilisticlight' -> 'light' slides its five kept
- * letters 337px without blinking). A run in the middle is different: nothing
- * forces it to move, it was found by searching, and a short common word will
- * happily fly the length of the value on its own while everything around it
- * rolls — 'the light you seek is within you' -> 'you are the daylight' kept
- * 'you ' and flew it ten places left. So a floating run buys its travel with
- * its length, plus a group's width for the punctuation a number grows around
- * it: exactly what '11' -> '1,001' needs, one kept digit crossing a separator
- * and the two digits that came with it.
- *
- * Travel is what the run would move on screen, which depends on where the
- * box is anchored: measured from the start of a start-anchored box, from the
- * end of an end-anchored one — a right-aligned readout going 'Default – 0.20'
- * -> '0.21' keeps its '0.2' exactly where it stands — and from the middle of a
- * centred one.
- *
- * SwiftUI declines this trade entirely and matches only a common prefix and
- * suffix, so it never has to answer the question.
+ * A run flush with neither end was found by searching, and nothing forces it to
+ * move, so it buys its travel with its length plus a group separator's width —
+ * what '11' -> '1,001' needs. Otherwise a short common word flies the length of
+ * the value while everything around it rolls. Runs at an end are exempt: layout
+ * carries them, and SwiftUI slides a matched suffix any distance at all
+ * (measured: 'supercalifragilisticlight' -> 'light', 337px).
  */
 const GROUP_WIDTH = 2
 
 const earnsTravel = (run: number, travel: number) => Math.abs(travel) <= run + GROUP_WIDTH
 
-/**
- * The number a value reads as, for working out which way it moved. Read the
- * way a person reads it: sign, digits, and one decimal point, with anything
- * else — currency, units, group separators, spaces — set aside. `parseFloat`
- * stopped at the first comma, so a grouped figure only ever compared its
- * leading group and '9,999' -> '10,000' read as falling.
- */
+/** Sign, digits and one decimal point; `parseFloat` stops at the first group separator. */
 export const numberOf = (value: string) => {
   const match = /[-\u2212]?\d[\d,_' \u00A0\u202F]*(?:\.\d+)?/.exec(value)
   if (!match) return null
@@ -197,7 +159,12 @@ export const numberOf = (value: string) => {
   return /^[-\u2212]/.test(match[0]) ? -n : n
 }
 
-/** `anchor` is where the box holds still as it resizes: 0 at its start, 1 at its end, 0.5 in the middle. */
+/**
+ * Longest common prefix, then the longest run either value ends with, then a
+ * search for a run flush with neither end. `anchor` is where the box holds
+ * still as it resizes (0 start, 1 end, 0.5 middle), which decides how far a
+ * floating run would actually travel on screen.
+ */
 export const diff = (prev: HTMLElement[], newValue: string, anchor = 0) => {
   const labels = splitGraphemes(newValue)
   const lenOld = prev.length
@@ -206,25 +173,19 @@ export const diff = (prev: HTMLElement[], newValue: string, anchor = 0) => {
   let start = 0
   while (start < lenOld && start < lenNew && prev[start].textContent === labels[start]) start++
 
-  // The run both values end with, which is the whole answer whenever the value
-  // only changed in front of it.
   let best = 0
   const maxSuffix = Math.min(lenOld - start, lenNew - start)
   while (best < maxSuffix && prev[lenOld - 1 - best].textContent === labels[lenNew - 1 - best]) best++
   let oldSuffix = lenOld - best
   let midEnd = lenNew - best
 
-  // A value can change at both ends at once — '1 second' -> '2 seconds' differs
-  // in its first char AND its last — and then the run it keeps is flush with
-  // neither end. `shift` aligns an old index with a new one (new = old + shift):
-  // the flush suffix sits at lenNew - lenOld, and the steps walk outwards from
-  // there, the side nearer no movement first, so that an equally long run is the
-  // one that travels least.
+  // '1 second' -> '2 seconds' changes at both ends, so its kept run is flush
+  // with neither. `shift` aligns old index to new (new = old + shift), walking
+  // outwards from the flush suffix, nearer side first, so ties travel least.
   const near = lenNew < lenOld ? 1 : -1
   for (let step = 0; step <= RUN_BAND * 2; step++) {
     const shift = lenNew - lenOld + ((step + 1) >> 1) * (step & 1 ? near : -near)
-    // The run may not reach back into the prefix on either side.
-    const lo = shift < 0 ? start - shift : start
+    const lo = shift < 0 ? start - shift : start // never reach back into the prefix
     let run = 0
     for (let i = Math.min(lenOld, lenNew - shift) - 1; i >= lo; i--) {
       if (prev[i].textContent === labels[i + shift]) {
@@ -235,8 +196,7 @@ export const diff = (prev: HTMLElement[], newValue: string, anchor = 0) => {
           midEnd = i + shift
         }
       } else run = 0
-      // What is left of this alignment can no longer beat the run in hand.
-      if (run + i - lo <= best) break
+      if (run + i - lo <= best) break // cannot beat the run in hand
     }
   }
 

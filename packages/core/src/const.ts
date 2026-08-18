@@ -24,17 +24,12 @@ export const BOUNCE_TRANSITION: Transition = {
 export const SHRINK_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
 export const WIDTH_ANIM = 'scritto-width'
 
-// While a host's width animates with text following it, its row is clipped
-// at whichever of its edges is moving, which the neighbour on that side
-// rides: exiting glyphs dissolve there as the edge sweeps over them on a
-// shrink, and entering glyphs past the old edge come out from under it on a
-// grow. A start-anchored box moves its end (the usual case, and a flow's);
-// an end-anchored one its start; a centred one both. The exits get a soft
-// band just inside the edge (they are fading anyway); the live row a hard
-// clip a hair past it, since a soft band there would dim the last glyph until
-// the mask lifted, and a mask cannot reach past the box for composited
-// children. The clip is loose on every other side so a roll's vertical
-// travel, and old glyphs standing past a still edge, stay in.
+// A moving edge clips the row, and the neighbour rides it: old glyphs dissolve
+// as it sweeps over them, new ones surface from under it. The live row takes a
+// hard clip a hair past the edge — a soft band would dim its last glyph until
+// the mask lifted, and a mask cannot reach past the box for composited children
+// — while the exits, already fading, take the band. Other sides stay loose so a
+// roll's vertical travel and glyphs past a still edge stay in.
 const EDGE_FADE = '0.3em'
 const EDGE_SLACK = '0.1em'
 const FAR = '9999px'
@@ -57,8 +52,7 @@ const exitMask = (sides: Sides) => {
 const rowClip = (sides: Sides) =>
   `clip-path: inset(-1em ${sides.right ? `-${EDGE_SLACK}` : `-${FAR}`} -1em ${sides.left ? `-${EDGE_SLACK}` : `-${FAR}`});`
 
-// `data-shrink-clip` names the logical side(s) that move: "" or "end" (the
-// default), "start", or "both".
+/** `data-shrink-clip` names the logical sides that move: "" or "end", "start", "both". */
 const clipRules = () => {
   const cases: [selector: string, sides: Sides][] = [
     [`[data-shrink-clip='']`, { left: false, right: true }],
@@ -90,10 +84,8 @@ export const STYLES = `
     isolation: isolate;
     vertical-align: baseline;
   }
-  /* Sits where a .section sits — the same line box, off the same baseline
-     anchor — so an exiting glyph lines up with the live glyph it replaces.
-     Anchoring it to the host's box instead drops it by the couple of pixels
-     the taller section boxes stick out. */
+  /* Sits on a section's baseline, not the host's box, which the taller section
+     boxes stick a couple of pixels above. */
   .exits {
     position: absolute;
     inset-inline-start: 0;
@@ -109,16 +101,13 @@ ${clipRules()}
   span {
     margin: 0 !important;
     padding: 0 !important;
-    /* The host indents its row to pin it while its box moves; that must not
-       reach the glyphs, each of which is a block with a first line of its own. */
-    text-indent: 0;
+    text-indent: 0; /* the host indents its row; each glyph is a block of its own */
     transform-origin: center;
   }
+  /* Placed by a transform from the host's start edge, never a static position. */
   .exits > [inert] {
     position: absolute !important;
     display: inline-flex !important;
-    /* Exiting glyphs are placed by a transform measured from the host's start
-       edge, so the layer must not fall back to its static inline position. */
     inset-inline-start: 0;
   }
   .section {

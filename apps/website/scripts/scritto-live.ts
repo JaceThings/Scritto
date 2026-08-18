@@ -9,13 +9,11 @@ type Env = {
   redis: Redis
   REDIS_PREFIX: string
   IP_SALT?: string
-  // Comma-separated origins allowed to open a socket and to move the public
-  // counters. Unset means "any browser origin but a local one", so a deploy that
-  // has not been told its own hostname keeps working.
+  // Origins allowed to open a socket and move the counters. Unset means any
+  // non-local browser origin, so an unconfigured deploy still works.
   SITE_ORIGINS?: string
-  // Number of proxies that append to X-Forwarded-For between the client and this
-  // process, counted from the right. Only consulted when cf-connecting-ip is
-  // absent; /debug/headers is how you find out what to set it to.
+  // Proxies appending to X-Forwarded-For, counted from the right. Only used
+  // without cf-connecting-ip; /debug/headers tells you what to set.
   TRUSTED_HOPS?: string
   DEBUG_TOKEN?: string
 }
@@ -57,26 +55,20 @@ const VIEW_GATE_S = 15
 const NPM_TTL_MS = 10 * 60 * 1000
 const NPM_RETRY_MS = 60 * 1000
 
-// Clicks arrive as a running per-page-load total, so the count a visitor sees is
-// the count that gets banked. That total is client-supplied and forgeable, hence
-// a per-IP budget over a window: 40 in 5s outruns any human (a fast clicker
-// manages 8-10/s in bursts, not sustained) while refusing a script. Anything
-// over budget is declined rather than dropped, so the client re-sends it later.
+// Clicks arrive as a running per-page-load total, which is client-supplied and
+// forgeable, hence a per-IP budget: 40 in 5s outruns any human (8-10/s in
+// bursts) while refusing a script. Over budget is declined, not dropped.
 const CLICK_WINDOW_S = 5
 const CLICK_BUDGET = 40
 const CLICK_MAX_PER_WRITE = 60
-// A run key is only consulted while that run still has pokes the server has not
-// banked, and the client starts a fresh run as soon as it is square, so in
-// practice these live for seconds. The TTL only has to outlive a run that stays
-// unsquare, and if it ever expired mid-run the whole run total would be banked a
-// second time — so it is set far beyond any plausible write-retry window rather
-// than the hour it takes to idle out of a session.
+// A run lives only while it has unbanked pokes, so seconds in practice. Expiry
+// mid-run would bank the whole total twice, so this sits far beyond any
+// plausible write-retry window.
 const CLICK_RUN_TTL_S = 30 * 24 * 3600
 const CLICK_GATE_S = 2
 
-// Identity keys used to be written with no TTL at all, which grows the keyspace
-// forever. A browser's own id can outlive a year of not visiting; an IP is only a
-// hint and gets reassigned, so it is held for a month.
+// A browser's own id can outlive a year away; an IP is a hint and gets
+// reassigned, so it is held for a month rather than forever.
 const VID_TTL_S = 365 * 24 * 3600
 const IP_TTL_S = 30 * 24 * 3600
 
@@ -103,13 +95,11 @@ const json = (data: unknown, status = 200) =>
   })
 
 // Every budget, identity and gate key hangs off this, so it must not be
-// caller-controlled. Cloudflare *appends* the real client IP to an
-// X-Forwarded-For that arrived with the request, which makes the leftmost entry
-// whatever the caller wrote — one forged header per request used to buy a fresh
-// 40-poke budget and a fresh identity. cf-connecting-ip is written by our own
-// edge and overwrites anything incoming, so it is the only entry we trust; XFF is
-// a fallback for a direct hit that misses the edge, and is read from the right,
-// where the nearest trusted proxy appends, never from the left.
+// caller-controlled. Cloudflare *appends* the client IP to an X-Forwarded-For
+// that arrived with the request, so its leftmost entry is whatever the caller
+// wrote — a forged header used to buy a fresh budget and identity. Only
+// cf-connecting-ip is written by our own edge; XFF is a fallback for a direct
+// hit, counted from the right where the nearest trusted proxy appends.
 const IP_HEADERS = ['cf-connecting-ip', 'x-forwarded-for', 'x-real-ip', 'true-client-ip']
 
 const clientIp = (req: Request, env: Env) => {
@@ -139,8 +129,7 @@ const originHost = (origin: string | null) => {
   }
 }
 
-// Local dev has to keep working, so a localhost origin may connect; it just does
-// not get to move the public numbers.
+// A localhost origin may connect, it just may not move the public numbers.
 const mayConnect = (req: Request, env: Env) => {
   const origin = req.headers.get('origin')
   const host = originHost(origin)
@@ -150,10 +139,8 @@ const mayConnect = (req: Request, env: Env) => {
   return allowed.length === 0 || allowed.includes(origin!)
 }
 
-// HMR reloads were measured adding ~2.7 views a minute with nobody visiting, so a
-// dev origin reads the stats without counting as one. Forging this header only
-// lets a caller leave their own visit out — it cannot suppress anyone else's, and
-// there is no request that can lower a counter.
+// HMR reloads measured ~2.7 views a minute with nobody visiting. Forging this
+// only leaves your own visit out; no request can lower a counter.
 const counts = (req: Request, env: Env) => {
   const origin = req.headers.get('origin')
   const host = originHost(origin)
@@ -184,9 +171,8 @@ const zcard = async (env: Env, name: string) => {
   return Number(n) || 0
 }
 
-// Bun's client only pipelines commands issued in the same tick, so awaiting each
-// one in turn pays a full round trip per command. Anything independent goes out
-// together; only the read that has to observe the writes waits.
+// Bun's client pipelines only within a tick, so awaiting each command in turn
+// pays a round trip each. Only a read that must observe the writes waits.
 const touchPresence = async (env: Env, sid: string) => {
   const now = Date.now()
   await Promise.all([zadd(env, 'here', now, sid), zremrange(env, 'here', now - PRESENCE_MS)])
@@ -223,18 +209,16 @@ const broadcast = (stats: Stats) => {
 const refreshNpm = async (env: Env) => {
   const stamped = Number(await env.redis.get(key(env, 'npmAt'))) || 0
   if (Date.now() - stamped < NPM_TTL_MS) return
-  // Claim the refresh before the work so concurrent requests do not all fetch,
-  // but claim it only as far as the retry window: a run that learns nothing has
-  // to come back in a minute rather than sit on a stale total for the full TTL.
+  // Claimed before the work so concurrent requests do not all fetch, but only
+  // for the retry window, so a failed refresh comes back in a minute.
   await env.redis.set(key(env, 'npmAt'), String(Date.now() - NPM_TTL_MS + NPM_RETRY_MS))
   let total = 0
   let answered = true
   for (const pkg of NPM_PKGS) {
     try {
       const res = await fetch(`https://api.npmjs.org/downloads/point/last-month/${encodeURIComponent(pkg)}`)
-      // A package npm has never heard of is a real zero and counts as an answer;
-      // any other failure is not an answer, and storing it as one would clobber a
-      // good total with 0 whenever the network or the rate limiter says no.
+      // An unknown package is a real zero; any other failure is not an answer,
+      // and storing it would clobber a good total.
       if (res.status === 404) continue
       if (!res.ok) {
         answered = false
@@ -251,10 +235,8 @@ const refreshNpm = async (env: Env) => {
   await env.redis.set(key(env, 'npmAt'), String(Date.now()))
 }
 
-// Read-then-increment let two tabs opening together both read nothing and both
-// take an ordinal, so they disagreed about which visitor they are. Assigning
-// inside the script settles it in one round trip: whoever runs first mints the
-// ordinal, the other reads it back.
+// Read-then-increment let two tabs opening together take the same ordinal.
+// Assigning inside the script settles it in one round trip.
 const IDENTIFY_LUA = `
 local you = redis.call('GET', KEYS[1])
 if not you then you = redis.call('GET', KEYS[2]) end
@@ -321,17 +303,12 @@ const beat = async (req: Request, env: Env) => {
   return json(stats)
 }
 
-// Reading the run total, charging the budget and advancing both counters has to
-// be one step. As separate round trips, two writes for the same run both read the
-// same banked total and both credit the difference — and the client races itself
-// by design, because a poke followed by closing the tab sends the debounced write
-// and the pagehide beacon at once.
-//
-// The budget is charged inside the same step so the charge cannot be spent
-// without the credit landing, and vice versa. Over-budget writes still charge, so
-// a flood cannot outlast the window by pacing itself, and the run total only
-// advances by what was actually granted: the rest stays unbanked and the client
-// re-sends it on its next write rather than losing it.
+// Reading the run total, charging the budget and advancing the counters is one
+// step: as separate round trips two writes for the same run both credit the
+// same difference, and the client races itself by design when a poke and a
+// pagehide beacon land together. Over-budget writes still charge, so a flood
+// cannot outlast the window by pacing itself, and the run advances only by what
+// was granted — the rest stays unbanked for the client's next write.
 const BANK_LUA = `
 local banked = tonumber(redis.call('GET', KEYS[1]) or '0')
 local want = tonumber(ARGV[1]) - banked
@@ -376,8 +353,7 @@ const click = async (req: Request, env: Env) => {
   const [acked, here] = await Promise.all([
     run && seq !== null
       ? bank(env, ipHash, run, seq)
-      // A bundle cached before this endpoint learned to count still posts a bare
-      // poke, so keep the old gated single increment as the fallback.
+      // A bundle cached before this endpoint counted still posts a bare poke.
       : gatedIncr(env, `legacygate:${ipHash}`, 'clicks', CLICK_GATE_S).then(() => 0),
     typeof body.sid === 'string' ? touchPresence(env, body.sid) : zcard(env, 'here'),
   ])
@@ -392,10 +368,9 @@ const stats = async (env: Env) => {
   return json({ ...totals, you: 0, here })
 }
 
-// Which header carries the real client IP depends on what Cloudflare and Railway
-// each do to the request, which cannot be established from here. This reports
-// exactly what arrived so it can be read off a live request; it needs
-// DEBUG_TOKEN set to answer at all, and only reports IP-bearing headers.
+// Which header carries the real client IP depends on what Cloudflare and
+// Railway each do to the request, so this reports what actually arrived.
+// Needs DEBUG_TOKEN, and reports IP-bearing headers only.
 const headerEcho = (req: Request, env: Env, url: URL) => {
   if (!env.DEBUG_TOKEN || url.searchParams.get('token') !== env.DEBUG_TOKEN) {
     return json({ error: 'not found' }, 404)

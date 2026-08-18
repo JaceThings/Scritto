@@ -1,14 +1,9 @@
 // Guards the one promise a rolling text component makes: a glyph that did not
-// change is not redrawn. For each transition it proves that every glyph the
-// contract says survives is the SAME element instance afterwards, that it is
-// never handed an opacity or filter animation (only its section may slide), and
-// that the number of glyphs leaving and arriving is the number that actually
-// differ. A rapid-update arm then proves a later tick does not cancel an
-// earlier glyph's roll — the 2 from 0.23 must still be exiting when 4 arrives.
-// A second rapid arm hammers the playground's Words→Numbers→Words swap so a
-// leftover pooled exit cannot hide Creative's C.
-// Run with `bun run check:churn` against a dev server (CHURN_URL to point
-// elsewhere).
+// change is not redrawn. Every surviving glyph must be the same element
+// afterwards, never handed an opacity or filter animation, with exactly as many
+// leaving and arriving as differ; kept runs must hold their position at every
+// anchoring; and two rapid arms prove a later tick does not cancel an earlier
+// roll. Run with `bun run check:churn` against a dev server (or CHURN_URL).
 import { chromium, type Page } from 'playwright'
 
 const BASE = (process.env.CHURN_URL ?? 'http://localhost:5175').replace(/\/$/, '')
@@ -18,19 +13,12 @@ const DURATION = 400
 const SETTLE_MS = DURATION + 350
 
 /**
- * The contract, one row per transition: which glyphs must survive the update as
- * the same elements, and how many may leave and arrive. `kept` is the surviving
- * glyphs in row order — the kept prefix followed by the kept run — with NBSP
- * written as a plain space.
- *
- * The counts are the true edit distance for the value pair, with one deliberate
- * exception noted below: reusing a single glyph shared by two otherwise
- * unrelated words looks like noise, not continuity, so the library refuses runs
- * shorter than two and rebuilds instead.
+ * One row per transition: `kept` is the surviving glyphs in row order (prefix
+ * then run, NBSP written as a space), and the counts are the pair's true edit
+ * distance — except where a lone shared glyph is refused as noise.
  */
 const CASES: { from: string; to: string; kept: string; exits: number; enters: number; why: string }[] = [
-  // The reported case: the digit and the new plural 's' are the only changes, so
-  // ' second' must live through it.
+  // The reported case: only the digit and the plural 's' change.
   { from: '1 second', to: '2 seconds', kept: ' second', exits: 1, enters: 2, why: 'plural arrives' },
   { from: '2 seconds', to: '3 seconds', kept: ' seconds', exits: 1, enters: 1, why: 'digit only' },
   { from: '0 seconds', to: '1 second', kept: ' second', exits: 2, enters: 1, why: 'plural leaves' },
@@ -61,18 +49,15 @@ const CASES: { from: string; to: string; kept: string; exits: number; enters: nu
   { from: 'Hello \u{1F44B}', to: 'Hey \u{1F44B}', kept: 'He \u{1F44B}', exits: 3, enters: 1, why: 'grapheme stays whole' },
   // Nothing shared: the row is rebuilt, and no run may be invented.
   { from: '1st', to: '2nd', kept: '', exits: 3, enters: 3, why: 'nothing in common' },
-  // 'seven' and 'nine' share an 'e' and an 'n'. Reusing one of them would fly a
-  // lone glyph across the value, so the true edit distance here is 4/3 and the
-  // library deliberately spends 5/4 instead.
+  // Reusing the shared 'e' would fly a lone glyph across, so 5/4 beats 4/3.
   { from: 'seven', to: 'nine', kept: '', exits: 5, enters: 4, why: 'shared glyph is noise' },
 ]
 
 const POSITION_TOLERANCE = 0.1
 type Align = 'start' | 'end' | 'center'
 
-// `align` is where the host's box is anchored as it resizes. A kept run that
-// does not move on screen must not be rerolled or nudged whichever way the box
-// is anchored: an end-aligned readout keeps its '0.2' where it stands.
+// `align` anchors the host's box as it resizes: an end-aligned readout keeps
+// its '0.2' where it stands, so that run must be neither rerolled nor nudged.
 const POSITION_CASES: {
   from: string
   to: string
@@ -151,11 +136,8 @@ const install = () => {
   let host: Host | null = null
   let frame: HTMLElement | null = null
 
-  // A host of its own, outside every <scritto-flow> on the page: the wrap
-  // machinery would move the row for reasons that have nothing to do with churn.
-  // Direction is read when the element connects, so an RTL arm gets a fresh
-  // host. `align` anchors the host's box at its start, end or middle by
-  // aligning it inside a fixed-width frame.
+  // Outside every <scritto-flow>, whose wrapping would move the row for
+  // unrelated reasons. Direction is read on connect, so RTL needs a fresh host.
   const stage = (direction: 'ltr' | 'rtl' = 'ltr', align: 'start' | 'end' | 'center' = 'start') => {
     if (host?.dir === direction && frame?.style.textAlign === align) return host
     frame?.remove()
@@ -194,8 +176,7 @@ const install = () => {
     const fresh: HTMLElement[] = []
     for (const char of glyphs(shadow)) (before.has(char) ? kept : fresh).push(char)
 
-    // getKeyframes() mixes timing bookkeeping in with the properties, and only
-    // the properties say what is being redrawn.
+    // getKeyframes() mixes timing bookkeeping in with the properties.
     const BOOKKEEPING: Record<string, true> = { offset: true, computedOffset: true, easing: true, composite: true }
     const animatedProps = (el: Element) => {
       const props = new Set<string>()

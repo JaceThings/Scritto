@@ -41,9 +41,8 @@ const install = () => {
 
   const clipOf = (flow: HTMLElement) => flow.querySelector<HTMLElement>(':scope > [data-wrap-clip]')
 
-  // First opaque stop of the horizontal edge fade, in px. A content-box-wide
-  // mask puts this stop inside the flow; a gutter mask puts it on the flow's
-  // left edge (or past it).
+  // First opaque stop of the edge fade: inside the flow for a content-box mask,
+  // on its left edge or past it for a gutter mask.
   const fadePxOf = (mask: string) => {
     const match = mask.match(/rgb\(\s*0\s*,\s*0\s*,\s*0\s*\)\s+([\d.]+)px/)
     return match ? Number(match[1]) : 0
@@ -57,8 +56,7 @@ const install = () => {
     return clip ? [...clip.querySelectorAll<HTMLElement>('[data-wrap-ghost]')] : []
   }
 
-  // Every animation the flow owns, so a stray one is attributable rather than
-  // noise from the hosts' own glyph rolls.
+  // Only what the flow owns, so a stray animation is attributable.
   const animsOf = (flow: HTMLElement) =>
     flow.getAnimations({ subtree: true }).filter((anim) => {
       if (anim.id === 'scritto-width') return true
@@ -84,11 +82,9 @@ const install = () => {
       (a, b) => a - b,
     )
     if (!tops.length) return null
-    // Averaging the gaps assumes every line is occupied, which a paragraph with
-    // a stanza break in it is not — its gaps are two line heights and the mean
-    // lands on a grid no word sits on. Take the closest pair as a first guess,
-    // then divide the whole span by however many steps that implies, so the
-    // rounding in each top averages out instead of accumulating.
+    // Averaging the gaps assumes every line is occupied, which a stanza break
+    // breaks. Take the closest pair as the step, then fit it to the whole span
+    // so each top's rounding averages out instead of accumulating.
     const gaps = tops.slice(1).map((top, i) => top - tops[i]).filter((gap) => gap > 2.5)
     const span = tops[tops.length - 1] - tops[0]
     const steps = gaps.length ? Math.round(span / Math.min(...gaps)) : 0
@@ -174,10 +170,8 @@ const install = () => {
     return wordsIn(flow).map((word) => Math.round(word.getBoundingClientRect().top - origin))
   }
 
-  // `scritto-text` renders instantly when it is off screen, so the harness has to
-  // test the same thing it does — the element's box against every clipping
-  // ancestor, not just the viewport — or a flow that has drifted out of view is
-  // read as a missing handoff instead of a case that never ran.
+  // `scritto-text` renders instantly off screen, so this has to test what it
+  // tests — the box against every clipping ancestor, not just the viewport.
   const clipOfEl = (el: HTMLElement) => {
     let top = 0
     let left = 0
@@ -202,8 +196,7 @@ const install = () => {
     return rect.bottom > clip.top && rect.top < clip.bottom && rect.right > clip.left && rect.left < clip.right
   }
 
-  // The slice is cut against whatever actually scrolls the flow, which may be a
-  // clipped stage rather than the page.
+  // Whatever actually scrolls the flow, which may be a stage rather than the page.
   const scrollerOf = (el: HTMLElement) => {
     for (let node = el.parentElement; node; node = node.parentElement) {
       if (/auto|scroll|hidden/.test(getComputedStyle(node).overflowY) && node.scrollHeight > node.clientHeight + 1) {
@@ -217,28 +210,22 @@ const install = () => {
 
   const hostsIn = (flow: HTMLElement) => [...flow.querySelectorAll<HTMLElement>('scritto-text')]
 
-  // `scritto-text` rolls its glyphs inside a shadow root, and neither
-  // `getAnimations({ subtree: true })` nor a light-DOM query reaches in there. Ask
-  // each shadow root directly, or the host counts as idle while it is still
-  // growing and the next change gets measured against a width the paragraph never
-  // actually had — which reads as the paragraph never having re-wrapped.
+  // Neither `getAnimations({ subtree: true })` nor a light-DOM query reaches
+  // into a shadow root, so a still-growing host would count as idle.
   const rollAnims = (flow: HTMLElement) =>
     hostsIn(flow).reduce((total, host) => total + (host.shadowRoot?.getAnimations().length ?? 0), 0)
 
-  // What the harness depends on: where the words sit and how wide each host is.
-  // The host width has to be in here because it keeps growing after the roll ends
-  // — the finished value collapses from per-character spans to a plain text node a
-  // task later, and that is wider — while the line count has not moved yet, so
-  // watching the words alone reads as settled mid-growth.
+  // Host width belongs here: it keeps growing after the roll ends, when the
+  // value collapses from spans to a text node, while the line count has not
+  // moved — so watching the words alone reads as settled mid-growth.
   const shapeOf = (flow: HTMLElement) =>
     `${lineTops(flow).join(',')}|${hostsIn(flow)
       .map((host) => Math.round(host.getBoundingClientRect().width))
       .join(',')}`
 
-  // Rest means the geometry has stopped moving, not merely that no animation is
-  // listed. Waiting on animations alone returns too early: the flow is briefly
-  // idle between a value landing and its animations being created. Teardown fires
-  // from a timer, so each turn yields a macrotask to let it run.
+  // Rest is the geometry holding still, not an empty animation list: the flow
+  // is briefly idle between a value landing and its animations existing.
+  // Teardown runs off a timer, so each turn yields a macrotask.
   const rest = async (flow: HTMLElement, limit = 300) => {
     let shape = ''
     let quiet = 0
@@ -298,24 +285,20 @@ const install = () => {
           offGridWords: shoot(flow, grid).offGridWords,
         }
       },
-      // Drives one change and samples every frame across it, so the assertions
-      // see the transition rather than only its endpoints.
+      // Samples every frame, so assertions see the transition and not its ends.
       record: async (selector: string, from: string, to: string, frames: number, recentre: boolean) => {
         const flow = document.querySelector<HTMLElement>(selector)
         if (!flow) return { error: `no flow at ${selector}` }
         const host = hostOf(flow)
         if (!host) return { error: `no scritto-text inside ${selector}` }
-        // Re-centre before every change, not only when the flow has gone fully
-        // out of view. Growing the paragraph by a line makes the browser
-        // re-anchor the scroll, and that drift accumulates across changes until
-        // the host is off screen, where it renders instantly and produces no
-        // handoff at all. Cases that are about a specific scroll position opt out.
+        // Every change, not only once out of view: growing the paragraph makes
+        // the browser re-anchor the scroll, and that drift accumulates until
+        // the host renders off screen. Scroll-specific cases opt out.
         if (recentre) {
           flow.scrollIntoView({ block: 'center' })
           await frame()
         }
-        // Seed the start value without animating, so the measured change is the
-        // one the case is about and not whatever the page happened to be showing.
+        // Unanimated, so the measured change is the one the case is about.
         host.setOptions({ respectMotionPreference: false })
         host.update(from, false)
         const seedRested = await rest(flow)
@@ -333,9 +316,8 @@ const install = () => {
           hostOnscreen: onscreen(host),
         }
         if (!drive(flow, to)) return { error: `no scritto-text inside ${selector}` }
-        // Sample past the end of the transition rather than stopping at the first
-        // quiet frame: the flow can be momentarily idle before its animations are
-        // created, and breaking there would measure the paragraph mid-change.
+        // Past the end rather than the first quiet frame, which can land before
+        // the animations exist.
         const shots: Shot[] = []
         let sawActivity = false
         for (let i = 0; i < frames; i++) {
@@ -345,9 +327,8 @@ const install = () => {
           if (shot.ghosts.length || shot.hidden.length || shot.anims) sawActivity = true
           if (sawActivity && !animsOf(flow).length && !ghostsIn(flow).length) break
         }
-        // The precondition the case rests on: did the re-wrap actually move words
-        // between lines? Measured at rest rather than inferred from ghost counts,
-        // so a stale scenario and a broken handoff report differently.
+        // Measured at rest, not inferred from ghosts, so a stale scenario and a
+        // broken handoff report differently.
         const rested = await rest(flow)
         const settledTops = lineTops(flow)
         const movedLines = tops.filter((top, i) => settledTops[i] !== undefined && Math.abs(settledTops[i] - top) > 2).length
@@ -366,11 +347,9 @@ const install = () => {
           rested,
         }
       },
-      // `scroll` moves the page between changes on purpose. Only the on-screen
-      // slice of words is measured, so scrolling makes each generation's slice
-      // differ from the last — that is what strands a word `visibility:hidden`
-      // outside the next slice if teardown is keyed to the slice instead of to
-      // the words it actually touched.
+      // Scrolling on purpose: only on-screen words are measured, so each
+      // generation's slice differs, which is what strands a word hidden outside
+      // the next one if teardown is keyed to the slice.
       hammer: async (selector: string, values: string[], gap: number, scroll = 0) => {
         const flow = document.querySelector<HTMLElement>(selector)
         if (!flow) return { error: `no flow at ${selector}` }
@@ -458,10 +437,8 @@ type FlowApi = {
 }
 
 const api = (page: Page) => {
-  // Vite reloads the page whenever core changes, which destroys the context an
-  // evaluate is running in. That is the dev server's doing rather than a broken
-  // invariant, so wait for the reload to land and run it again — the init script
-  // that defines the in-page helpers re-runs with it.
+  // Vite reloads on every core edit, destroying the context an evaluate runs
+  // in. Wait for it to land and retry; the init script re-runs with it.
   const run = async <A, T>(body: (arg: A) => Promise<T> | T, arg: A): Promise<T> => {
     for (let attempt = 0; ; attempt++) {
       try {
@@ -589,9 +566,8 @@ const checkTransition = async (
     if (shot.ghosts.length) sawGhosts = true
     peakHidden = Math.max(peakHidden, shot.hidden.length)
 
-    // A re-wrap moves roughly one word per line round a corner. Everything at
-    // once means the two measurements disagreed about the origin and the whole
-    // paragraph turned into ghosts, so name that before the geometry it breaks.
+    // A re-wrap moves about one word per line. Everything at once means the two
+    // measurements disagreed about the origin, so name that first.
     const ceiling = Math.max(4, shot.lines * 3)
     if (shot.hidden.length > ceiling) {
       out.violations.push({
@@ -691,9 +667,7 @@ const checkTransition = async (
   }
 
     const ghostShots = shots.filter((shot) => shot.ghosts.length)
-    // A wrap that only exists for a frame or two is the leftover-mask "fix"
-    // dropping the clip on first finish. The dissolve has to occupy the
-    // transition, not a single rAF.
+    // A wrap lasting a frame or two is the clip being dropped on first finish.
     if (expectWrap && (sawGhosts || (result.movedLines ?? 0) > 0) && ghostShots.length < 6) {
       out.violations.push({
         flow: label,
@@ -705,10 +679,8 @@ const checkTransition = async (
 
     if (sawGhosts || peakHidden) return
 
-  // Nothing was observed. Separate the two reasons, because they need opposite
-  // fixes: either the re-wrap never moved a word between lines (the scenario's
-  // values are stale for this card) or it did and the handoff was still missing
-  // (a real regression, or the change was taken instantly off screen).
+  // Two reasons, opposite fixes: the re-wrap never moved a word (stale values),
+  // or it did and the handoff was missing (a regression, or rendered off screen).
   const { before, after, movedLines = 0, peakAnims = 0 } = result
   const where = before
     ? `flow top ${before.top} bottom ${before.bottom} in a ${before.viewportH}px viewport at scrollY ${before.scrollY}, host onscreen ${before.hostOnscreen}`
@@ -776,8 +748,7 @@ page.on('pageerror', (error) => console.error(`[page error] ${error.message}`))
 const report: Report = { violations: [], notes: [] }
 const failed: string[] = []
 
-// The dev server reloads the page from under us whenever core is edited, which
-// aborts an in-flight goto. Retry rather than report that as a broken invariant.
+// A core edit reloads the page mid-goto; that is the dev server, not a failure.
 const visit = async (path: string) => {
   for (let attempt = 0; ; attempt++) {
     try {
@@ -788,8 +759,7 @@ const visit = async (path: string) => {
       await page.waitForTimeout(500)
     }
   }
-  // Wrap points depend on the webfont, so measuring before it lands would make
-  // which values re-wrap a matter of timing.
+  // Wrap points depend on the webfont, so which values re-wrap would be timing.
   await page.evaluate(() => document.fonts.ready.then(() => undefined))
   await page.waitForTimeout(900)
 }
@@ -822,11 +792,8 @@ for (const path of ['/', '/playground', '/look.html']) {
 }
 
 // 2. The wrapped playground card, both directions, then hammered. Only
-//    `#flow-wrap` is enrolled here: `#flow-sentence` is one line of copy and
-//    structurally cannot send a word round a corner, so asking it to prove the
-//    handoff would only ever produce noise. It still carries its weight in the
-//    hammer scenario below, which asserts a clean settled state rather than a
-//    handoff.
+//    `#flow-wrap`: `#flow-sentence` is one line and cannot send a word round a
+//    corner, so it appears in the hammer scenario instead.
 await scenario('playground wrapped card grows and shrinks', async () => {
   await visit('/playground')
   for (const [from, to] of GROW_SHRINK) {
@@ -916,10 +883,9 @@ await scenario('look.html clipped paragraph', async () => {
   await checkSettled(page, 'look #paragraph scrolled', selector, report)
 })
 
-// 4. Changes landing on top of each other while the paragraph scrolls. Only the
-//    on-screen slice is measured, so each generation sees a different slice and a
-//    word hidden by one can fall outside the next — the state that leaves a word
-//    invisible under a ghost the clip's edge mask then dims.
+// 4. Changes landing on top of each other while the paragraph scrolls, so each
+//    generation measures a different slice and a word hidden by one can fall
+//    outside the next.
 await scenario('hammered while scrolling', async () => {
   await visit('/look.html')
   const values = ['1', '1,234,567', '12', '999,999', '1,204', '88', '7,654,321', '3', '456,789', '21', '1,000,000', '9']

@@ -43,9 +43,7 @@ type Layout = {
 }
 
 type Plan = Layout & {
-  /** Host width before the commit, for the standalone width transition. */
   fromW: number
-  /** The row's start edge before the commit; everything old is placed relative to it. */
   fromEdge: number
   enters: HTMLElement[]
   trend: number
@@ -55,12 +53,11 @@ type Plan = Layout & {
   oldRunTop: number
   exitingX: number
   tailX: number
-  /** Each exiting glyph's distance along the row from the old start edge, and its width. */
   exitGlyphs: Glyph[]
   tailGlyphs: Glyph[]
 }
 
-/** A glyph's place along the row, measured from the start edge. */
+/** Where a glyph sits along the row: `offset` from the row's start edge. */
 type Glyph = { offset: number; width: number }
 type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; entry: [HTMLElement, number] }
 
@@ -115,13 +112,9 @@ class Scritto extends ServerSafeHTMLElement {
   private _exitingChars: [el: HTMLElement, left: number][] = []
   private _exitQueue: QueuedExit[] = []
   private _exitEnd = 0
-  /** Where the box holds still as it resizes — 0 start, 1 end, 0.5 middle — measured on the last change. */
+  /** Where the box holds still as it resizes: 0 start, 1 end, 0.5 middle. */
   private _anchor: number | null = null
-  // The last exiting char finishes at `duration + its delay`, not at
-  // `duration` — a listener pacing itself off `transition.duration` alone
-  // (the flow's same-line word slide, notably) finishes early and arrives
-  // while the tail end of the roll is still fading. Reset per commit, grown
-  // by `_startExits` to the longest delay actually queued this round.
+  /** The longest exit delay this commit, so anything paced off the roll outlasts it. */
   private _exitTail = 0
   private _blockified = false
   private _isRTL = false
@@ -145,8 +138,7 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   connectedCallback() {
-    // A custom element constructor must not add children: doing so makes
-    // document.createElement() fail and return an HTMLUnknownElement.
+    // Not in the constructor: adding children there makes createElement() fail.
     if (this._plain.parentNode !== this) this.append(this._plain)
     this._isRTL = getComputedStyle(this).direction === 'rtl'
     this._render()
@@ -236,43 +228,18 @@ class Scritto extends ServerSafeHTMLElement {
     const newSuffix = this._suffix.getBoundingClientRect()
     const prefixAnchor = plan.prefixCount ? this._chars[0].getBoundingClientRect() : null
     const suffixAnchor = plan.suffixCount ? this._chars[plan.midEnd].getBoundingClientRect() : null
-    const edge = this._isRTL ? newPrefix.right : newPrefix.left
+    const edge = startOf(newPrefix, this._isRTL)
     const toW = this.getBoundingClientRect().width
-    // The roll sweeps what changes, start to end, over a fixed share of the
-    // duration, and a glyph joins it by where it stands, not by its index in
-    // its own string — so an old glyph and the new one under it fade together,
-    // rather than a long tail of the old value still standing over the new one.
-    // The sweep runs over the changed stretch of the row only, so a small
-    // change in a long value still starts at once and unrolls at full spread
-    // rather than being pushed late and squeezed into a sliver of it.
-    const enterGlyphs: Glyph[] = plan.enters.map((el) => {
-      const rect = el.getBoundingClientRect()
-      return { offset: Math.abs(startOf(rect, this._isRTL) - edge), width: rect.width }
-    })
-    let lo = Infinity
-    let hi = -Infinity
-    for (const g of enterGlyphs.concat(plan.exitGlyphs, plan.tailGlyphs)) {
-      lo = Math.min(lo, g.offset)
-      hi = Math.max(hi, g.offset + g.width)
-    }
-    const span = hi > lo ? hi - lo : 1
-    const sweep = this.transition.duration * CONFIG.stagger
-    const delayAt = (offset: number) => (sweep * Math.min(Math.max(offset - lo, 0), span)) / span
+    const exits = plan.exitGlyphs.concat(plan.tailGlyphs)
+    const enterGlyphs = this._glyphsOf(plan.enters, edge)
+    const delayAt = this._sweep(enterGlyphs.concat(exits))
     const enterDelays = enterGlyphs.map((g) => delayAt(g.offset))
     this._startExits(plan.trend, delayAt)
-    this._exitEnd = 0
-    for (const g of plan.exitGlyphs.concat(plan.tailGlyphs)) this._exitEnd = Math.max(this._exitEnd, g.offset + g.width)
-    // Everything displaced by the change — a kept run, the host's end and so
-    // whatever follows it — rides one ease for as long as the roll runs,
-    // exiting tail included, so it lands together and never on glyphs still
-    // dissolving. On the roll's spring it would outrun the shrink and overshoot.
+    this._exitEnd = exits.reduce((end, g) => Math.max(end, g.offset + g.width), 0)
     const total = this.transition.duration + this._exitTail
-    // Inside a flow the row's own start can move — its line re-centres — and
-    // the flow carries the host across, so old glyphs and kept runs are placed
-    // by where they stood along the row and a run's slide is only the change
-    // in its distance from the start. On its own the box is already where it
-    // will end up, so everything is placed on the page: old glyphs where they
-    // were, kept runs sliding from there, and the change rolling in place.
+    // A flow moves the row's own start as its line re-flows, and carries the
+    // host across, so everything old is placed relative to that start. On its
+    // own the box already sits where it will land, so the page is the reference.
     const inFlow = !!this.closest('scritto-flow')
     const carried = inFlow ? plan.fromEdge - edge : 0
     for (let i = 0; i < this._exitingChars.length; i++) {
@@ -288,33 +255,54 @@ class Scritto extends ServerSafeHTMLElement {
       !suffixAnchor || Math.abs(newSuffix.top - plan.oldRunTop) >= line * 0.5
         ? 0
         : plan.oldRunX - centerX(suffixAnchor) - carried
-    const prefixFlip = flip(this._prefix, prefixDx, total, SHRINK_EASING, true)
-    const suffixFlip = flip(this._suffix, suffixDx, total, SHRINK_EASING, true)
-    if (prefixFlip) this._anims.push(prefixFlip)
-    if (suffixFlip) this._anims.push(suffixFlip)
+    // One ease for everything the change displaces, running as long as the roll
+    // does: on the roll's own spring a kept run would outrun the shrink.
+    for (const anim of [
+      flip(this._prefix, prefixDx, total, SHRINK_EASING, true),
+      flip(this._suffix, suffixDx, total, SHRINK_EASING, true),
+    ]) {
+      if (anim) this._anims.push(anim)
+    }
     this._armEnters(plan.enters, plan.trend, enterDelays)
     if (!inFlow) this._transitionWidth(plan.fromW, toW, edge)
   }
 
+  private _glyphsOf(nodes: HTMLElement[], from: number): Glyph[] {
+    return nodes.map((el) => {
+      const rect = el.getBoundingClientRect()
+      return { offset: Math.abs(startOf(rect, this._isRTL) - from), width: rect.width }
+    })
+  }
+
   /**
-   * On its own the host lets its width settle over the transition instead of
-   * snapping, so whatever follows it slides rather than jumps — and, on a
-   * shrink, the old glyphs dissolve at the edge rather than over the neighbour.
-   * Width needs a box, so an inline host is made inline-block for the
-   * duration; its vertical padding and border are cancelled out with margins
-   * so the line it sits on does not change height while it is one. Inside a
-   * <scritto-flow> the flow drives this itself, since it also has to carry
-   * words round line ends, which layout alone cannot.
+   * A glyph joins the roll by where it stands rather than by its index in its
+   * own string, so an old glyph and the new one under it fade together. The
+   * sweep spans the changed stretch alone: normalised by the whole row, a small
+   * change in a long value would start late and unroll in a sliver of it.
+   */
+  private _sweep(glyphs: Glyph[]) {
+    let lo = Infinity
+    let hi = -Infinity
+    for (const g of glyphs) {
+      lo = Math.min(lo, g.offset)
+      hi = Math.max(hi, g.offset + g.width)
+    }
+    const span = hi > lo ? hi - lo : 1
+    const sweep = this.transition.duration * CONFIG.stagger
+    return (offset: number) => (sweep * Math.min(Math.max(offset - lo, 0), span)) / span
+  }
+
+  /**
+   * Settles the host's width over the transition so what follows it slides
+   * rather than jumps. Width needs a box, so an inline host turns inline-block
+   * for the duration, its vertical padding and border cancelled with margins
+   * so the line it sits on keeps its height.
    *
-   * The row itself stays where it will end up, turning in place, whichever
-   * way the box is anchored: layout puts the box where its anchoring says —
-   * a centred one grows both ways, an end-aligned one toward its start — and
-   * the content is indented back by however far the start edge is from where
-   * it will land, easing to nothing with the width, with the old glyphs
-   * carried the same way. An edge clips only when it moves and something on
-   * the line sits within reach of it — old glyphs would dissolve over that
-   * neighbour on a shrink, new ones surface under it on a grow — so a value
-   * standing alone, or one whose neighbours are far off, rolls in the clear.
+   * Whichever way the box is anchored, the row holds where it will land: the
+   * content is indented back by however far the start edge has to travel,
+   * easing to nothing with the width, and the old glyphs ride the same shift.
+   * A moving edge clips only when a neighbour is within reach of it, so a
+   * value standing alone rolls in the clear.
    */
   private _transitionWidth(fromW: number, toW: number, edge: number) {
     if (Math.abs(toW - fromW) < 0.5) return
@@ -363,10 +351,7 @@ class Scritto extends ServerSafeHTMLElement {
     this._anims.push(...anims)
   }
 
-  /**
-   * The best guess at where the box holds still before it has ever resized:
-   * the alignment it inherits. A measured value from the last change wins.
-   */
+  /** Measured on the last resize; until then, read off the inherited alignment. */
   private _anchorHint() {
     if (this._anchor !== null) return this._anchor
     const align = getComputedStyle(this).textAlign
@@ -379,8 +364,8 @@ class Scritto extends ServerSafeHTMLElement {
 
   /** Whether anything else on the host's line sits within `reach` of its start or end edge. */
   private _besideOnLine(box: DOMRect, reach: number) {
-    // The nearest ancestor that owns a whole line: through inline wrappers,
-    // and through a table's cells and rows, whose neighbours sit in the next cell.
+    // The nearest ancestor owning a whole line — past inline wrappers, and past
+    // a table's cells, whose neighbours sit in the next cell rather than the row.
     let block: HTMLElement | null = this.parentElement
     while (block && /^(inline|table)/.test(getComputedStyle(block).display)) block = block.parentElement
     const beside = { start: false, end: false }
@@ -419,16 +404,12 @@ class Scritto extends ServerSafeHTMLElement {
     const { prefixCount, suffixCount, labels } = found
     if (prefixCount === this._chars.length && prefixCount === labels.length) return null
 
-    // Where the kept run starts on each side. Everything between the prefix and
-    // it is replaced; everything past it is fresh on the new side and dropped on
-    // the old one.
     let oldSuffix = found.oldSuffix
     let midEnd = found.midEnd
-    // A run of commas at the front of the change is a group arriving or leaving,
-    // so it is peeled off to roll on its own while the digits behind it are kept
-    // and shifted. That only lines up while nothing is kept from the end of the
-    // value: kept chars are placed straight after the peeled run, which is where
-    // they belong only when they are the whole rest of the row.
+    // Commas at the front of the change are a group arriving or leaving: peel
+    // them off to roll alone while the digits behind them are kept and shifted.
+    // Only sound with nothing kept from the end, since kept chars are placed
+    // straight after the peeled run.
     if (!suffixCount) {
       let peel = prefixCount
       while (peel < midEnd && labels[peel] === ',') peel++
@@ -473,29 +454,18 @@ class Scritto extends ServerSafeHTMLElement {
     }
 
     const { prefixCount, suffixCount, oldSuffix, midEnd, exitingTail, next } = layout
-    // The same kept glyph is the only exact reference on both sides of the
-    // commit. offsetLeft/offsetWidth round its old edge to whole CSS pixels;
-    // comparing that reconstructed edge with a fractional section rect invents
-    // a sub-pixel FLIP even when layout did not move.
+    // A kept glyph is the only exact reference across the commit: measuring the
+    // section instead invents a sub-pixel FLIP, since offsetLeft rounds.
     const prefixAnchor = prefixCount ? this._chars[0] : null
     const runAnchor = suffixCount ? this._chars[oldSuffix] : null
-    // Section boxes above retain an interrupted FLIP's current position. A
-    // glyph's own roll carries no horizontal layout information and can skew
-    // its visual centre, so cancel it now; the commit cancels it later in this
-    // same microtask either way.
-    for (let i = 0; i < this._anims.length; i++) {
-      const effect = this._anims[i].effect
-      const target = effect instanceof KeyframeEffect ? effect.target : null
-      if (target && (target === prefixAnchor || target === runAnchor)) this._anims[i].cancel()
+    // Its own roll carries no layout information but skews its measured centre.
+    for (const anim of this._anims) {
+      const target = anim.effect instanceof KeyframeEffect ? anim.effect.target : null
+      if (target === prefixAnchor || target === runAnchor) anim.cancel()
     }
     const prefixAnchorRect = prefixAnchor?.getBoundingClientRect()
     const runAnchorRect = runAnchor?.getBoundingClientRect()
     const fromEdge = startOf(oldPrefix, this._isRTL)
-    const glyphsOf = (nodes: HTMLElement[]): Glyph[] =>
-      nodes.map((el) => {
-        const rect = el.getBoundingClientRect()
-        return { offset: Math.abs(startOf(rect, this._isRTL) - fromEdge), width: rect.width }
-      })
     return {
       ...layout,
       fromW: this.getBoundingClientRect().width,
@@ -508,8 +478,8 @@ class Scritto extends ServerSafeHTMLElement {
       oldRunTop: runAnchor ? sectionRect(runAnchor.parentElement!).top : oldSuffixRect.top,
       exitingX: prefixCount < oldSuffix ? exitX(this._chars[prefixCount]) : 0,
       tailX: exitingTail.length ? exitX(exitingTail[0]) : 0,
-      exitGlyphs: glyphsOf(this._chars.slice(prefixCount, oldSuffix)),
-      tailGlyphs: glyphsOf(exitingTail),
+      exitGlyphs: this._glyphsOf(this._chars.slice(prefixCount, oldSuffix), fromEdge),
+      tailGlyphs: this._glyphsOf(exitingTail, fromEdge),
     }
   }
 
@@ -542,7 +512,7 @@ class Scritto extends ServerSafeHTMLElement {
     return this._exitTail
   }
 
-  /** How far along the row, from its start, this update's exiting glyphs reach. */
+  /** How far along the row this update's exiting glyphs reach. */
   _exitEndPx() {
     return this._exitEnd
   }
@@ -570,10 +540,9 @@ class Scritto extends ServerSafeHTMLElement {
         const delay = delayAt(glyphs[i].offset)
         this._exitTail = Math.max(this._exitTail, delay)
         this._animateChar(nodes[i], true, trend, delay, () => {
-          // The group owns these chars until they are released, and releasing one
-          // detaches it. A char that has left the group was torn down early and is
-          // already back in the pool, or already standing in another value, where
-          // releasing it a second time would take a glyph off the screen.
+          // Releasing detaches, so a char no longer in the group was already
+          // released — possibly into another value, where a second release
+          // would take a live glyph off the screen.
           if (nodes[i].parentNode !== group) return
           releaseChar(nodes[i])
           if (--left === 0) {
@@ -621,10 +590,9 @@ class Scritto extends ServerSafeHTMLElement {
 
   private _animateChar(el: Char, isOut: boolean, trend: number, delay: number, onFinish?: () => void) {
     if (el.textContent === SPACE) {
-      // A space has nothing to animate, so its release rides a bare timer. The
-      // char keeps the handle because releasing the char has to disarm it: by
-      // the time it would fire, the char can already be standing in another
-      // value, and its release there would collapse the gap it was holding.
+      // Nothing to animate, so the release rides a timer the char owns and
+      // `releaseChar` disarms — by the time it fires the char may be standing
+      // in another value, where releasing would collapse the gap it holds.
       if (isOut && onFinish) el.exitTimer = setTimeout(onFinish, this.transition.duration + delay)
       return
     }
@@ -640,9 +608,8 @@ class Scritto extends ServerSafeHTMLElement {
       },
       { ...this.transition, fill: 'both', delay },
     )
-    // Tracked animations are section FLIPs only. Glyph rolls keep playing
-    // so a rapid update can stack outgoing digits instead of popping them.
-
+    // Deliberately untracked: a glyph roll keeps playing through the next
+    // update, so rapid changes stack outgoing glyphs instead of popping them.
     if (!onFinish) {
       anim.onfinish = finishIdentityAnim
       return
