@@ -1,8 +1,12 @@
 /* Colours live on :root so they can flip with the system (or an explicit
-   data-theme, which wins); the theme only aliases them. Dark values follow
-   the palette on ja.mt. */
+   data-theme, which wins); the theme only aliases them. Dark values come from
+   the corne.rs dark frame (Figma 224:148): the page sits at #1b1917 and every
+   raised thing — install rows, playground cards — at #2c2926 behind a flat
+   white ring, rather than a tinted card behind a warm one. Its heading and
+   body layers still carry the light fills, so those two keep ja.mt's dark
+   pair, which is what they read as on that site. */
 @theme inline {
-  --color-bg: var(--surface);
+  --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-figure: var(--figure);
   --color-heading: var(--heading);
@@ -18,6 +22,7 @@
 
 :root {
   color-scheme: light;
+  --bg: #f7f6f2;
   --surface: #f7f6f2;
   --figure: #ffffff;
   --heading: #73574a;
@@ -43,37 +48,39 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --surface: #1c1917;
-    --figure: #24201d;
+    --bg: #1b1917;
+    --surface: #2c2926;
+    --figure: #2c2926;
     --heading: #fef1df;
-    --text-primary: #9a918a;
-    --text-secondary: rgba(154, 145, 138, 0.55);
-    --text-input: #8a817a;
+    --text-primary: #9a928a;
+    --text-secondary: rgba(154, 145, 138, 0.75);
+    --text-input: #9a928a;
     --accent-green: #8fa876;
     --live: #a3bd8a;
-    --divider-from: rgba(232, 228, 218, 0.08);
-    --divider-to: rgba(232, 228, 218, 0);
-    --hairline: rgba(254, 241, 223, 0.08);
-    --shadow-figure: 0 0 0 1px rgba(254, 241, 223, 0.08);
-    --shadow-install: 0 0 0 1px rgba(254, 241, 223, 0.1);
+    --divider-from: rgba(255, 255, 255, 0.08);
+    --divider-to: rgba(255, 255, 255, 0);
+    --hairline: rgba(255, 255, 255, 0.08);
+    --shadow-figure: 0 0 0 1px rgba(255, 255, 255, 0.1);
+    --shadow-install: 0 0 0 1px rgba(255, 255, 255, 0.1);
   }
 }
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --surface: #1c1917;
-  --figure: #24201d;
+  --bg: #1b1917;
+  --surface: #2c2926;
+  --figure: #2c2926;
   --heading: #fef1df;
-  --text-primary: #9a918a;
-  --text-secondary: rgba(154, 145, 138, 0.55);
-  --text-input: #8a817a;
+  --text-primary: #9a928a;
+  --text-secondary: rgba(154, 145, 138, 0.75);
+  --text-input: #9a928a;
   --accent-green: #8fa876;
   --live: #a3bd8a;
-  --divider-from: rgba(232, 228, 218, 0.08);
-  --divider-to: rgba(232, 228, 218, 0);
-  --hairline: rgba(254, 241, 223, 0.08);
-  --shadow-figure: 0 0 0 1px rgba(254, 241, 223, 0.08);
-  --shadow-install: 0 0 0 1px rgba(254, 241, 223, 0.1);
+  --divider-from: rgba(255, 255, 255, 0.08);
+  --divider-to: rgba(255, 255, 255, 0);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --shadow-figure: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --shadow-install: 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
 @theme {
