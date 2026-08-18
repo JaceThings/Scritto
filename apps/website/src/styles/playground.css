@@ -9,6 +9,18 @@
   box-shadow: var(--shadow-figure);
 }
 
+/* A card is a step above the page, so its text takes a brighter step with it —
+   in dark the top of the scale. The card's rules already read these three, so
+   remapping them here lifts the whole card and keeps its hierarchy. */
+.figure {
+  /* `color` too, not only the token: the page's declaration resolved against
+     the page's value, so text with no colour of its own inherits that. */
+  --color-text-primary: var(--color-figure-text);
+  --color-text-input: var(--color-figure-input);
+  --color-text-secondary: var(--color-figure-secondary);
+  color: var(--color-figure-text);
+}
+
 .figure:not(:has(.row)) {
   border-radius: 12px;
 }

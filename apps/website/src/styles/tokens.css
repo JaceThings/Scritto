@@ -18,6 +18,9 @@
   --color-divider-from: var(--divider-from);
   --color-divider-to: var(--divider-to);
   --color-hairline: var(--hairline);
+  --color-figure-text: var(--figure-text);
+  --color-figure-input: var(--figure-input);
+  --color-figure-secondary: var(--figure-secondary);
 }
 
 :root {
@@ -34,6 +37,9 @@
   --divider-from: rgba(115, 87, 74, 0.08);
   --divider-to: rgba(115, 87, 74, 0);
   --hairline: #edece8;
+  --figure-text: #73574a;
+  --figure-input: #7e756c;
+  --figure-secondary: rgba(154, 145, 138, 0.75);
   --shadow-figure:
     0 0 0 1px rgba(119, 119, 119, 0.08),
     0 2px 2px -0.5px rgba(119, 119, 119, 0.08);
@@ -60,6 +66,9 @@
     --divider-from: rgba(255, 255, 255, 0.08);
     --divider-to: rgba(255, 255, 255, 0);
     --hairline: rgba(255, 255, 255, 0.08);
+    --figure-text: #fef1df;
+    --figure-input: rgba(254, 241, 223, 0.7);
+    --figure-secondary: rgba(254, 241, 223, 0.45);
     --shadow-figure: 0 0 0 1px rgba(255, 255, 255, 0.1);
     --shadow-install: 0 0 0 1px rgba(255, 255, 255, 0.1);
   }
@@ -79,6 +88,9 @@
   --divider-from: rgba(255, 255, 255, 0.08);
   --divider-to: rgba(255, 255, 255, 0);
   --hairline: rgba(255, 255, 255, 0.08);
+  --figure-text: #fef1df;
+  --figure-input: rgba(254, 241, 223, 0.7);
+  --figure-secondary: rgba(254, 241, 223, 0.45);
   --shadow-figure: 0 0 0 1px rgba(255, 255, 255, 0.1);
   --shadow-install: 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
