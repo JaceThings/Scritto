@@ -24,33 +24,33 @@ export const BOUNCE_TRANSITION: Transition = {
 export const SHRINK_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
 export const WIDTH_ANIM = 'scritto-width'
 
-// A moving edge clips the row, and the neighbour rides it: old glyphs dissolve
-// as it sweeps over them, new ones surface from under it. The live row takes a
-// hard clip a hair past the edge — a soft band would dim its last glyph until
-// the mask lifted, and a mask cannot reach past the box for composited children
-// — while the exits, already fading, take the band. Other sides stay loose so a
-// roll's vertical travel and glyphs past a still edge stay in.
+// A moving edge masks the row, and the neighbour rides it: old glyphs dissolve
+// as it sweeps over them, new ones surface from under it. Both the live row
+// and the exits fade over the same band, so nothing crosses a hard line —
+// the mask's own coordinate box is the border box, so it hides horizontal
+// overflow past a still-narrower edge without needing to reach past it
+// (that's only ever a problem for the exits, which sit outside it on
+// purpose). A linear-gradient mask varies in one axis only, so the other
+// stays unbounded: a roll's vertical travel is never touched.
 const EDGE_FADE = '0.3em'
-const EDGE_SLACK = '0.1em'
-const FAR = '9999px'
 
 type Sides = { left: boolean; right: boolean }
 
-const exitMask = (sides: Sides) => {
-  const stops = [
+const edgeStops = (sides: Sides) =>
+  [
     sides.left ? `transparent 0, #000 ${EDGE_FADE}` : '#000 0',
     sides.right ? `#000 calc(100% - ${EDGE_FADE}), transparent 100%` : '#000 100%',
   ].join(', ')
+
+const edgeMask = (sides: Sides, size: string, position: string) => {
+  const stops = edgeStops(sides)
   const layer = (prefix: string) => `
     ${prefix}mask-image: linear-gradient(90deg, ${stops});
-    ${prefix}mask-size: 100% 400%;
-    ${prefix}mask-position: 0 50%;
+    ${prefix}mask-size: ${size};
+    ${prefix}mask-position: ${position};
     ${prefix}mask-repeat: no-repeat;`
   return layer('-webkit-') + layer('')
 }
-
-const rowClip = (sides: Sides) =>
-  `clip-path: inset(-1em ${sides.right ? `-${EDGE_SLACK}` : `-${FAR}`} -1em ${sides.left ? `-${EDGE_SLACK}` : `-${FAR}`});`
 
 /** `data-shrink-clip` names the logical sides that move: "" or "end", "start", "both". */
 const clipRules = () => {
@@ -66,10 +66,9 @@ const clipRules = () => {
   return cases
     .map(
       ([sel, sides]) => `
-  :host(${sel}) {
-    ${rowClip(sides)}
+  :host(${sel}) {${edgeMask(sides, '100% 100%', '0 0')}
   }
-  :host(${sel}) .exits {${exitMask(sides)}
+  :host(${sel}) .exits {${edgeMask(sides, '100% 400%', '0 50%')}
   }`,
     )
     .join('')

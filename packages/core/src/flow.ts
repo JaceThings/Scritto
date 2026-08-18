@@ -287,9 +287,12 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   /**
    * Resizes each host and decides whether its row is clipped. The clip earns
    * its keep when something can be drawn under the host's glyphs: any word
-   * moving this time, or a word following it on its line with old glyphs
-   * reaching past the box. A value that keeps its width has nothing past its
-   * edge, so its glyphs dissolve in the clear instead of under the band.
+   * moving this time, or a word following it on its line with content
+   * reaching past the box at some point of the change — old glyphs on a
+   * shrink, or the final layout (already the new text's resting place, laid
+   * out from the first frame) on a grow, before the box has widened to meet
+   * it. A value that keeps its width has nothing past its edge, so its
+   * glyphs dissolve in the clear instead of under the band.
    */
   private _playHosts(hosts: FlowHost[], play: Play) {
     const { _first: first, _last: last } = this
@@ -316,7 +319,8 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       const to = this._toBox.get(host)
       const fromW = from?.width ?? 0
       const toW = to?.width ?? 0
-      const overhang = (host._exitEndPx?.() ?? 0) > Math.min(fromW, toW) + 0.5
+      const reach = Math.max(host._exitEndPx?.() ?? 0, toW)
+      const overhang = reach > Math.min(fromW, toW) + 0.5
       if (disturbed || (overhang && (followed(first, from) || followed(last, to)))) {
         host.setAttribute('data-shrink-clip', '')
         clipped = true
