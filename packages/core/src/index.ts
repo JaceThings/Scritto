@@ -114,6 +114,7 @@ class Scritto extends ServerSafeHTMLElement {
   private _exitingChars: [el: HTMLElement, left: number][] = []
   private _exitQueue: QueuedExit[] = []
   private _pushes: Push[] = []
+  private _exitEnd = 0
   // The last exiting char finishes at `duration + its delay`, not at
   // `duration` — a listener pacing itself off `transition.duration` alone
   // (the flow's same-line word slide, notably) finishes early and arrives
@@ -252,6 +253,8 @@ class Scritto extends ServerSafeHTMLElement {
     this._startExits(plan.trend, delayAt)
     // Everything after a change is carried by the change's own glyphs; the
     // suffix by the middle, the host's end (and so whatever follows it) by all.
+    this._exitEnd = 0
+    for (const g of plan.exitGlyphs.concat(plan.tailGlyphs)) this._exitEnd = Math.max(this._exitEnd, g.offset + g.width)
     const midEnters = plan.midEnd - plan.prefixCount
     const midPushes = netPushes(enterGlyphs.slice(0, midEnters), plan.exitGlyphs, delayAt)
     this._pushes = netPushes(enterGlyphs, plan.exitGlyphs.concat(plan.tailGlyphs), delayAt)
@@ -482,6 +485,11 @@ class Scritto extends ServerSafeHTMLElement {
   /** How much longer this update's exiting glyphs run past `transition.duration`. */
   _exitTailMs() {
     return this._exitTail
+  }
+
+  /** How far along the row, from its start, this update's exiting glyphs reach. */
+  _exitEndPx() {
+    return this._exitEnd
   }
 
   /** The curve everything displaced by this update's change follows over `total` ms, sampled. */

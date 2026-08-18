@@ -8,6 +8,7 @@ export type ScrittoChangeDetail = { phase: 'before' | 'after'; animate: boolean 
 type FlowHost = HTMLElement & {
   transition: Transition
   _exitTailMs?: () => number
+  _exitEndPx?: () => number
   _edgeSamples?: (total: number) => number[] | null
 }
 type Box = { left: number; top: number; width: number; height: number }
@@ -327,13 +328,15 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     }
 
     // The clip only earns its keep when something can be drawn under the
-    // host's glyphs: a word following it on its line, or any word moving
-    // this time — a host that changes line leaves its old glyphs standing
-    // where a ghost is now sliding out. Nothing following and nothing moving
-    // means nothing to collide with, so the glyphs dissolve in the clear. It
-    // is not tied to the direction of this change, nor to whether the edge
-    // itself moves: an interrupted grow can leave glyphs standing well past
-    // a host whose edge never got going, with the next word already beside it.
+    // host's glyphs: any word moving this time — a host that changes line
+    // leaves its old glyphs standing where a ghost is now sliding out — or a
+    // word following it on its line with old glyphs reaching past the box at
+    // some point of the change. Nothing following and nothing moving means
+    // nothing to collide with, and a value that keeps its width has nothing
+    // past its edge, so those glyphs dissolve in the clear rather than under
+    // the edge band. It is not tied to whether the edge itself moves: an
+    // interrupted grow can leave glyphs standing well past a host whose edge
+    // never got going, with the next word already beside it.
     const disturbed =
       last.length > 0 &&
       first.some((a, i) => {
@@ -356,7 +359,8 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       const to = this._toBox.get(host)
       const fromW = from?.width ?? 0
       const toW = to?.width ?? 0
-      if (disturbed || followed(first, from) || followed(last, to)) {
+      const overhang = (host._exitEndPx?.() ?? 0) > Math.min(fromW, toW) + 0.5
+      if (disturbed || (overhang && (followed(first, from) || followed(last, to)))) {
         host.setAttribute('data-shrink-clip', '')
         clipped = true
       }
