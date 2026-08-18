@@ -240,17 +240,26 @@ class Scritto extends ServerSafeHTMLElement {
     const suffixAnchor = plan.suffixCount ? this._chars[plan.midEnd].getBoundingClientRect() : null
     const edge = this._isRTL ? newPrefix.right : newPrefix.left
     const toW = this.getBoundingClientRect().width
-    // The roll sweeps the row start to end over a fixed share of the duration,
-    // and a glyph joins it by where it stands, not by its index in its own
-    // string — so an old glyph and the new one under it fade together, rather
-    // than a long tail of the old value still standing over the new one.
-    const span = Math.max(plan.fromW, toW) || 1
-    const sweep = this.transition.duration * CONFIG.stagger
-    const delayAt = (offset: number) => (sweep * Math.min(offset, span)) / span
+    // The roll sweeps what changes, start to end, over a fixed share of the
+    // duration, and a glyph joins it by where it stands, not by its index in
+    // its own string — so an old glyph and the new one under it fade together,
+    // rather than a long tail of the old value still standing over the new one.
+    // The sweep runs over the changed stretch of the row only, so a small
+    // change in a long value still starts at once and unrolls at full spread
+    // rather than being pushed late and squeezed into a sliver of it.
     const enterGlyphs: Glyph[] = plan.enters.map((el) => {
       const rect = el.getBoundingClientRect()
       return { offset: Math.abs(startOf(rect, this._isRTL) - edge), width: rect.width }
     })
+    let lo = Infinity
+    let hi = -Infinity
+    for (const g of enterGlyphs.concat(plan.exitGlyphs, plan.tailGlyphs)) {
+      lo = Math.min(lo, g.offset)
+      hi = Math.max(hi, g.offset + g.width)
+    }
+    const span = hi > lo ? hi - lo : 1
+    const sweep = this.transition.duration * CONFIG.stagger
+    const delayAt = (offset: number) => (sweep * Math.min(Math.max(offset - lo, 0), span)) / span
     const enterDelays = enterGlyphs.map((g) => delayAt(g.offset))
     this._startExits(plan.trend, delayAt)
     // Everything after a change is carried by the change's own glyphs; the
