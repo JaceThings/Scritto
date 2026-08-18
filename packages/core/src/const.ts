@@ -7,10 +7,6 @@ export const CONFIG = {
   blur: 0.1,
   rotate: 2,
   stagger: 0.3,
-  /** How far into its roll a glyph is before it starts to carry its neighbours. */
-  push: 0.35,
-  /** How much later, as a share of the duration, each line below the host's takes up the wave. */
-  lineLag: 0.12,
 }
 
 export const DEFAULT_TRANSITION: Transition = {

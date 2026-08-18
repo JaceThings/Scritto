@@ -67,7 +67,7 @@ export const initPlayground = (root: ParentNode = document) => {
   const bounce = createStage(root, 'bounce-demo', ['12', '48'])
   const duration = createStage(root, 'duration-demo', ['104', '1.3', '24'])
   // Verbatim lines of the End Poem's closing litany (CC0), in its own order.
-  const wrap = createStage(root, 'flow-b', [
+  createStage(root, 'flow-b', [
     'I love you',
     'you are the daylight',
     'the light you seek is within you',
@@ -175,18 +175,6 @@ export const initPlayground = (root: ParentNode = document) => {
     'auto',
     (value) => {
       trend.apply({ trend: TREND[value] })
-    },
-  )
-
-  createPills(
-    find('#wave'),
-    [
-      { value: 'slide', label: 'Slide' },
-      { value: 'wave', label: 'Wave' },
-    ] as const,
-    'slide',
-    (value) => {
-      wrap.host.setOptions({ wave: value === 'wave' })
     },
   )
 

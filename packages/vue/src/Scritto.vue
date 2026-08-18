@@ -20,7 +20,6 @@ const applyOptions = () => {
     transition: props.transition,
     respectMotionPreference: props.respectMotionPreference,
     bounce: props.bounce,
-    wave: props.wave,
   });
 };
 
@@ -32,7 +31,7 @@ watch(
 );
 
 watch(
-  () => [props.trend, props.transition, props.respectMotionPreference, props.bounce, props.wave],
+  () => [props.trend, props.transition, props.respectMotionPreference, props.bounce],
   applyOptions,
   { deep: true },
 );

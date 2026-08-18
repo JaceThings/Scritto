@@ -1,4 +1,3 @@
-import { edgeSamples, linearOf, netPushes, type Glyph, type Push } from './edge'
 import type { ScrittoOptions, Transition, Trend, Value } from './types'
 import {
   ServerSafeHTMLElement,
@@ -61,6 +60,8 @@ type Plan = Layout & {
   tailGlyphs: Glyph[]
 }
 
+/** A glyph's place along the row, measured from the start edge. */
+type Glyph = { offset: number; width: number }
 type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; entry: [HTMLElement, number] }
 
 const centerX = (rect: DOMRect) => (rect.left + rect.right) * 0.5
@@ -113,7 +114,6 @@ class Scritto extends ServerSafeHTMLElement {
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
   private _exitQueue: QueuedExit[] = []
-  private _pushes: Push[] = []
   private _exitEnd = 0
   /** Where the box holds still as it resizes — 0 start, 1 end, 0.5 middle — measured on the last change. */
   private _anchor: number | null = null
@@ -135,7 +135,6 @@ class Scritto extends ServerSafeHTMLElement {
   public trend: Trend = 0
   public respectMotionPreference = true
   public bounce = false
-  public wave = false
 
   constructor() {
     super()
@@ -189,9 +188,8 @@ class Scritto extends ServerSafeHTMLElement {
     this.dispatchEvent(new CustomEvent('scrittochange', { bubbles: true, detail: { phase, animate } }))
   }
 
-  setOptions({ bounce, transition, trend, respectMotionPreference, wave }: ScrittoOptions) {
+  setOptions({ bounce, transition, trend, respectMotionPreference }: ScrittoOptions) {
     if (bounce === true || bounce === false) this.bounce = bounce
-    if (wave === true || wave === false) this.wave = wave
     if (transition || bounce === true || bounce === false) {
       this.transition = { ...(this.bounce ? BOUNCE_TRANSITION : DEFAULT_TRANSITION), ...transition }
     }
@@ -262,16 +260,13 @@ class Scritto extends ServerSafeHTMLElement {
     const delayAt = (offset: number) => (sweep * Math.min(Math.max(offset - lo, 0), span)) / span
     const enterDelays = enterGlyphs.map((g) => delayAt(g.offset))
     this._startExits(plan.trend, delayAt)
-    // Everything after a change is carried by the change's own glyphs; the
-    // suffix by the middle, the host's end (and so whatever follows it) by all.
     this._exitEnd = 0
     for (const g of plan.exitGlyphs.concat(plan.tailGlyphs)) this._exitEnd = Math.max(this._exitEnd, g.offset + g.width)
-    const midEnters = plan.midEnd - plan.prefixCount
-    const midPushes = netPushes(enterGlyphs.slice(0, midEnters), plan.exitGlyphs, delayAt)
-    this._pushes = netPushes(enterGlyphs, plan.exitGlyphs.concat(plan.tailGlyphs), delayAt)
+    // Everything displaced by the change — a kept run, the host's end and so
+    // whatever follows it — rides one ease for as long as the roll runs,
+    // exiting tail included, so it lands together and never on glyphs still
+    // dissolving. On the roll's spring it would outrun the shrink and overshoot.
     const total = this.transition.duration + this._exitTail
-    const midSamples = this.wave ? edgeSamples(midPushes, this.transition, total) : null
-    const suffixEasing = midSamples ? linearOf(midSamples) : SHRINK_EASING
     // Inside a flow the row's own start can move — its line re-centres — and
     // the flow carries the host across, so old glyphs and kept runs are placed
     // by where they stood along the row and a run's slide is only the change
@@ -293,8 +288,8 @@ class Scritto extends ServerSafeHTMLElement {
       !suffixAnchor || Math.abs(newSuffix.top - plan.oldRunTop) >= line * 0.5
         ? 0
         : plan.oldRunX - centerX(suffixAnchor) - carried
-    const prefixFlip = flip(this._prefix, prefixDx, total, this._edgeEasing(total), true)
-    const suffixFlip = flip(this._suffix, suffixDx, total, suffixEasing, true)
+    const prefixFlip = flip(this._prefix, prefixDx, total, SHRINK_EASING, true)
+    const suffixFlip = flip(this._suffix, suffixDx, total, SHRINK_EASING, true)
     if (prefixFlip) this._anims.push(prefixFlip)
     if (suffixFlip) this._anims.push(suffixFlip)
     this._armEnters(plan.enters, plan.trend, enterDelays)
@@ -336,7 +331,7 @@ class Scritto extends ServerSafeHTMLElement {
     }
     this.style.textAlign = 'start'
     const total = this.transition.duration + this._exitTail
-    const timing = { duration: total, easing: this._edgeEasing(total), fill: 'forwards' as const }
+    const timing = { duration: total, easing: SHRINK_EASING, fill: 'forwards' as const }
     const anim = this.animate({ width: [`${fromW}px`, `${toW}px`] }, timing)
     anim.id = WIDTH_ANIM
     const start = this.getBoundingClientRect()
@@ -550,16 +545,6 @@ class Scritto extends ServerSafeHTMLElement {
   /** How far along the row, from its start, this update's exiting glyphs reach. */
   _exitEndPx() {
     return this._exitEnd
-  }
-
-  /** The curve everything displaced by this update's change follows over `total` ms, sampled. */
-  _edgeSamples(total: number) {
-    return this.wave ? edgeSamples(this._pushes, this.transition, total) : null
-  }
-
-  _edgeEasing(total: number) {
-    const samples = this._edgeSamples(total)
-    return samples ? linearOf(samples) : SHRINK_EASING
   }
 
   private _queueExit(nodes: HTMLElement[], x: number, glyphs: Glyph[]) {

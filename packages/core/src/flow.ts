@@ -1,6 +1,5 @@
 import { BROWSER, ServerSafeHTMLElement, visibleClip } from './helpers'
-import { CONFIG, SHRINK_EASING, WIDTH_ANIM } from './const'
-import { laggedSamples, landedAt, linearOf } from './edge'
+import { SHRINK_EASING, WIDTH_ANIM } from './const'
 import type { Transition } from './types'
 
 export type ScrittoChangeDetail = { phase: 'before' | 'after'; animate: boolean }
@@ -9,7 +8,6 @@ type FlowHost = HTMLElement & {
   transition: Transition
   _exitTailMs?: () => number
   _exitEndPx?: () => number
-  _edgeSamples?: (total: number) => number[] | null
 }
 type Box = { left: number; top: number; width: number; height: number }
 
@@ -283,46 +281,17 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       duration = Math.max(duration, host.transition.duration + (host._exitTailMs?.() ?? 0))
     }
     // Everything the flow moves is displaced by the host's edge, so it rides
-    // the edge's own curve — the wave the host's glyphs carry — and lands as
-    // the last of them does. On the roll's spring a neighbour would outrun the
-    // shrink (and overshoot into it) and land on glyphs still dissolving. The
-    // wave runs down the paragraph a line at a time: a line only reflows once
-    // the line above has pushed a word onto it (or pulled one off), so each
-    // line takes it up a little after the one before, as far as the time left
-    // after the host's own line lands allows.
+    // the edge's own ease. On the roll's spring a neighbour would outrun the
+    // shrink (and overshoot into it) and land on glyphs still dissolving.
     const words = this._wordEls
     const last = this._last
     const first = this._first
     const lo = this._lo
     const t0 = document.timeline.currentTime
-    const samples = hosts[0]?._edgeSamples?.(duration) ?? null
     const lineH = first[0]?.height || 1
-    const linesAway = (box: Box, boxes: Map<FlowHost, Box>) => {
-      let away = Infinity
-      for (const host of hosts) {
-        const b = boxes.get(host)
-        if (b) away = Math.min(away, Math.round(Math.abs(box.top - b.top) / lineH))
-      }
-      return away === Infinity ? 0 : away
-    }
-    let farthest = 0
-    for (let i = 0; i < first.length; i++) {
-      if (!last[i]) continue
-      farthest = Math.max(farthest, linesAway(first[i], this._fromBox), linesAway(last[i], this._toBox))
-    }
-    const hostD = hosts[0]?.transition.duration ?? duration
-    const lag = samples ? Math.min((CONFIG.lineLag * hostD) / duration, (1 - landedAt(samples)) / (farthest || 1)) : 0
-    const easings = new Map<number, string>()
-    const easingFor = (away: number) => {
-      if (!samples) return SHRINK_EASING
-      let easing = easings.get(away)
-      if (!easing) easings.set(away, (easing = linearOf(away ? laggedSamples(samples, away * lag) : samples)))
-      return easing
-    }
-    const wave = easingFor(0)
 
-    const play = (el: HTMLElement, frames: Keyframe[], easing: string, done?: () => void) => {
-      const anim = el.animate(frames, { duration, easing, fill: 'forwards' })
+    const play = (el: HTMLElement, frames: Keyframe[], done?: () => void) => {
+      const anim = el.animate(frames, { duration, easing: SHRINK_EASING, fill: 'forwards' })
       if (t0 !== null) anim.startTime = t0
       this._run(anim, gen, done)
     }
@@ -374,7 +343,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
         if (Math.abs(shift) >= 0.5) {
           host.style.transform = `translateX(${shift}px)`
           this._touched.push(host)
-          play(host, [{ transform: `translateX(${shift}px)` }, { transform: 'none' }], wave, () => {
+          play(host, [{ transform: `translateX(${shift}px)` }, { transform: 'none' }], () => {
             host.style.transform = ''
           })
         }
@@ -388,7 +357,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       host.style.textAlign = 'start'
       const hostAnim = host.animate(
         { width: [`${fromW}px`, `${toW}px`], marginRight: [`${toW - fromW}px`, '0px'] },
-        { duration, easing: wave, fill: 'forwards' },
+        { duration, easing: SHRINK_EASING, fill: 'forwards' },
       )
       hostAnim.id = WIDTH_ANIM
       if (t0 !== null) hostAnim.startTime = t0
@@ -442,8 +411,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
         if (Math.abs(dx) < 0.5) continue
         word.style.transform = `translateX(${dx}px)`
         this._touched.push(word)
-        const easing = easingFor(linesAway(b, this._toBox))
-        play(word, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], easing, () => {
+        play(word, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], () => {
           word.style.transform = ''
         })
         continue
@@ -462,7 +430,6 @@ class ScrittoFlow extends ServerSafeHTMLElement {
           { opacity: 1, transform: 'none' },
           { opacity: 0, transform: `translateX(${leaveX}px)` },
         ],
-        easingFor(linesAway(a, this._fromBox)),
         () => leaving.remove(),
       )
       const entering = pin(word, b)
@@ -472,7 +439,6 @@ class ScrittoFlow extends ServerSafeHTMLElement {
           { opacity: 0, transform: `translateX(${enterX}px)` },
           { opacity: 1, transform: 'none' },
         ],
-        easingFor(linesAway(b, this._toBox)),
         () => {
           entering.remove()
           word.style.visibility = ''
