@@ -13,13 +13,16 @@
     "check:flow": "bun apps/website/scripts/check-flow.ts",
     "check:churn": "bun apps/website/scripts/check-churn.ts",
     "check:stress": "bun apps/website/scripts/check-stress.ts",
+    "lint": "oxlint",
     "ci:version": "changeset version && bun update && git add --all",
     "ci:publish": "for dir in packages/*; do (cd \"$dir\" && bun publish || true); done && changeset tag",
     "size": "bun run build && bun scripts/size.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",
+    "@oxlint/plugins": "1.79.0",
     "@types/bun": "latest",
+    "oxlint": "1.79.0",
     "playwright": "^1.62.1",
     "typescript": "^5.9.3"
   }

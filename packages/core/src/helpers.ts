@@ -1,4 +1,3 @@
-import type { Transition } from './types'
 import { SPACE } from './const'
 
 export const BROWSER = 'window' in globalThis
