@@ -4,12 +4,16 @@ import { comma, company, connectLive, nth, sitting, type Stats } from '../lib/li
 const OPTIONS = { respectMotionPreference: true, bounce: false }
 const SAT_DURATION = 280
 
-// The sitting timer measures the visit, not the mount: it survives route
-// changes (module scope) and reloads in the same tab (sessionStorage).
+// The sitting timer measures the visit, not the mount: it survives moving
+// between the site's own pages, and a reload starts it over.
 const SAT_KEY = 'scritto_sat_start'
+const reloaded = () => {
+  const [entry] = performance.getEntriesByType('navigation')
+  return entry instanceof PerformanceNavigationTiming && entry.type === 'reload'
+}
 const started = (() => {
   const stored = Number(sessionStorage.getItem(SAT_KEY))
-  if (Number.isFinite(stored) && stored > 0 && stored <= Date.now()) return stored
+  if (!reloaded() && Number.isFinite(stored) && stored > 0 && stored <= Date.now()) return stored
   const now = Date.now()
   sessionStorage.setItem(SAT_KEY, String(now))
   return now
