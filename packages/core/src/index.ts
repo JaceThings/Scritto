@@ -305,11 +305,15 @@ class Scritto extends ServerSafeHTMLElement {
    * a centred one grows both ways, an end-aligned one toward its start — and
    * the content is indented back by however far the start edge is from where
    * it will land, easing to nothing with the width, with the old glyphs
-   * carried the same way. Whichever edges move are the ones that clip.
+   * carried the same way. An edge clips only when it moves and something on
+   * the line sits within reach of it — old glyphs would dissolve over that
+   * neighbour on a shrink, new ones surface under it on a grow — so a value
+   * standing alone, or one whose neighbours are far off, rolls in the clear.
    */
   private _transitionWidth(fromW: number, toW: number, edge: number) {
     if (Math.abs(toW - fromW) < 0.5) return
     const box = this.getBoundingClientRect()
+    const beside = this._besideOnLine(box, Math.abs(toW - fromW) + 1)
     const css = getComputedStyle(this)
     if (css.display === 'inline') {
       const top = (parseFloat(css.paddingTop) || 0) + (parseFloat(css.borderTopWidth) || 0)
@@ -330,7 +334,11 @@ class Scritto extends ServerSafeHTMLElement {
     const endShift = (rtl ? box.left - start.left : start.right - box.right) || 0
     const startMoves = Math.abs(startShift) >= 0.5
     const endMoves = Math.abs(endShift) >= 0.5
-    this.setAttribute('data-shrink-clip', startMoves && endMoves ? 'both' : startMoves ? 'start' : 'end')
+    const clipStart = startMoves && beside.start
+    const clipEnd = endMoves && beside.end
+    if (clipStart || clipEnd) {
+      this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
+    }
     const anims = [anim]
     if (startMoves) {
       anims.push(this.animate({ textIndent: [`${-startShift}px`, '0px'] }, timing))
@@ -346,6 +354,32 @@ class Scritto extends ServerSafeHTMLElement {
       this._clearWidth()
     }
     this._anims.push(...anims)
+  }
+
+  /** Whether anything else on the host's line sits within `reach` of its start or end edge. */
+  private _besideOnLine(box: DOMRect, reach: number) {
+    // The nearest ancestor that owns a whole line: through inline wrappers,
+    // and through a table's cells and rows, whose neighbours sit in the next cell.
+    let block: HTMLElement | null = this.parentElement
+    while (block && /^(inline|table)/.test(getComputedStyle(block).display)) block = block.parentElement
+    const beside = { start: false, end: false }
+    if (!block) return beside
+    const range = document.createRange()
+    range.selectNodeContents(block)
+    const rects = range.getClientRects()
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i]
+      if (r.width === 0) continue
+      const overlap = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top)
+      if (overlap <= Math.min(r.height, box.height) * 0.5) continue
+      if (r.left >= box.left - 0.5 && r.right <= box.right + 0.5) continue
+      const after = r.left >= box.right - 0.5 && r.left <= box.right + reach
+      const before = r.right <= box.left + 0.5 && r.right >= box.left - reach
+      if (after) beside[this._isRTL ? 'start' : 'end'] = true
+      if (before) beside[this._isRTL ? 'end' : 'start'] = true
+    }
+    range.detach()
+    return beside
   }
 
   private _clearWidth() {
