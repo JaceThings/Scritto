@@ -25,14 +25,26 @@ export const SHRINK_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
 export const WIDTH_ANIM = 'scritto-width'
 
 // A moving edge masks the row, and the neighbour rides it: old glyphs dissolve
-// as it sweeps over them, new ones surface from under it. Both the live row
-// and the exits fade over the same band, so nothing crosses a hard line —
-// the mask's own coordinate box is the border box, so it hides horizontal
-// overflow past a still-narrower edge without needing to reach past it
-// (that's only ever a problem for the exits, which sit outside it on
-// purpose). A linear-gradient mask varies in one axis only, so the other
-// stays unbounded: a roll's vertical travel is never touched.
+// as it sweeps over them, new ones surface from under it. A linear-gradient
+// mask varies in one axis only, so the other stays unbounded: a roll's
+// vertical travel is never touched.
+//
+// The band sits past the content rather than inside it. The box only converges
+// on its final width asymptotically, so a glyph at the end of the row spends
+// the back half of the transition a pixel or two beyond the edge, fully
+// opaque — a band inside the box would dim it the whole way and then pop when
+// the mask lifted. `EDGE_SLACK` widens the mask's coordinate box (the border
+// box, which a mask cannot reach past) by that much, taken back out of the
+// layout with a negative end margin, so the fade is a backstop for real
+// overflow instead of something the reader ever sees. It stays inside a word
+// space, so what it does let through lands in the gap, not on the neighbour.
 const EDGE_FADE = '0.3em'
+
+/** How far past the content the mask's box reaches, in em. */
+export const EDGE_SLACK = 0.4
+
+/** `EDGE_SLACK` in px for `el`'s own font size. */
+export const edgeSlackPx = (el: HTMLElement) => (parseFloat(getComputedStyle(el).fontSize) || 16) * EDGE_SLACK
 
 type Sides = { left: boolean; right: boolean }
 

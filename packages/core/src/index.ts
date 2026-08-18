@@ -24,6 +24,7 @@ import {
   SPACE,
   STYLES,
   WIDTH_ANIM,
+  edgeSlackPx,
 } from './const'
 import { ScrittoFlow, playFlows, prepareFlows } from './flow'
 
@@ -111,6 +112,11 @@ class Scritto extends ServerSafeHTMLElement {
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
   private _exitQueue: QueuedExit[] = []
+  /**
+   * How far along the row the old ink still on screen reaches. Held across
+   * commits, since rapid updates leave earlier groups standing, and cleared
+   * once the last of them has gone.
+   */
   private _exitEnd = 0
   /** Where the box holds still as it resizes: 0 start, 1 end, 0.5 middle. */
   private _anchor: number | null = null
@@ -235,7 +241,7 @@ class Scritto extends ServerSafeHTMLElement {
     const delayAt = this._sweep(enterGlyphs.concat(exits))
     const enterDelays = enterGlyphs.map((g) => delayAt(g.offset))
     this._startExits(plan.trend, delayAt)
-    this._exitEnd = exits.reduce((end, g) => Math.max(end, g.offset + g.width), 0)
+    this._exitEnd = exits.reduce((end, g) => Math.max(end, g.offset + g.width), this._exitEnd)
     const total = this.transition.duration + this._exitTail
     // A flow moves the row's own start as its line re-flows, and carries the
     // host across, so everything old is placed relative to that start. On its
@@ -301,8 +307,9 @@ class Scritto extends ServerSafeHTMLElement {
    * Whichever way the box is anchored, the row holds where it will land: the
    * content is indented back by however far the start edge has to travel,
    * easing to nothing with the width, and the old glyphs ride the same shift.
-   * A moving edge clips only when a neighbour is within reach of it, so a
-   * value standing alone rolls in the clear.
+   * An edge is masked only when it moves, a neighbour is within reach of it,
+   * and the old row reaches past where the box is heading — a shrink. A value
+   * standing alone, or one growing into space it will fill, rolls in the clear.
    */
   private _transitionWidth(fromW: number, toW: number, edge: number) {
     if (Math.abs(toW - fromW) < 0.5) return
@@ -320,17 +327,26 @@ class Scritto extends ServerSafeHTMLElement {
     this.style.textAlign = 'start'
     const total = this.transition.duration + this._exitTail
     const timing = { duration: total, easing: SHRINK_EASING, fill: 'forwards' as const }
-    const anim = this.animate({ width: [`${fromW}px`, `${toW}px`] }, timing)
+    // Width carries the mask's slack and the end margin takes it back, so what
+    // follows the host is pushed by the content alone.
+    const slack = edgeSlackPx(this)
+    this.style.marginInlineEnd = `${-slack}px`
+    const anim = this.animate({ width: [`${fromW + slack}px`, `${toW + slack}px`] }, timing)
     anim.id = WIDTH_ANIM
     const start = this.getBoundingClientRect()
     const rtl = this._isRTL
-    const startShift = (rtl ? box.right - start.right : start.left - box.left) || 0
-    const endShift = (rtl ? box.left - start.left : start.right - box.right) || 0
+    // `start` is the border box, so the slack is on its end side; the shifts
+    // below are the content's.
+    const startEdge = rtl ? start.right : start.left
+    const endEdge = rtl ? start.left + slack : start.right - slack
+    const startShift = (rtl ? box.right - startEdge : startEdge - box.left) || 0
+    const endShift = (rtl ? box.left - endEdge : endEdge - box.right) || 0
     const startMoves = Math.abs(startShift) >= 0.5
     const endMoves = Math.abs(endShift) >= 0.5
     this._anchor = Math.abs(startShift) / (Math.abs(startShift) + Math.abs(endShift) || 1)
-    const clipStart = startMoves && beside.start
-    const clipEnd = endMoves && beside.end
+    const overhang = this._exitEnd > toW + 0.5
+    const clipStart = overhang && startMoves && beside.start
+    const clipEnd = overhang && endMoves && beside.end
     if (clipStart || clipEnd) {
       this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
     }
@@ -396,6 +412,7 @@ class Scritto extends ServerSafeHTMLElement {
       this._blockified = false
     }
     this.style.textAlign = ''
+    this.style.marginInlineEnd = ''
     this.removeAttribute('data-shrink-clip')
   }
 
@@ -549,6 +566,7 @@ class Scritto extends ServerSafeHTMLElement {
             group.remove()
             const idx = this._exitingChars.indexOf(entry)
             if (idx !== -1) this._exitingChars.splice(idx, 1)
+            if (!this._exitingChars.length) this._exitEnd = 0
           }
         })
       }
@@ -578,6 +596,7 @@ class Scritto extends ServerSafeHTMLElement {
     for (let i = 0; i < this._chars.length; i++) resetAnim(this._chars[i])
 
     this._exitQueue = []
+    this._exitEnd = 0
     const exiting = this._exitingChars
     this._exitingChars = []
     for (let i = 0; i < exiting.length; i++) {

@@ -1,5 +1,5 @@
 import { BROWSER, ServerSafeHTMLElement, visibleClip } from './helpers'
-import { SHRINK_EASING, WIDTH_ANIM } from './const'
+import { SHRINK_EASING, WIDTH_ANIM, edgeSlackPx } from './const'
 import type { Transition } from './types'
 
 export type ScrittoChangeDetail = { phase: 'before' | 'after'; animate: boolean }
@@ -226,7 +226,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     if (!host) return
     for (const anim of host.getAnimations()) if (anim.id === WIDTH_ANIM) anim.cancel()
     host.style.width = ''
-    host.style.marginRight = ''
+    host.style.marginInlineEnd = ''
     host.style.display = ''
     host.style.textAlign = ''
     host.removeAttribute('data-shrink-clip')
@@ -285,14 +285,14 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   }
 
   /**
-   * Resizes each host and decides whether its row is clipped. The clip earns
-   * its keep when something can be drawn under the host's glyphs: any word
-   * moving this time, or a word following it on its line with content
-   * reaching past the box at some point of the change — old glyphs on a
-   * shrink, or the final layout (already the new text's resting place, laid
-   * out from the first frame) on a grow, before the box has widened to meet
-   * it. A value that keeps its width has nothing past its edge, so its
-   * glyphs dissolve in the clear instead of under the band.
+   * Resizes each host and decides whether its row is masked. Only a shrink
+   * earns it: the old row reaches past the width the box is heading for, and
+   * the neighbour slides in over that ink, so it has to be dissolved on the
+   * way. A grow lays its new glyphs down at their final places and fades them
+   * in there, and the box catches up while they are still faint, so there is
+   * nothing to hide — and masking anyway only costs it the last glyph's edge.
+   * The test is where the old glyphs reach, not the direction of the change,
+   * so an interrupted grow with old ink still standing well out is covered.
    */
   private _playHosts(hosts: FlowHost[], play: Play) {
     const { _first: first, _last: last } = this
@@ -319,9 +319,8 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       const to = this._toBox.get(host)
       const fromW = from?.width ?? 0
       const toW = to?.width ?? 0
-      const reach = Math.max(host._exitEndPx?.() ?? 0, toW)
-      const overhang = reach > Math.min(fromW, toW) + 0.5
-      if (disturbed || (overhang && (followed(first, from) || followed(last, to)))) {
+      const overhang = (host._exitEndPx?.() ?? 0) > toW + 0.5
+      if (overhang && (disturbed || followed(first, from) || followed(last, to))) {
         host.setAttribute('data-shrink-clip', '')
         clipped = true
       }
@@ -340,16 +339,19 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       }
       if (Math.abs(toW - fromW) < 0.5) continue
       host.style.display = 'inline-block'
-      host.style.width = `${fromW}px`
-      host.style.marginRight = `${toW - fromW}px`
+      // Width carries the mask's slack and the end margin takes it back, so
+      // the footprint the words beside it were measured against never changes.
+      const slack = edgeSlackPx(host)
+      host.style.width = `${fromW + slack}px`
+      host.style.marginInlineEnd = `${toW - fromW - slack}px`
       // The glyphs were placed against the final layout, so the content has to
       // sit there from the first frame rather than re-centre in the old width.
       host.style.textAlign = 'start'
       const anim = play(
         host,
         [
-          { width: `${fromW}px`, marginRight: `${toW - fromW}px` },
-          { width: `${toW}px`, marginRight: '0px' },
+          { width: `${fromW + slack}px`, marginInlineEnd: `${toW - fromW - slack}px` },
+          { width: `${toW + slack}px`, marginInlineEnd: `${-slack}px` },
         ],
         () => this._clearHost(host),
       )
