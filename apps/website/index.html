@@ -20,25 +20,24 @@
         <div id="page" class="flex w-full flex-col gap-9">
         <section class="stagger w-full text-text-primary" style="--i: 5">
           <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px] text-justify hyphens-auto">
-            Scritto is a small JavaScript library that rolls text in place, the same motion SwiftUI
-            uses for numbers. Bindings for React, Vue, Svelte, and Solid, plus a framework-agnostic
-            core.
+            Scritto is a small JavaScript library that rolls text in place. When a number changes,
+            SwiftUI slides the digits instead of swapping them out and Scritto does the same for
+            anything you can type. It works in any framework or none of them.
           </p>
         </section>
 
         <section class="stagger w-full text-text-primary" style="--i: 6">
           <!-- Live values live in a shadow root, so the marker cannot measure them
                and paints the scraps between them as stray blobs. -->
-          <scritto-flow data-highlight-exclude class="block text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+          <scritto-flow data-highlight-exclude class="block text-[14px] leading-[1.4] font-medium tracking-[-0.25px] text-pretty">
             You're the <scritto-text id="you" class="live align-baseline"></scritto-text> visitor.
             <scritto-text id="here" class="align-baseline"></scritto-text>
             This page has been opened <scritto-text id="views" class="live align-baseline"></scritto-text>
             times and poked at <scritto-text id="clicks" class="live align-baseline"></scritto-text>
             times, and the packages have been downloaded a total of
             <scritto-text id="npm" class="live align-baseline"></scritto-text> times so far this
-            month.<br />
-            You've been sitting here
-            <span class="whitespace-nowrap">for
+            month. You've been
+            <span class="whitespace-nowrap">sitting here for
               <scritto-text id="sat" class="live align-baseline"></scritto-text>.</span>
           </scritto-flow>
         </section>
