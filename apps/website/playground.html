@@ -155,11 +155,11 @@
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Wrapped</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
                 Neighbors slide between lines when the value changes width, and the block keeps its
-                height.
+                height. The reflow is paced by the value's own duration.
               </p>
             </div>
             <div class="figure" data-focus-section="wrapped">
-              <button class="copy-stage copy-stage-wrap" type="button" aria-label="Advance the line" data-focus-ring data-focus-radius="12">
+              <button class="copy-stage copy-stage-wrap" type="button" aria-label="Advance the line" data-focus-ring data-focus-radius-top="12" data-focus-radius-bottom="0">
                 <scritto-flow class="copy" id="flow-wrap">
                   and the universe said <scritto-text id="flow-b" class="live" role="img"></scritto-text>
                   and the universe said I love you because you are love. And the game was over and
@@ -168,6 +168,7 @@
                   Wake up.
                 </scritto-flow>
               </button>
+              <div class="row row-slider" id="wrap-duration"></div>
             </div>
           </section>
         </div>

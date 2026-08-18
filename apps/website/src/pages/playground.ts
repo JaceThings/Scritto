@@ -67,7 +67,7 @@ export const initPlayground = (root: ParentNode = document) => {
   const bounce = createStage(root, 'bounce-demo', ['12', '48'])
   const duration = createStage(root, 'duration-demo', ['104', '1.3', '24'])
   // Verbatim lines of the End Poem's closing litany (CC0), in its own order.
-  createStage(root, 'flow-b', [
+  const wrap = createStage(root, 'flow-b', [
     'I love you',
     'you are the daylight',
     'the light you seek is within you',
@@ -244,6 +244,21 @@ export const initPlayground = (root: ParentNode = document) => {
       else duration.apply({ duration: value })
     },
     onRelease: () => duration.advance(),
+  })
+
+  createSlider(find('#wrap-duration'), {
+    label: 'Duration',
+    value: 550,
+    min: 120,
+    max: 1600,
+    step: 10,
+    format: (value) => `${value}ms`,
+    formatSeed: (value) => String(value),
+    onChange: (value, fromDrag) => {
+      if (fromDrag) wrap.configure({ duration: value })
+      else wrap.apply({ duration: value })
+    },
+    onRelease: () => wrap.advance(),
   })
 
   const corners = bindCorners(root)
