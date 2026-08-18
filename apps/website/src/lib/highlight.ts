@@ -1,0 +1,48 @@
+import { highlightSelection } from '@highlighters/core'
+
+const STYLE_ID = 'selection-highlight-styles'
+const TOUCH = '(hover: none) and (pointer: coarse)'
+const DARK = '(prefers-color-scheme: dark)'
+
+const TIP = { angle: 7, overshoot: 7.5, angleJitter: 10 }
+
+/**
+ * The page's own ink, as on corne.rs: brown on the cream page. Inverted for
+ * the dark one, where `multiply` would sink any ink toward black — `screen`
+ * mirrors it, lifting a cream band that leaves the light text legible.
+ */
+const LIGHT = { color: 'rgb(115, 87, 74)', opacity: 0.45, tip: TIP }
+const DARK_INK = { color: 'rgb(254, 241, 223)', opacity: 0.35, vivid: 'screen', tip: TIP } as const
+
+const isDark = () =>
+  document.documentElement.dataset.theme === 'dark' ||
+  (document.documentElement.dataset.theme !== 'light' && matchMedia(DARK).matches)
+
+/**
+ * Paints the live selection as a marker stroke. The native `::selection` is
+ * only suppressed once this is running, so the browser's own paint stands in
+ * if the script never does — and on a coarse pointer, where the library
+ * defers to the platform's selection UI, it is left alone.
+ */
+export const startSelectionHighlight = () => {
+  if (matchMedia(TOUCH).matches) return () => {}
+
+  if (!document.getElementById(STYLE_ID)) {
+    const style = document.createElement('style')
+    style.id = STYLE_ID
+    style.textContent = 'html.selection-highlight-ready ::selection { background-color: transparent; color: inherit }'
+    document.head.append(style)
+  }
+  document.documentElement.classList.add('selection-highlight-ready')
+
+  const mark = highlightSelection(isDark() ? DARK_INK : LIGHT)
+  const scheme = matchMedia(DARK)
+  const restyle = () => mark.update(isDark() ? DARK_INK : LIGHT)
+  scheme.addEventListener('change', restyle)
+
+  return () => {
+    scheme.removeEventListener('change', restyle)
+    mark.remove()
+    document.documentElement.classList.remove('selection-highlight-ready')
+  }
+}

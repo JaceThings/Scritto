@@ -134,7 +134,10 @@ scritto-text.live {
   color: var(--color-live);
 }
 
+/* Assistive-tech copy: keep it out of Cmd+A, and so out of the marker.
+   `user-select` alone would not: the pipeline reads the Range, not the paint. */
 .sr-only {
+  user-select: none;
   position: absolute;
   width: 1px;
   height: 1px;
