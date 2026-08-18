@@ -115,6 +115,8 @@ class Scritto extends ServerSafeHTMLElement {
   private _exitQueue: QueuedExit[] = []
   private _pushes: Push[] = []
   private _exitEnd = 0
+  /** Where the box holds still as it resizes — 0 start, 1 end, 0.5 middle — measured on the last change. */
+  private _anchor: number | null = null
   // The last exiting char finishes at `duration + its delay`, not at
   // `duration` — a listener pacing itself off `transition.duration` alone
   // (the flow's same-line word slide, notably) finishes early and arrives
@@ -334,6 +336,7 @@ class Scritto extends ServerSafeHTMLElement {
     const endShift = (rtl ? box.left - start.left : start.right - box.right) || 0
     const startMoves = Math.abs(startShift) >= 0.5
     const endMoves = Math.abs(endShift) >= 0.5
+    this._anchor = Math.abs(startShift) / (Math.abs(startShift) + Math.abs(endShift) || 1)
     const clipStart = startMoves && beside.start
     const clipEnd = endMoves && beside.end
     if (clipStart || clipEnd) {
@@ -354,6 +357,20 @@ class Scritto extends ServerSafeHTMLElement {
       this._clearWidth()
     }
     this._anims.push(...anims)
+  }
+
+  /**
+   * The best guess at where the box holds still before it has ever resized:
+   * the alignment it inherits. A measured value from the last change wins.
+   */
+  private _anchorHint() {
+    if (this._anchor !== null) return this._anchor
+    const align = getComputedStyle(this).textAlign
+    if (align === 'center') return 0.5
+    if (align === 'end') return 1
+    if (align === 'right') return this._isRTL ? 0 : 1
+    if (align === 'left') return this._isRTL ? 1 : 0
+    return 0
   }
 
   /** Whether anything else on the host's line sits within `reach` of its start or end edge. */
@@ -394,7 +411,7 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   private _buildLayout(): Layout | null {
-    const found = diff(this._chars, this._value)
+    const found = diff(this._chars, this._value, this._anchorHint())
     const { prefixCount, suffixCount, labels } = found
     if (prefixCount === this._chars.length && prefixCount === labels.length) return null
 

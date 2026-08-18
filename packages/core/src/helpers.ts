@@ -170,12 +170,18 @@ const MIN_FLOAT_RUN = 2
  * it: exactly what '11' -> '1,001' needs, one kept digit crossing a separator
  * and the two digits that came with it.
  *
+ * Travel is what the run would move on screen, which depends on where the
+ * box is anchored: measured from the start of a start-anchored box, from the
+ * end of an end-anchored one — a right-aligned readout going 'Default – 0.20'
+ * -> '0.21' keeps its '0.2' exactly where it stands — and from the middle of a
+ * centred one.
+ *
  * SwiftUI declines this trade entirely and matches only a common prefix and
  * suffix, so it never has to answer the question.
  */
 const GROUP_WIDTH = 2
 
-const earnsTravel = (run: number, shift: number) => Math.abs(shift) <= run + GROUP_WIDTH
+const earnsTravel = (run: number, travel: number) => Math.abs(travel) <= run + GROUP_WIDTH
 
 /**
  * The number a value reads as, for working out which way it moved. Read the
@@ -192,7 +198,8 @@ export const numberOf = (value: string) => {
   return /^[-\u2212]/.test(match[0]) ? -n : n
 }
 
-export const diff = (prev: HTMLElement[], newValue: string) => {
+/** `anchor` is where the box holds still as it resizes: 0 at its start, 1 at its end, 0.5 in the middle. */
+export const diff = (prev: HTMLElement[], newValue: string, anchor = 0) => {
   const labels = splitGraphemes(newValue)
   const lenOld = prev.length
   const lenNew = labels.length
@@ -223,7 +230,7 @@ export const diff = (prev: HTMLElement[], newValue: string) => {
     for (let i = Math.min(lenOld, lenNew - shift) - 1; i >= lo; i--) {
       if (prev[i].textContent === labels[i + shift]) {
         run++
-        if (run > best && run >= MIN_FLOAT_RUN && earnsTravel(run, shift)) {
+        if (run > best && run >= MIN_FLOAT_RUN && earnsTravel(run, shift - anchor * (lenNew - lenOld))) {
           best = run
           oldSuffix = i
           midEnd = i + shift
