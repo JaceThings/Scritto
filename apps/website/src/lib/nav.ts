@@ -67,6 +67,7 @@ export const startRouter = (pages: Record<string, PageInit>) => {
       document.title = doc.title
       if (push) history.pushState(null, '', url)
       route = normalize(url.pathname)
+      document.documentElement.dataset.route = route
       dispose = pages[route]?.(document) ?? undefined
 
       const shift = footerBefore - footer.getBoundingClientRect().top

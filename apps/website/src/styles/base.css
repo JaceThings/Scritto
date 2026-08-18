@@ -15,6 +15,11 @@ html {
   font-optical-sizing: auto;
 }
 
+h1,
+h2 {
+  color: var(--color-heading);
+}
+
 body {
   font-family: var(--font-sans);
   font-weight: 500;
@@ -83,6 +88,11 @@ code {
 
 .nav-slot {
   display: inline-flex;
+}
+
+/* The footer outlives the page swap, so the home link hides by route. */
+html[data-route='/'] .nav-home {
+  display: none;
 }
 
 .column {

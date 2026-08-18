@@ -5,6 +5,7 @@
   --color-bg: var(--surface);
   --color-surface: var(--surface);
   --color-figure: var(--figure);
+  --color-heading: var(--heading);
   --color-text-primary: var(--text-primary);
   --color-text-secondary: var(--text-secondary);
   --color-text-input: var(--text-input);
@@ -19,6 +20,7 @@
   color-scheme: light;
   --surface: #f7f6f2;
   --figure: #ffffff;
+  --heading: #73574a;
   --text-primary: #73574a;
   --text-secondary: rgba(154, 145, 138, 0.75);
   --text-input: #7e756c;
@@ -43,6 +45,7 @@
     color-scheme: dark;
     --surface: #1c1917;
     --figure: #24201d;
+    --heading: #fef1df;
     --text-primary: #9a918a;
     --text-secondary: rgba(154, 145, 138, 0.55);
     --text-input: #8a817a;
@@ -51,9 +54,7 @@
     --divider-from: rgba(232, 228, 218, 0.08);
     --divider-to: rgba(232, 228, 218, 0);
     --hairline: rgba(254, 241, 223, 0.08);
-    --shadow-figure:
-      0 0 0 0.75px rgba(254, 241, 223, 0.1),
-      0 3px 7px -3px rgba(0, 0, 0, 0.4);
+    --shadow-figure: 0 0 0 1px rgba(254, 241, 223, 0.08);
     --shadow-install: 0 0 0 1px rgba(254, 241, 223, 0.1);
   }
 }
@@ -62,6 +63,7 @@
   color-scheme: dark;
   --surface: #1c1917;
   --figure: #24201d;
+  --heading: #fef1df;
   --text-primary: #9a918a;
   --text-secondary: rgba(154, 145, 138, 0.55);
   --text-input: #8a817a;
@@ -70,9 +72,7 @@
   --divider-from: rgba(232, 228, 218, 0.08);
   --divider-to: rgba(232, 228, 218, 0);
   --hairline: rgba(254, 241, 223, 0.08);
-  --shadow-figure:
-    0 0 0 0.75px rgba(254, 241, 223, 0.1),
-    0 3px 7px -3px rgba(0, 0, 0, 0.4);
+  --shadow-figure: 0 0 0 1px rgba(254, 241, 223, 0.08);
   --shadow-install: 0 0 0 1px rgba(254, 241, 223, 0.1);
 }
 
