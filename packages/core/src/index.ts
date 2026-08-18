@@ -258,31 +258,33 @@ class Scritto extends ServerSafeHTMLElement {
     const total = this.transition.duration + this._exitTail
     const midSamples = this.wave ? edgeSamples(midPushes, this.transition, total) : null
     const suffixEasing = midSamples ? linearOf(midSamples) : SHRINK_EASING
-    // Old glyphs and kept runs are placed by where they stood along the row,
-    // not on the page: the row's own start can move — a centred value grows
-    // both ways, a flow's line re-centres — and that motion is the box's (or
-    // the flow's) to carry, with the whole row riding along. A run's slide is
-    // only the change in its distance from the start.
-    const rowShift = plan.fromEdge - edge
+    // Inside a flow the row's own start can move — its line re-centres — and
+    // the flow carries the host across, so old glyphs and kept runs are placed
+    // by where they stood along the row and a run's slide is only the change
+    // in its distance from the start. On its own the box is already where it
+    // will end up, so everything is placed on the page: old glyphs where they
+    // were, kept runs sliding from there, and the change rolling in place.
+    const inFlow = !!this.closest('scritto-flow')
+    const carried = inFlow ? plan.fromEdge - edge : 0
     for (let i = 0; i < this._exitingChars.length; i++) {
       const [el, x] = this._exitingChars[i]
-      el.style.transform = `translateX(${x - plan.fromEdge}px)`
+      el.style.transform = `translateX(${x - edge - carried}px)`
     }
     const line = newPrefix.height || 1
     const prefixDx =
       !prefixAnchor || Math.abs(newPrefix.top - plan.oldPrefixTop) >= line * 0.5
         ? 0
-        : plan.oldPrefixX - centerX(prefixAnchor) - rowShift
+        : plan.oldPrefixX - centerX(prefixAnchor) - carried
     const suffixDx =
       !suffixAnchor || Math.abs(newSuffix.top - plan.oldRunTop) >= line * 0.5
         ? 0
-        : plan.oldRunX - centerX(suffixAnchor) - rowShift
+        : plan.oldRunX - centerX(suffixAnchor) - carried
     const prefixFlip = flip(this._prefix, prefixDx, total, this._edgeEasing(total), true)
     const suffixFlip = flip(this._suffix, suffixDx, total, suffixEasing, true)
     if (prefixFlip) this._anims.push(prefixFlip)
     if (suffixFlip) this._anims.push(suffixFlip)
     this._armEnters(plan.enters, plan.trend, enterDelays)
-    if (!this.closest('scritto-flow')) this._transitionWidth(plan.fromW, toW)
+    if (!inFlow) this._transitionWidth(plan.fromW, toW, edge)
   }
 
   /**
@@ -295,13 +297,16 @@ class Scritto extends ServerSafeHTMLElement {
    * <scritto-flow> the flow drives this itself, since it also has to carry
    * words round line ends, which layout alone cannot.
    *
-   * The content is start-aligned inside the box, so wherever the box is
-   * anchored — a centred value grows both ways, an end-aligned one leftward —
-   * the row starts where the box starts and moves with it, on the same curve
-   * as the width; the glyphs were placed relative to that start.
+   * The row itself stays where it will end up, turning in place, whichever
+   * way the box is anchored: layout puts the box where its anchoring says —
+   * a centred one grows both ways, an end-aligned one toward its start — and
+   * the content is indented back by however far the start edge is from where
+   * it will land, easing to nothing with the width, with the old glyphs
+   * carried the same way. Whichever edges move are the ones that clip.
    */
-  private _transitionWidth(fromW: number, toW: number) {
+  private _transitionWidth(fromW: number, toW: number, edge: number) {
     if (Math.abs(toW - fromW) < 0.5) return
+    const box = this.getBoundingClientRect()
     const css = getComputedStyle(this)
     if (css.display === 'inline') {
       const top = (parseFloat(css.paddingTop) || 0) + (parseFloat(css.borderTopWidth) || 0)
@@ -312,18 +317,32 @@ class Scritto extends ServerSafeHTMLElement {
       this._blockified = true
     }
     this.style.textAlign = 'start'
-    this.setAttribute('data-shrink-clip', '')
     const total = this.transition.duration + this._exitTail
-    const anim = this.animate(
-      { width: [`${fromW}px`, `${toW}px`] },
-      { duration: total, easing: this._edgeEasing(total), fill: 'forwards' },
-    )
+    const timing = { duration: total, easing: this._edgeEasing(total), fill: 'forwards' as const }
+    const anim = this.animate({ width: [`${fromW}px`, `${toW}px`] }, timing)
     anim.id = WIDTH_ANIM
+    const start = this.getBoundingClientRect()
+    const rtl = this._isRTL
+    const startShift = (rtl ? box.right - start.right : start.left - box.left) || 0
+    const endShift = (rtl ? box.left - start.left : start.right - box.right) || 0
+    const startMoves = Math.abs(startShift) >= 0.5
+    const endMoves = Math.abs(endShift) >= 0.5
+    this.setAttribute('data-shrink-clip', startMoves && endMoves ? 'both' : startMoves ? 'start' : 'end')
+    const anims = [anim]
+    if (startMoves) {
+      anims.push(this.animate({ textIndent: [`${-startShift}px`, '0px'] }, timing))
+      const dx = rtl ? startShift : -startShift
+      for (const [group, x] of this._exitingChars) {
+        anims.push(
+          group.animate({ transform: [`translateX(${x - edge + dx}px)`, `translateX(${x - edge}px)`] }, timing),
+        )
+      }
+    }
     anim.onfinish = () => {
-      anim.cancel()
+      for (const a of anims) a.cancel()
       this._clearWidth()
     }
-    this._anims.push(anim)
+    this._anims.push(...anims)
   }
 
   private _clearWidth() {

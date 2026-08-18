@@ -29,27 +29,61 @@ export const SHRINK_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
 export const WIDTH_ANIM = 'scritto-width'
 
 // While a host's width animates with text following it, its row is clipped
-// at its own edge, which the neighbour rides: exiting glyphs dissolve there
-// as the edge sweeps over them on a shrink, and entering glyphs past the old
-// edge come out from under it on a grow. The exits get a soft band just
-// inside the edge (they are fading anyway); the live row a hard clip a hair
-// past it, since a soft band there would dim the last glyph until the mask
-// lifted, and a mask cannot reach past the box for composited children. The
-// clip is loose everywhere else so a roll's vertical travel stays in.
+// at whichever of its edges is moving, which the neighbour on that side
+// rides: exiting glyphs dissolve there as the edge sweeps over them on a
+// shrink, and entering glyphs past the old edge come out from under it on a
+// grow. A start-anchored box moves its end (the usual case, and a flow's);
+// an end-anchored one its start; a centred one both. The exits get a soft
+// band just inside the edge (they are fading anyway); the live row a hard
+// clip a hair past it, since a soft band there would dim the last glyph until
+// the mask lifted, and a mask cannot reach past the box for composited
+// children. The clip is loose on every other side so a roll's vertical
+// travel, and old glyphs standing past a still edge, stay in.
 const EDGE_FADE = '0.3em'
 const EDGE_SLACK = '0.1em'
+const FAR = '9999px'
 
-const edgeMask = (prefix: string, angle: string, position: string) => `
-    ${prefix}mask-image: linear-gradient(${angle}, #000 calc(100% - ${EDGE_FADE}), transparent 100%);
+type Sides = { left: boolean; right: boolean }
+
+const exitMask = (sides: Sides) => {
+  const stops = [
+    sides.left ? `transparent 0, #000 ${EDGE_FADE}` : '#000 0',
+    sides.right ? `#000 calc(100% - ${EDGE_FADE}), transparent 100%` : '#000 100%',
+  ].join(', ')
+  const layer = (prefix: string) => `
+    ${prefix}mask-image: linear-gradient(90deg, ${stops});
     ${prefix}mask-size: 100% 400%;
-    ${prefix}mask-position: ${position};
+    ${prefix}mask-position: 0 50%;
     ${prefix}mask-repeat: no-repeat;`
+  return layer('-webkit-') + layer('')
+}
 
-const exitMask = (angle: string, position: string) =>
-  `${edgeMask('-webkit-', angle, position)}${edgeMask('', angle, position)}`
+const rowClip = (sides: Sides) =>
+  `clip-path: inset(-1em ${sides.right ? `-${EDGE_SLACK}` : `-${FAR}`} -1em ${sides.left ? `-${EDGE_SLACK}` : `-${FAR}`});`
 
-const rowClip = (end: 'right' | 'left') =>
-  `clip-path: inset(-1em ${end === 'right' ? `-${EDGE_SLACK} -1em -1em` : `-1em -1em -${EDGE_SLACK}`});`
+// `data-shrink-clip` names the logical side(s) that move: "" or "end" (the
+// default), "start", or "both".
+const clipRules = () => {
+  const cases: [selector: string, sides: Sides][] = [
+    [`[data-shrink-clip='']`, { left: false, right: true }],
+    [`[data-shrink-clip='end']`, { left: false, right: true }],
+    [`[data-shrink-clip='start']`, { left: true, right: false }],
+    [`[data-shrink-clip='both']`, { left: true, right: true }],
+    [`[data-shrink-clip='']:dir(rtl)`, { left: true, right: false }],
+    [`[data-shrink-clip='end']:dir(rtl)`, { left: true, right: false }],
+    [`[data-shrink-clip='start']:dir(rtl)`, { left: false, right: true }],
+  ]
+  return cases
+    .map(
+      ([sel, sides]) => `
+  :host(${sel}) {
+    ${rowClip(sides)}
+  }
+  :host(${sel}) .exits {${exitMask(sides)}
+  }`,
+    )
+    .join('')
+}
 
 export const STYLES = `
   :host {
@@ -75,19 +109,13 @@ export const STYLES = `
   .exits::before {
     content: "\\200B"; /* baseline anchor, as on an empty section */
   }
-  :host([data-shrink-clip]) {
-    ${rowClip('right')}
-  }
-  :host([data-shrink-clip]:dir(rtl)) {
-    ${rowClip('left')}
-  }
-  :host([data-shrink-clip]) .exits {${exitMask('90deg', '0 50%')}
-  }
-  :host([data-shrink-clip]:dir(rtl)) .exits {${exitMask('270deg', '100% 50%')}
-  }
+${clipRules()}
   span {
     margin: 0 !important;
     padding: 0 !important;
+    /* The host indents its row to pin it while its box moves; that must not
+       reach the glyphs, each of which is a block with a first line of its own. */
+    text-indent: 0;
     transform-origin: center;
   }
   .exits > [inert] {
