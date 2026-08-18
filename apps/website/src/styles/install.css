@@ -26,12 +26,7 @@
   background: var(--color-surface);
   padding: 6px 8px;
   border-radius: 8px;
-  box-shadow:
-    0 0 0 1px rgba(119, 119, 119, 0.19),
-    0 0 0 0.5px rgba(115, 87, 74, 0.08),
-    0 1px 2px 0 rgba(115, 87, 74, 0.1),
-    0 2px 2px -1px rgba(115, 87, 74, 0.05),
-    0 1px 6px 0 rgba(115, 87, 74, 0.08);
+  box-shadow: var(--shadow-install);
 }
 
 .install-glyphs {

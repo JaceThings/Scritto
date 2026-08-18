@@ -1,14 +1,86 @@
+/* Colours live on :root so they can flip with the system (or an explicit
+   data-theme, which wins); the theme only aliases them. Dark values follow
+   the palette on ja.mt. */
+@theme inline {
+  --color-bg: var(--surface);
+  --color-surface: var(--surface);
+  --color-figure: var(--figure);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-input: var(--text-input);
+  --color-accent-green: var(--accent-green);
+  --color-live: var(--live);
+  --color-divider-from: var(--divider-from);
+  --color-divider-to: var(--divider-to);
+  --color-hairline: var(--hairline);
+}
+
+:root {
+  color-scheme: light;
+  --surface: #f7f6f2;
+  --figure: #ffffff;
+  --text-primary: #73574a;
+  --text-secondary: rgba(154, 145, 138, 0.75);
+  --text-input: #7e756c;
+  --accent-green: #5b793f;
+  --live: #425c30;
+  --divider-from: rgba(115, 87, 74, 0.08);
+  --divider-to: rgba(115, 87, 74, 0);
+  --hairline: #edece8;
+  --shadow-figure:
+    0 0 0 1px rgba(119, 119, 119, 0.08),
+    0 2px 2px -0.5px rgba(119, 119, 119, 0.08);
+  --shadow-install:
+    0 0 0 1px rgba(119, 119, 119, 0.19),
+    0 0 0 0.5px rgba(115, 87, 74, 0.08),
+    0 1px 2px 0 rgba(115, 87, 74, 0.1),
+    0 2px 2px -1px rgba(115, 87, 74, 0.05),
+    0 1px 6px 0 rgba(115, 87, 74, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --surface: #1c1917;
+    --figure: #24201d;
+    --text-primary: #9a918a;
+    --text-secondary: rgba(154, 145, 138, 0.55);
+    --text-input: #8a817a;
+    --accent-green: #8fa876;
+    --live: #a3bd8a;
+    --divider-from: rgba(232, 228, 218, 0.08);
+    --divider-to: rgba(232, 228, 218, 0);
+    --hairline: rgba(254, 241, 223, 0.08);
+    --shadow-figure:
+      0 0 0 0.75px rgba(254, 241, 223, 0.1),
+      0 3px 7px -3px rgba(0, 0, 0, 0.4);
+    --shadow-install:
+      0 0 0 0.75px rgba(254, 241, 223, 0.14),
+      0 3px 7px -3px rgba(0, 0, 0, 0.5);
+  }
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --surface: #1c1917;
+  --figure: #24201d;
+  --text-primary: #9a918a;
+  --text-secondary: rgba(154, 145, 138, 0.55);
+  --text-input: #8a817a;
+  --accent-green: #8fa876;
+  --live: #a3bd8a;
+  --divider-from: rgba(232, 228, 218, 0.08);
+  --divider-to: rgba(232, 228, 218, 0);
+  --hairline: rgba(254, 241, 223, 0.08);
+  --shadow-figure:
+    0 0 0 0.75px rgba(254, 241, 223, 0.1),
+    0 3px 7px -3px rgba(0, 0, 0, 0.4);
+  --shadow-install:
+    0 0 0 0.75px rgba(254, 241, 223, 0.14),
+    0 3px 7px -3px rgba(0, 0, 0, 0.5);
+}
+
 @theme {
-  --color-bg: #f7f6f2;
-  --color-surface: #f7f6f2;
-  --color-text-primary: #73574a;
-  --color-text-secondary: rgba(154, 145, 138, 0.75);
-  --color-text-input: #7e756c;
-  --color-accent-green: #5b793f;
-  --color-live: #425c30;
-  --color-divider-from: rgba(115, 87, 74, 0.08);
-  --color-divider-to: rgba(115, 87, 74, 0);
-  --color-figure: #ffffff;
   --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
