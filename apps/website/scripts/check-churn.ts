@@ -68,11 +68,17 @@ const CASES: { from: string; to: string; kept: string; exits: number; enters: nu
 ]
 
 const POSITION_TOLERANCE = 0.1
+type Align = 'start' | 'end' | 'center'
+
+// `align` is where the host's box is anchored as it resizes. A kept run that
+// does not move on screen must not be rerolled or nudged whichever way the box
+// is anchored: an end-aligned readout keeps its '0.2' where it stands.
 const POSITION_CASES: {
   from: string
   to: string
   kept: string
   direction: 'ltr' | 'rtl'
+  align?: Align
   moves: boolean
 }[] = [
   { from: '33 seconds', to: '34 seconds', kept: '3 seconds', direction: 'ltr', moves: false },
@@ -81,7 +87,18 @@ const POSITION_CASES: {
   { from: '1,234,567', to: '1,234,568', kept: '1,234,56', direction: 'ltr', moves: false },
   { from: '9 seconds', to: '10 seconds', kept: ' seconds', direction: 'ltr', moves: true },
   { from: '33 seconds', to: '34 seconds', kept: '3 seconds', direction: 'rtl', moves: false },
-  { from: '1 second', to: '2 seconds', kept: ' second', direction: 'rtl', moves: true },
+  { from: '1 second', to: '2 seconds', kept: ' second', direction: 'rtl', align: 'end', moves: true },
+  { from: '1 second', to: '2 seconds', kept: ' second', direction: 'rtl', moves: false },
+  { from: 'Default – 0.20', to: '0.21', kept: '0.2', direction: 'ltr', align: 'end', moves: false },
+  { from: '0.21', to: 'Bouncy – 0.20', kept: '0.2', direction: 'ltr', align: 'end', moves: false },
+  { from: '$2.50', to: '$3.50', kept: '$.50', direction: 'ltr', align: 'end', moves: false },
+  { from: '1,234,567', to: '1,234,568', kept: '1,234,56', direction: 'ltr', align: 'end', moves: false },
+  { from: '9 seconds', to: '10 seconds', kept: ' seconds', direction: 'ltr', align: 'end', moves: false },
+  { from: '10 seconds', to: '9 seconds', kept: ' seconds', direction: 'ltr', align: 'end', moves: false },
+  { from: '33 seconds', to: '34 seconds', kept: '3 seconds', direction: 'ltr', align: 'center', moves: false },
+  { from: '104', to: '24', kept: '4', direction: 'ltr', align: 'center', moves: true },
+  { from: '9 seconds', to: '10 seconds', kept: ' seconds', direction: 'ltr', align: 'center', moves: true },
+  { from: 'Default – 0.20', to: '0.21', kept: '0.2', direction: 'rtl', align: 'end', moves: false },
 ]
 
 type Violation = { at: string; rule: string; detail: string }
@@ -132,18 +149,25 @@ const install = () => {
   }
 
   let host: Host | null = null
+  let frame: HTMLElement | null = null
 
   // A host of its own, outside every <scritto-flow> on the page: the wrap
   // machinery would move the row for reasons that have nothing to do with churn.
-  // Direction is read when the element connects, so an RTL arm gets a fresh host.
-  const stage = (direction: 'ltr' | 'rtl' = 'ltr') => {
-    if (host?.dir === direction) return host
-    host?.remove()
+  // Direction is read when the element connects, so an RTL arm gets a fresh
+  // host. `align` anchors the host's box at its start, end or middle by
+  // aligning it inside a fixed-width frame.
+  const stage = (direction: 'ltr' | 'rtl' = 'ltr', align: 'start' | 'end' | 'center' = 'start') => {
+    if (host?.dir === direction && frame?.style.textAlign === align) return host
+    frame?.remove()
+    frame = document.createElement('div')
+    frame.dir = direction
+    frame.style.cssText =
+      'position:fixed;top:24px;left:24px;width:700px;z-index:2147483647;font:600 44px ui-sans-serif,system-ui;font-variant-numeric:tabular-nums;letter-spacing:-0.25px;color:#111;background:#fff'
+    frame.style.textAlign = align
     const el = document.createElement('scritto-text') as Host
     el.dir = direction
-    el.style.cssText =
-      'position:fixed;top:24px;left:24px;z-index:2147483647;font:600 44px ui-sans-serif,system-ui;font-variant-numeric:tabular-nums;letter-spacing:-0.25px;color:#111;background:#fff'
-    document.body.append(el)
+    frame.append(el)
+    document.body.append(frame)
     host = el
     return el
   }
@@ -236,8 +260,14 @@ const install = () => {
     }
   }
 
-  const position = async (from: string, to: string, duration: number, direction: 'ltr' | 'rtl') => {
-    const el = stage(direction)
+  const position = async (
+    from: string,
+    to: string,
+    duration: number,
+    direction: 'ltr' | 'rtl',
+    align: 'start' | 'end' | 'center',
+  ) => {
+    const el = stage(direction, align)
     el.setOptions({ respectMotionPreference: false, bounce: false, transition: { duration } })
     el.update(from, false)
     await sleep(80)
@@ -334,15 +364,21 @@ const run = (page: Page, from: string, to: string): Promise<Sample> =>
     { from, to, duration: DURATION },
   )
 
-const runPosition = (page: Page, from: string, to: string, direction: 'ltr' | 'rtl'): Promise<PositionSample> =>
+const runPosition = (
+  page: Page,
+  from: string,
+  to: string,
+  direction: 'ltr' | 'rtl',
+  align: Align,
+): Promise<PositionSample> =>
   page.evaluate(
-    ({ from, to, duration, direction }) => {
+    ({ from, to, duration, direction, align }) => {
       const probe = window as unknown as {
-        __position: (a: string, b: string, d: number, dir: 'ltr' | 'rtl') => Promise<PositionSample>
+        __position: (a: string, b: string, d: number, dir: 'ltr' | 'rtl', align: Align) => Promise<PositionSample>
       }
-      return probe.__position(from, to, duration, direction)
+      return probe.__position(from, to, duration, direction, align)
     },
-    { from, to, duration: DURATION, direction },
+    { from, to, duration: DURATION, direction, align },
   )
 
 const runStack = (page: Page): Promise<StackSample> =>
@@ -409,12 +445,12 @@ for (const item of CASES) {
 }
 
 for (const item of POSITION_CASES) {
-  const at = `${item.from} → ${item.to} (${item.direction})`
+  const at = `${item.from} → ${item.to} (${item.direction}${item.align && item.align !== 'start' ? `, ${item.align}` : ''})`
   const fail = (rule: string, detail: string) => violations.push({ at, rule, detail })
   process.stdout.write(`· ${at.padEnd(44)} `)
   const before = violations.length
   try {
-    const got = await runPosition(page, item.from, item.to, item.direction)
+    const got = await runPosition(page, item.from, item.to, item.direction, item.align ?? 'start')
     if (got.kept !== item.kept) {
       fail('position subject', `expected ${JSON.stringify(item.kept)}, sampled ${JSON.stringify(got.kept)}`)
     }
