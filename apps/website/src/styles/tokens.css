@@ -33,7 +33,7 @@
   --text-secondary: rgba(154, 145, 138, 0.75);
   --text-input: #7e756c;
   --accent-green: #5b793f;
-  --live: #425c30;
+  --live: #5b5ddf;
   --divider-from: rgba(115, 87, 74, 0.08);
   --divider-to: rgba(115, 87, 74, 0);
   --hairline: #edece8;
@@ -62,7 +62,7 @@
     --text-secondary: rgba(154, 145, 138, 0.75);
     --text-input: #9a928a;
     --accent-green: #8fa876;
-    --live: #a3bd8a;
+    --live: #8b8de8;
     --divider-from: rgba(255, 255, 255, 0.08);
     --divider-to: rgba(255, 255, 255, 0);
     --hairline: rgba(255, 255, 255, 0.08);
@@ -84,7 +84,7 @@
   --text-secondary: rgba(154, 145, 138, 0.75);
   --text-input: #9a928a;
   --accent-green: #8fa876;
-  --live: #a3bd8a;
+  --live: #8b8de8;
   --divider-from: rgba(255, 255, 255, 0.08);
   --divider-to: rgba(255, 255, 255, 0);
   --hairline: rgba(255, 255, 255, 0.08);
