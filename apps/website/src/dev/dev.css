@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@scritto/core/ssr.css';
 @import '@fontsource-variable/inter';
 
 @custom-variant dark (&:where(.dark, .dark *));
@@ -34,11 +35,4 @@
   body {
     @apply bg-bg text-fg font-sans antialiased;
   }
-}
-
-scritto-text:not(:defined) {
-  display: inline-flex;
-  white-space: nowrap !important;
-  font-kerning: none;
-  font-variant-ligatures: none;
 }

@@ -1,0 +1,10 @@
+@import 'tailwindcss';
+@import '@scritto/core/ssr.css';
+@import '@fontsource-variable/inter';
+/* `font-synthesis: none` in base.css means the entry's italics need a real face. */
+@import '@fontsource-variable/inter/standard-italic.css';
+
+@import './tokens.css';
+@import './base.css';
+@import './install.css';
+@import './playground.css';

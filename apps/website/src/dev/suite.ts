@@ -274,7 +274,7 @@ const CASES: Case[] = [
 
 const leftoverOf = (hosts: Scritto[]) => {
   let n = 0
-  for (const host of hosts) n += host.shadowRoot?.getAnimations({ subtree: true }).length ?? 0
+  for (const host of hosts) n += host.shadowRoot?.getAnimations().length ?? 0
   return n
 }
 

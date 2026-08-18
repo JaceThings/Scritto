@@ -1,7 +1,7 @@
-@import './site.css';
+@import '../styles/site.css';
 
-/* Scratch styles for the six value-editor options. Everything here is scoped to
-   the comparison page; whichever option wins moves into site.css. */
+/* Scratch styles for the value-editor comparison page; whichever option wins
+   moves into site.css. */
 
 .stage-short {
   height: 104px;
@@ -11,7 +11,6 @@
   padding: 24px;
 }
 
-/* A stacked editor block: label line, then the control. Mirrors `.slider`. */
 .values {
   display: flex;
   width: 100%;
@@ -106,7 +105,6 @@
   outline-offset: 1px;
 }
 
-/* Sized from its content, so it sits at the end of the chips like a caret. */
 .chip-add {
   min-width: 84px;
   flex: 1;
@@ -342,8 +340,6 @@
 
 /* === tokens =============================================================== */
 
-/* Keeps the compact label-left / value-right row, so the values still read as
-   one line — the separators are drawn, never typed. */
 .tokens {
   display: flex;
   min-width: 0;
@@ -429,17 +425,12 @@
   outline-offset: 2px;
 }
 
-/* === quieter batch ========================================================
-   Everything below sits in the card's own `.row-field`: muted label on the left,
-   content on the right, nothing else at rest. No new fills, radii or shadows. */
+/* === quieter batch ======================================================== */
 
-/* A block of values needs its label at the top of the block, not centred on it. */
 .row-top {
   align-items: flex-start;
 }
 
-/* Values on one line, scrolling sideways rather than wrapping, so the row keeps
-   the same height as any other. */
 .quiet-line {
   display: flex;
   min-width: 0;
@@ -459,7 +450,6 @@
   gap: 7px;
 }
 
-/* Indistinguishable from the text beside it until the caret is in it. */
 .quiet-input {
   flex: none;
   min-width: 0.6em;
@@ -505,14 +495,13 @@
   border-radius: 2px;
 }
 
-/* On the value itself, not the line it sits in: the line is not the field. */
+/* On the value, not the line it sits in. */
 .quiet-input:focus-visible {
   outline: 2px solid var(--color-text-primary);
   outline-offset: 2px;
   border-radius: 2px;
 }
 
-/* The list as plain words, the one on the card in full colour. */
 .quiet-jump {
   flex: none;
   border: 0;
@@ -537,13 +526,11 @@
   border-radius: 2px;
 }
 
-/* The stage's own text, standing in for the rolled value while it's being typed. */
 .stage-text {
   cursor: text;
 }
 
-/* No `font` here: it would beat the size and weight classes the input shares with
-   the rolling text, since these rules are unlayered and Tailwind's are not. */
+/* No `font` here: unlayered, it would beat Tailwind's size and weight classes. */
 .stage-edit {
   position: absolute;
   left: 50%;
@@ -558,8 +545,7 @@
   outline: none;
 }
 
-/* Words whose delete only exists under the cursor. The slot it appears in is
-   always reserved, so revealing it never nudges the line. */
+/* The delete's slot stays reserved, so revealing it never nudges the line. */
 .word-slot {
   position: relative;
   display: flex;
@@ -617,7 +603,6 @@
   outline-offset: 1px;
 }
 
-/* Same trick for the add: reserved width, revealed with the row. */
 .quiet-add {
   display: flex;
   flex: none;

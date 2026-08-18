@@ -1,16 +1,11 @@
 import type { Scritto } from '@scritto/core'
-import { cancelPendingTicks, playTick } from './sounds'
-
-// Slider with rubber-band overscroll, pointer drag, and an editable value, all
-// driven by a rAF loop rather than a motion library.
+import { reducedMotion } from '../lib/motion'
+import { cancelPendingTicks, playTick } from '../lib/sounds'
 
 const PROP_CHANGE_DURATION = 350
 const PROP_CHANGE_EASE = [0.32, 0.72, 0, 1] as const
-// Mirrors the prop-change tween so the digits finish morphing as the fill settles.
 const READOUT_DURATION = 300
 const CLICK_THRESHOLD = 3
-// Snap-between-steps ease. Accelerates from rest then settles, so the fill
-// reads as a magnetic snap to the next detent.
 const STEP_SNAP_DURATION = 80
 const STEP_SNAP_EASE = [0, 0.55, 0.45, 1] as const
 
@@ -27,13 +22,6 @@ const TUNING = {
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
 const snap = (n: number, step: number) => (step > 0 ? Math.round(n / step) * step : n)
 
-const prefersReducedMotion = () =>
-  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
-
-/**
- * Widest legal display in characters, so the readout column can reserve a stable
- * width. Without it a 2→3 digit change tugs the label sideways.
- */
 const reservedChars = (
   min: number,
   max: number,
@@ -95,7 +83,7 @@ const tween = (
   onUpdate: (value: number) => void,
   onDone?: () => void,
 ): Stop => {
-  if (prefersReducedMotion() || duration <= 0 || from === to) {
+  if (reducedMotion() || duration <= 0 || from === to) {
     onUpdate(to)
     onDone?.()
     return NOOP
@@ -112,7 +100,7 @@ const tween = (
 
 /** Release spring for the rubber band, integrated at a fixed sub-step. */
 const springHome = (from: number, onUpdate: (value: number) => void): Stop => {
-  if (prefersReducedMotion()) {
+  if (reducedMotion()) {
     onUpdate(0)
     return NOOP
   }
@@ -167,8 +155,6 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
 
   let value = clamp(snap(config.value, step), min, max)
   const initialValue = value
-  // Stays in [min, max]: what the readout and fill show. Decoupled from the
-  // visible stretch so the readout never displays an illegal value.
   let reported = value
 
   mount.innerHTML = `
@@ -228,7 +214,6 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
 
   paint()
 
-  // --- rubber band -------------------------------------------------------
   let stretchPx = 0
   let stopStretch: Stop = NOOP
 
@@ -265,7 +250,6 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     stopStretch = springHome(stretchPx, setStretch)
   }
 
-  // --- value plumbing ----------------------------------------------------
   let stopProp: Stop = NOOP
   let stopPointer: Stop = NOOP
   let snapFrame = 0
@@ -302,13 +286,11 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     onChange(next, fromDrag)
   }
 
-  /** Tween the fill toward the committed value — used for every non-drag change. */
   const settle = () => {
     stopProp()
     stopProp = tween(reported, value, PROP_CHANGE_DURATION, PROP_EASE, setReported)
   }
 
-  // --- pointer drag ------------------------------------------------------
   let pointerId: number | null = null
   let lastStepped: number | null = null
   let downAt: { x: number; y: number } | null = null
@@ -326,9 +308,9 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
       const crossed = Math.round(Math.abs(stepped - (lastStepped ?? stepped)) / step)
       playTick()
       lastStepped = stepped
-      // Keep one rAF loop alive while retargeting. Cancel-and-restart can drop
-      // every update when pointer events arrive faster than display frames.
-      if (prefersReducedMotion() || crossed > 1) {
+      // One rAF loop stays alive: cancel-and-restart drops updates when pointer
+      // events outrun display frames.
+      if (reducedMotion() || crossed > 1) {
         stopSnap()
         setReported(stepped)
       } else {
@@ -352,14 +334,10 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     isClick = true
     downAt = { x: event.clientX, y: event.clientY }
 
-    // Tween toward the tapped position; a drag past the threshold cancels this
-    // and switches to direct tracking, otherwise it plays out as tap-to-jump.
     const target = valueAt(event.clientX, rect)
     lastStepped = target
-    // Tick once per detent the fill crosses on the way, so a tap-to-jump sounds
-    // like the bar travelling through them rather than landing in silence. A
-    // long jump collapses into a buzz under the audio layer's own rate cap,
-    // exactly as a fast drag does.
+    // Tick per detent crossed, so a tap-to-jump sounds like the bar travelling
+    // through them rather than landing in silence.
     let lastTick = clamp(snap(reported, step), min, max)
     const reportAndTick = (next: number) => {
       setReported(next)
@@ -382,15 +360,14 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     applyPointer(event.clientX)
   })
 
-  // Fires on pointerup, on the pointer leaving the element, and on a forced
-  // OS-level release — pointerup alone misses the finger-flies-off case.
+  // Also covers the pointer leaving and a forced OS release, which pointerup misses.
   drag.addEventListener('lostpointercapture', (event) => {
     if (pointerId !== event.pointerId) return
     dragging = false
     pointerId = null
     releaseStretch()
-    // After a real drag `reported` can hold a sub-step fraction; tween it to the
-    // committed value. A tap already animated toward its target.
+    // A real drag can leave `reported` on a sub-step fraction; a tap already
+    // animated toward its target.
     if (!isClick) {
       stopPointer()
       stopPointer = tween(reported, value, PROP_CHANGE_DURATION, PROP_EASE, setReported)
@@ -400,12 +377,10 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     downAt = null
     lastStepped = null
     stopSnap()
-    // Without this a fast flick that queued ~40ms of ticks keeps clicking after
-    // the finger is gone.
+    // A fast flick queues ticks that would keep clicking after the finger is gone.
     cancelPendingTicks()
   })
 
-  // --- keyboard ----------------------------------------------------------
   rangeInput.addEventListener('input', () => {
     if (dragging) return
     const next = Number(rangeInput.value)
@@ -432,11 +407,9 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     settle()
   })
 
-  // --- click-to-type readout --------------------------------------------
   const seed = formatSeed ?? format
-  // Hiding the input blurs it, and blur commits — so Escape has to close the
-  // edit out from under its own blur handler or it commits the draft it was
-  // asked to throw away.
+  // Hiding the input blurs it and blur commits, so Escape must close the edit
+  // out from under its own blur handler.
   let editing = false
 
   const endEdit = () => {
@@ -456,7 +429,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
 
   const commitEdit = () => {
     if (!editing) return
-    // Lenient on purpose: a decorated seed like "Default – 0.20" still round-trips.
+    // Lenient: a decorated seed like "Default – 0.20" still round-trips.
     const parsed = parseFloat(input.value)
     if (!Number.isNaN(parsed)) {
       const next = clamp(snap(parsed, step), min, max)
@@ -495,7 +468,6 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     settle()
   })
 
-  // Double-clicking the label reverts to the value the slider mounted with.
   pick<HTMLElement>('label').addEventListener('dblclick', () => {
     if (initialValue === value) return
     commit(initialValue, false)
@@ -506,6 +478,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     get value() {
       return value
     },
+    edit: beginEdit,
     set(next: number) {
       const stepped = clamp(snap(next, step), min, max)
       if (stepped === value) return

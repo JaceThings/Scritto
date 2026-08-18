@@ -1,9 +1,11 @@
 import type { Scritto } from '@scritto/core'
 import { bindThemeToggle } from './theme'
 
+const BASELINE_URL = 'https://esm.sh/@scritto/core@0.1.4'
+
 const baseline = new URLSearchParams(location.search).has('baseline')
-if (baseline) await import('https://esm.sh/@scritto/core@0.1.4')
-else await import('../../../packages/core/dist/index.js')
+if (baseline) await import(/* @vite-ignore */ BASELINE_URL)
+else await import('../../../../packages/core/dist/index.js')
 
 const COUNT = 100
 const ROUNDS = 50
@@ -23,7 +25,7 @@ for (let i = 0; i < COUNT; i++) {
 
 const leftover = () => {
   let n = 0
-  for (const host of hosts) n += host.shadowRoot?.getAnimations({ subtree: true }).length ?? 0
+  for (const host of hosts) n += host.shadowRoot?.getAnimations().length ?? 0
   return n
 }
 

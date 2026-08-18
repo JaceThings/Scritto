@@ -67,7 +67,7 @@ for (let i = 0; i < COUNT; i++) page.append(slotFor(i))
 
 const leftover = () => {
   let n = 0
-  for (const host of hosts) n += host.shadowRoot?.getAnimations({ subtree: true }).length ?? 0
+  for (const host of hosts) n += host.shadowRoot?.getAnimations().length ?? 0
   return n
 }
 
@@ -84,7 +84,7 @@ const samplePretext = () => {
   for (let i = 0; i < n; i++) {
     const host = hosts[i]
     const font = getComputedStyle(host).font
-    const value = host.value
+    const value = String(host.value)
     const whole = measureNaturalWidth(prepareWithSegments(value, font))
     const dom = host.getBoundingClientRect().width
     errors.push(Math.abs(whole - dom))

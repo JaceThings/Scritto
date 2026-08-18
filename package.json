@@ -12,6 +12,7 @@
     "bench:suite": "bun apps/website/scripts/run-suite.ts",
     "check:flow": "bun apps/website/scripts/check-flow.ts",
     "check:churn": "bun apps/website/scripts/check-churn.ts",
+    "check:stress": "bun apps/website/scripts/check-stress.ts",
     "ci:version": "changeset version && bun update && git add --all",
     "ci:publish": "for dir in packages/*; do (cd \"$dir\" && bun publish || true); done && changeset tag",
     "size": "bun run build && bun scripts/size.ts"

@@ -1,0 +1,36 @@
+@theme {
+  --color-bg: #f7f6f2;
+  --color-surface: #f7f6f2;
+  --color-text-primary: #73574a;
+  --color-text-secondary: rgba(154, 145, 138, 0.75);
+  --color-text-input: #7e756c;
+  --color-accent-green: #5b793f;
+  --color-live: #425c30;
+  --color-divider-from: rgba(115, 87, 74, 0.08);
+  --color-divider-to: rgba(115, 87, 74, 0);
+  --color-figure: #ffffff;
+  --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  --ease-out-quint: cubic-bezier(0.2, 0, 0, 1);
+  --ease-spring: linear(
+    0,
+    0.1052,
+    0.3155,
+    0.532,
+    0.7112,
+    0.8414,
+    0.9265,
+    0.9765,
+    1.0023,
+    1.013,
+    1.0151,
+    1.0133,
+    1.01,
+    1.0068,
+    1.0041,
+    1.0022,
+    1.001,
+    1
+  );
+}

@@ -22,6 +22,14 @@ const FIGURE_CORNERS: SmoothCornerOptions = {
   bottomRight: { radius: 20, smoothing: APPLE_SMOOTHING },
 }
 
+const FIGURE_PLAIN: SmoothCornerOptions = { radius: 12, smoothing: APPLE_SMOOTHING }
+
+const SURFACES: ReadonlyArray<[selector: string, corners: SmoothCornerOptions]> = [
+  ['.install-row', { radius: 8, smoothing: APPLE_SMOOTHING }],
+  ['.slider-track', { radius: 4, smoothing: APPLE_SMOOTHING }],
+  ['.pill > span', { radius: 8, smoothing: APPLE_SMOOTHING }],
+]
+
 const bound = new WeakSet<HTMLElement>()
 
 const attach = (el: HTMLElement, options: SmoothCornerOptions) => {
@@ -47,8 +55,8 @@ const attach = (el: HTMLElement, options: SmoothCornerOptions) => {
     const { width, height } = measured ?? extracted.size ?? getLayoutSize(el)
     if (width <= 0 || height <= 0) return
     el.style.clipPath = generateClipPath(width, height, options)
-    // Stylesheet radius is a first-paint fallback. Once the path is on, it
-    // has to go: CSS intersects the two and squares the curve off.
+    // The stylesheet radius is a first-paint fallback; leaving it on would
+    // intersect the path and square the curve off.
     el.style.borderRadius = '0'
     if (!effectsHandle) return
     const placed = measured && 'offsetLeft' in measured ? measured : undefined
@@ -78,25 +86,14 @@ const attach = (el: HTMLElement, options: SmoothCornerOptions) => {
   }
 }
 
-/** Clip the site's rounded surfaces to a smooth-corner path and follow it with extracted shadows. */
+/** Clips the site's rounded surfaces to a smooth-corner path, shadows following. */
 export const bindCorners = (root: ParentNode = document) => {
-  const stops: Array<() => void> = []
-
-  for (const el of root.querySelectorAll<HTMLElement>('.install-row')) {
-    stops.push(attach(el, { radius: 8, smoothing: APPLE_SMOOTHING }))
-  }
+  const stops = SURFACES.flatMap(([selector, corners]) =>
+    [...root.querySelectorAll<HTMLElement>(selector)].map((el) => attach(el, corners)),
+  )
 
   for (const el of root.querySelectorAll<HTMLElement>('.figure')) {
-    const corners = el.querySelector('.row') ? FIGURE_CORNERS : { radius: 12, smoothing: APPLE_SMOOTHING }
-    stops.push(attach(el, corners))
-  }
-
-  for (const el of root.querySelectorAll<HTMLElement>('.slider-track')) {
-    stops.push(attach(el, { radius: 4, smoothing: APPLE_SMOOTHING }))
-  }
-
-  for (const el of root.querySelectorAll<HTMLElement>('.pill > span')) {
-    stops.push(attach(el, { radius: 8, smoothing: APPLE_SMOOTHING }))
+    stops.push(attach(el, el.querySelector('.row') ? FIGURE_CORNERS : FIGURE_PLAIN))
   }
 
   return () => {

@@ -1,13 +1,49 @@
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 import { fileURLToPath, URL } from 'node:url'
 import tailwindcss from '@tailwindcss/vite'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
+
+const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.url))
+
+const PAGES = ['index', 'playground', 'docs', 'bench', 'stress', 'suite', 'look', 'values']
+
+/**
+ * `<!-- @include footer.html i=14 -->` inlines `partials/footer.html`, filling
+ * `{{i}}` and `{{i+1}}` from the attributes. The three site pages share one
+ * masthead and footer this way rather than three copies.
+ */
+const partials = (): Plugin => {
+  const dir = path('./partials')
+  return {
+    name: 'html-partials',
+    transformIndexHtml: {
+      order: 'pre',
+      handler: (html) =>
+        html.replace(/[ \t]*<!--\s*@include\s+([\w.-]+)([^>]*?)-->/g, (_, file, args) => {
+          const vars = Object.fromEntries(
+            [...String(args).matchAll(/(\w+)=(\d+)/g)].map(([, key, value]) => [key, Number(value)]),
+          )
+          return readFileSync(join(dir, file), 'utf8')
+            .replace(/\{\{(\w+)(?:\+(\d+))?\}\}/g, (_m, key, add) =>
+              String((vars[key] ?? 0) + Number(add ?? 0)),
+            )
+            .trimEnd()
+        }),
+    },
+    handleHotUpdate({ file, server }) {
+      if (file.startsWith(dir)) server.hot.send({ type: 'full-reload' })
+    },
+  }
+}
 
 export default defineConfig({
-  plugins: [tailwindcss()],
+  plugins: [tailwindcss(), partials()],
   resolve: {
-    alias: {
-      '@scritto/core': fileURLToPath(new URL('../../packages/core/src/index.ts', import.meta.url)),
-    },
+    alias: [
+      { find: /^@scritto\/core$/, replacement: path('../../packages/core/src/index.ts') },
+      { find: '@scritto/core/ssr.css', replacement: path('../../packages/core/src/ssr.css') },
+    ],
   },
   server: {
     port: 5175,
@@ -16,16 +52,7 @@ export default defineConfig({
   build: {
     target: 'esnext',
     rollupOptions: {
-      input: {
-        main: fileURLToPath(new URL('./index.html', import.meta.url)),
-        playground: fileURLToPath(new URL('./playground.html', import.meta.url)),
-        docs: fileURLToPath(new URL('./docs.html', import.meta.url)),
-        bench: fileURLToPath(new URL('./bench.html', import.meta.url)),
-        stress: fileURLToPath(new URL('./stress.html', import.meta.url)),
-        suite: fileURLToPath(new URL('./suite.html', import.meta.url)),
-        look: fileURLToPath(new URL('./look.html', import.meta.url)),
-        values: fileURLToPath(new URL('./values.html', import.meta.url)),
-      },
+      input: Object.fromEntries(PAGES.map((page) => [page, path(`./${page}.html`)])),
     },
   },
 })

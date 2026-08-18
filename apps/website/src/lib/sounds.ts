@@ -1,17 +1,9 @@
-// UI sounds. Short Opus files for discrete events (click, copy, pill), a Web
-// Audio synth for the slider tick (sub-millisecond timing, fires dozens per
-// second during drags), and a silent looper that keeps iOS Safari on the media
-// audio session so the synth ignores the silent switch.
-
-// === File-based sounds =====================================================
-// Fresh `Audio` per play so rapid triggers overlap instead of cutting each
-// other off. play() rejects under autoplay policy until first interaction;
-// the rejection is swallowed.
+// Short files for discrete events, a Web Audio synth for the slider tick (it
+// fires dozens of times a second during a drag), and a silent looper that keeps
+// iOS Safari on the media audio session so the synth ignores the silent switch.
 
 const SOUND_FILES = ['/click.webm', '/copy-success.webm', '/pill-select.webm', '/silent.webm'] as const
 
-// Eager prefetch at module load (~39 KB): `preload = "auto"` warms the cache so
-// the first interaction plays without a cold-cache wait.
 for (const src of SOUND_FILES) {
   const a = new Audio(src)
   a.preload = 'auto'
@@ -27,11 +19,6 @@ export const playClick = () => playFile('/click.webm', 0.6)
 export const playCopySuccess = () => playFile('/copy-success.webm', 0.5)
 export const playPillSelect = () => playFile('/pill-select.webm', 0.6)
 
-// === Tick (synthesised) ====================================================
-// 5.5 kHz sine partial (6 ms exp decay) + 2 ms white-noise burst through a
-// Q=18 bandpass at 5.5 kHz. The resonant filter rings like a small rigid
-// object — ratchet-pawl / comb-tooth click.
-
 const TICK_VOLUME = 0.075
 const TICK_FREQ = 5500
 const TICK_DECAY_SEC = 0.006
@@ -45,17 +32,11 @@ const audio = () => {
   return ctx
 }
 
-// iOS Safari quirks the synth has to navigate, both fixed on first user
-// gesture:
-//   1. AudioContext starts suspended; the slider tick fires from a pointermove
-//      handler, well past the gesture's call stack — too late for an
-//      in-handler resume() to take effect. Resume + schedule a 1-sample silent
-//      buffer here to fully unlock.
-//   2. WebAudio defaults to the "ringer" audio session, which the hardware
-//      silent switch mutes. `navigator.audioSession.type = "playback"`
-//      requests the media session; iOS only honours it while an HTML5 audio
-//      source is live, so a silent looping `<audio>` keeps the page glued to
-//      the media session and the synth rides on it.
+// Two iOS Safari quirks, both only fixable inside a user gesture: the context
+// starts suspended and a tick from pointermove is too late to resume it, and
+// WebAudio defaults to the ringer session that the silent switch mutes. iOS
+// honours the playback session only while an HTML5 source is live, hence the
+// silent loop.
 const unlock = () => {
   try {
     const c = audio()
@@ -87,7 +68,6 @@ const unlock = () => {
 window.addEventListener('pointerdown', unlock)
 window.addEventListener('keydown', unlock)
 
-// 0.5 s of pre-generated white noise, reused across every fire.
 let noiseBuffer: AudioBuffer | null = null
 const getNoise = (c: AudioContext) => {
   if (noiseBuffer) return noiseBuffer
@@ -98,10 +78,8 @@ const getNoise = (c: AudioContext) => {
   return noiseBuffer
 }
 
-// Audio cap at ~25 Hz. Faster than that, the ear stops resolving individual
-// clicks and they smear into a buzz. 40 ms gap keeps every tick its own event;
-// the matching queue-ahead means at most ~1 tick is ever pending, so a release
-// feels sharp even before cancelPendingTicks() runs.
+// ~25 Hz cap: past that the ear smears the clicks into a buzz. The matching
+// queue-ahead keeps at most one tick pending, so a release feels sharp.
 const TICK_MIN_GAP_SEC = 0.04
 const MAX_QUEUE_AHEAD_SEC = 0.04
 let nextTickTime = 0
@@ -140,12 +118,7 @@ const scheduleOneTick = (c: AudioContext, when: number) => {
   pending.push({ when, osc, noise })
 }
 
-/**
- * Cancel any tick still in the future. The currently-firing tick (if any) keeps
- * its decay — cutting an in-flight click sounds like a glitch. Past entries
- * already have a scheduled `.stop()` and will GC themselves once the sources
- * finish; their refs are dropped here so `pending` doesn't grow across drags.
- */
+/** Cancels queued ticks; one already sounding keeps its decay, since cutting it reads as a glitch. */
 export const cancelPendingTicks = () => {
   if (!ctx) return
   const now = ctx.currentTime
@@ -167,8 +140,6 @@ export const playTick = () => {
   try {
     const c = audio()
     const now = c.currentTime
-    // Schedule into the earliest free slot. If the queue already runs past the
-    // look-ahead, drop this tick rather than trailing the cursor.
     const when = Math.max(now, nextTickTime)
     if (when - now > MAX_QUEUE_AHEAD_SEC) return
     scheduleOneTick(c, when)

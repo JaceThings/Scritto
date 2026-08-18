@@ -1,13 +1,14 @@
-// Six ways to edit the value list, side by side, so one can be picked and the
-// other five thrown away. Every card is fully live: the presets load, the pills
-// track what you type, and the stage rolls whatever the editor holds.
+// Twelve live ways to edit the value list, side by side, so one can be picked
+// and the rest thrown away.
 
 import '@scritto/core'
 import type { Scritto } from '@scritto/core'
-import { bindCorners } from './corners'
-import { createPills } from './pills'
-import { playClick } from './sounds'
-import { springEasing } from './spring'
+import { bindCorners } from '../lib/corners'
+import { same } from '../lib/list'
+import { STATE_CHANGE_EASE } from '../lib/motion'
+import { createPills } from '../components/pills'
+import { playClick } from '../lib/sounds'
+import { springEasing } from '../lib/spring'
 
 const PRESETS = {
   Words: ['Creative', 'Create', 'Code', 'Code editor', 'Creator'],
@@ -24,10 +25,6 @@ const MODE_OPTIONS = [
   { value: 'Custom', label: 'Custom' },
 ] as const satisfies readonly { value: Mode; label: string }[]
 
-const same = (a: readonly string[], b: readonly string[]) =>
-  a.length === b.length && a.every((value, i) => value === b[i])
-
-/** Custom is just "none of the presets" — never a mode you have to opt into first. */
 const modeOf = (list: readonly string[]): Mode => {
   for (const name of Object.keys(PRESETS) as (keyof typeof PRESETS)[]) {
     if (same(list, PRESETS[name])) return name
@@ -92,19 +89,12 @@ const autosize = (input: HTMLInputElement, pad = 2) => {
 // === the card each option is dropped into ==================================
 
 type Ctl = {
-  /** What the editor last handed over. May hold blanks while someone is mid-edit. */
   readonly list: string[]
-  /** The rolling text itself, for the option that edits on the card. */
   readonly host: Scritto
-  /** Index into `list` of the value the stage is showing, or -1. */
   activeIndex(): number
-  /** Hands a new list over: rolls the stage, retitles the pills. */
   commit(next: string[]): void
-  /** Rolls the stage to one of the values without changing the list. */
   show(index: number): void
-  /** Rolls on to the next value, the same as clicking the card. */
   advance(): void
-  /** Fires whenever the stage moves, so an editor can follow along. */
   onShow(fn: () => void): void
 }
 
@@ -196,8 +186,7 @@ const createCard = (parent: Element, variant: Variant, order: number) => {
       if (!values.length) return
       let rank = 0
       for (let i = 0; i < index && i < list.length; i++) if (list[i]) rank += 1
-      // A blank entry someone is about to type into has no slot of its own yet, so
-      // hold on the last real value rather than wrapping back to the first.
+      // A blank entry has no slot yet: hold the last real value rather than wrap.
       cursor = Math.min(rank, values.length - 1)
       paint(true)
     },
@@ -213,8 +202,6 @@ const createCard = (parent: Element, variant: Variant, order: number) => {
   const editor = variant.build(editorMount, ctl)
 
   const pills = createPills(pillMount, MODE_OPTIONS, 'Words', (mode) => {
-    // Custom has nothing of its own to load — it's whatever you type — so it puts
-    // the caret where you'd type it.
     if (mode === 'Custom') {
       editor.focus()
       return
@@ -231,8 +218,7 @@ const createCard = (parent: Element, variant: Variant, order: number) => {
     paint(true)
   })
 
-  // Only now: a textarea that has to grow to fit its text, and an input sized to
-  // its own content, both measure 0 until they're in the document.
+  // Content-sized inputs measure 0 until they are in the document.
   parent.append(section)
   editor.sync()
   paint(false)
@@ -275,8 +261,7 @@ const chipsEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
       autosize(text)
       push()
     })
-    // An emptied chip is a deletion, but only once the caret leaves — clearing it
-    // to retype shouldn't yank the field out from under you.
+    // An emptied chip is a deletion only once the caret leaves.
     text.addEventListener('blur', () => {
       if (text.value.trim()) return
       chip.remove()
@@ -448,7 +433,6 @@ const stepperEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
     ctl.show(at)
   })
 
-  // Clicking the card walks the list, so the stepper walks with it.
   ctl.onShow(() => {
     const active = ctl.activeIndex()
     if (active < 0 || active === at) return
@@ -471,7 +455,7 @@ const stepperEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
 
 // === 4 · list ==============================================================
 
-const REORDER_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)'
+const REORDER_EASE = STATE_CHANGE_EASE
 
 const listEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
   const rows = el('div', 'flex w-full flex-col')
@@ -510,7 +494,7 @@ const listEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
       const target = Math.max(0, Math.min(all.length - 1, from + Math.round(offset / height)))
       if (target === to) return
       to = target
-      // Everything between the row's old and new slot steps aside by exactly one row.
+      // Everything between the old and new slot steps aside by one row.
       for (const [i, other] of all.entries()) {
         if (other === row) continue
         const shift = from < to && i > from && i <= to ? -height : from > to && i >= to && i < from ? height : 0
@@ -650,7 +634,6 @@ const railEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
     text.setAttribute('aria-label', value || 'New value')
     autosize(text)
 
-    // Tap to roll to it; tap the one you're already on to rename it.
     const edit = () => {
       text.readOnly = false
       text.focus()
@@ -824,17 +807,12 @@ const tokensEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
   }
 }
 
-// ===========================================================================
-// Quieter batch. Nothing but the values themselves at rest: no counters, no
-// hints, no per-item buttons, no boxes. Everything reuses the card's own
-// label-left / content-right row, and every affordance is either a keystroke or
-// waits for a hover.
-// ===========================================================================
+// Quieter batch: nothing but the values at rest, every affordance a keystroke
+// or a hover.
 
 let seq = 0
 const uid = () => `values-${(seq += 1)}`
 
-/** A label bound to whatever input the editor puts beside it. */
 const fieldLabel = (input: HTMLElement) => {
   const label = el('label', 'row-label', 'Values')
   input.id = uid()
@@ -850,8 +828,7 @@ const caretTo = (input: HTMLInputElement, at: number) => {
 
 // === 7 · sentence ==========================================================
 
-// Split on a comma *followed by space*, so "1,234" stays one value and only a
-// value that wants ", " inside it is out of reach. Bare commas are literal.
+// Split on comma + space, so "1,234" stays one value.
 const SENTENCE_SPLIT = /,\s+/
 
 const sentenceEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
@@ -868,7 +845,6 @@ const sentenceEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
       input.value = ctl.list.join(', ')
     },
     focus() {
-      // Land after a trailing separator, so the next thing typed is a new value.
       if (input.value && !input.value.endsWith(', ')) input.value += ', '
       caretTo(input, input.value.length)
     },
@@ -920,8 +896,7 @@ const hopsEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
       const caret = input.selectionStart ?? 0
       const collapsed = caret === input.selectionEnd
       if (event.key === 'Enter' || event.key === ',') {
-        // A comma is punctuation the page draws, never a character you type: it
-        // splits the value at the caret instead of landing in the text.
+        // A comma is drawn, never typed: it splits the value at the caret.
         event.preventDefault()
         const tail = input.value.slice(caret)
         values[index] = input.value.slice(0, caret)
@@ -975,8 +950,7 @@ const currentEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
   input.setAttribute('aria-label', 'The value on the card')
   mount.append(fieldLabel(input), input)
 
-  // An entry that is still empty isn't in the rolling list yet, so it can't be
-  // found by asking the stage what it's showing — hold its index until it's real.
+  // An empty entry is not in the rolling list yet, so hold its index until it is.
   let slot: number | null = null
   const target = () => slot ?? ctl.activeIndex()
 
@@ -1018,9 +992,8 @@ const currentEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
   })
 
   const follow = () => {
-    // Never while the caret is in here. Clearing the field takes the value out of
-    // the roll, which moves the stage on — following that would refill the field
-    // with a different value mid-keystroke and rename the wrong one.
+    // Never while the caret is here: clearing the field moves the stage on, and
+    // following that would rename the wrong value mid-keystroke.
     if (slot !== null || document.activeElement === input) return
     input.value = ctl.list[ctl.activeIndex()] ?? ''
   }
@@ -1087,8 +1060,8 @@ const onCardEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
   const input = textInput(`stage-edit ${STAGE_TEXT}`)
   input.hidden = true
   input.setAttribute('aria-label', 'Edit this value')
-  // Over the stage, not inside it: a form control nested in a button is invalid, and
-  // every click on it would bubble out and advance the card.
+  // Over the stage, not inside it: a control nested in a button is invalid and
+  // its clicks would advance the card.
   figure.style.position = 'relative'
   figure.append(input)
 
@@ -1103,23 +1076,19 @@ const onCardEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
     input.style.top = `${trigger.offsetTop + trigger.offsetHeight / 2}px`
     input.value = ctl.list[at]
     autosize(input, 4)
-    // Left in the layout, just unpainted: hiding it outright would collapse the
-    // stage and shift the input it sits behind.
+    // Unpainted rather than hidden, which would collapse the stage.
     host.style.visibility = 'hidden'
     input.hidden = false
     input.focus()
     input.select()
   }
 
-  // The card still advances when clicked; the text itself opts out of that so it can
-  // be the field.
   host.addEventListener('pointerdown', (event) => {
     event.preventDefault()
     open()
   })
-  // Suppressing the click on the text is not enough: hiding it on pointerdown means
-  // the hit test at pointerup finds the card behind it, and the click arrives
-  // retargeted to the button. The editor being open is what identifies it.
+  // Hiding the text on pointerdown retargets the click to the card behind it, so
+  // an open editor is what identifies one to swallow.
   trigger.addEventListener(
     'click',
     (event) => {
@@ -1143,9 +1112,8 @@ const onCardEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
     if (event.key === 'Escape') {
       event.preventDefault()
       close()
-      // Back to the word for the value just edited. Not the element that opened the
-      // editor: an Enter chain re-renders the row, and focusing a detached button
-      // drops focus on the document instead.
+      // The word for the value just edited, not the element that opened the editor:
+      // an Enter chain re-renders the row and detaches it.
       line.querySelector<HTMLElement>('.quiet-jump[data-active="true"]')?.focus()
       return
     }
@@ -1164,8 +1132,8 @@ const onCardEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
         jump.type = 'button'
         jump.dataset.active = String(i === active)
         jump.setAttribute('aria-label', i === active ? `Edit ${value}` : `Show ${value}`)
-        // The stage's text can't be a tab stop — it lives inside the card's button —
-        // so the word for the value already showing is the keyboard way in to it.
+        // The stage's text lives inside the card's button, so the word for the
+        // value showing is the keyboard way in.
         jump.addEventListener('click', () => {
           if (i === ctl.activeIndex()) open()
           else ctl.show(i)
@@ -1194,8 +1162,8 @@ const wordsEditor = (mount: HTMLElement, ctl: Ctl): Editor => {
 
   const push = () => ctl.commit([...values])
 
-  // Removing a word rebuilds the row, so focus has to be put somewhere by hand or
-  // it lands on the document. The neighbour's delete, so repeated presses work.
+  // Removing a word rebuilds the row: focus the neighbour's delete so repeated
+  // presses work.
   const landAfterRemoving = (index: number) => {
     const slots = [...line.querySelectorAll<HTMLElement>('.word-slot')]
     const slot = slots[Math.min(index, slots.length - 1)]

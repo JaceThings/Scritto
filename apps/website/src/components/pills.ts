@@ -1,9 +1,4 @@
-// A segmented group that wraps, with the hit area grown past the visible
-// pill and the selected background crossfading on the same curve as the rest of
-// a preset change. Every pill stays in the tab order so each option is
-// reachable without arrows.
-
-import { playPillSelect } from './sounds'
+import { playPillSelect } from '../lib/sounds'
 
 export type PillOption<T extends string> = { value: T; label: string }
 
@@ -57,7 +52,7 @@ export const createPills = <T extends string>(
   mount.replaceChildren(...buttons)
 
   return {
-    /** Moves the selection without firing `onPick` — for when something else already did the work. */
+    /** Moves the selection without firing `onPick`. */
     set(value: T) {
       if (value === current) return
       current = value

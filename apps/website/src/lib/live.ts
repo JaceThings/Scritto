@@ -28,8 +28,6 @@ const body = (extra: Record<string, string | number>) =>
 const post = async (path: string, extra: Record<string, string | number> = {}) => {
   const res = await fetch(`${LIVE_URL}${path}`, {
     method: 'POST',
-    // text/plain keeps every write a CORS-simple request, so none of them pay a
-    // preflight; the server parses the body as JSON whatever the type claims.
     headers: { 'content-type': 'text/plain;charset=UTF-8' },
     body: body(extra),
   })
@@ -41,25 +39,20 @@ const CLICK_WRITE_MS = 2000
 
 const SOCKET_BASE_MS = 400
 const SOCKET_MAX_MS = 30_000
-// How long a connection has to last before the backoff is allowed to reset.
 const SOCKET_HEALTHY_MS = 10_000
 
 const COUNTS = ['views', 'uniques', 'you', 'here', 'clicks', 'npm'] as const
 
-// Our own 404 and 500 bodies are valid JSON, so a failed request that gets parsed
-// anyway yields undefined counts; one of those reaching the arithmetic turns the
-// running total into NaN, which then sticks and paints "NaN" into the sentence
-// until a reload.
+// Our error bodies are valid JSON, so a failed request parses into undefined
+// counts, and one of those reaching the arithmetic sticks "NaN" on screen.
 const sane = (stats: Stats) => COUNTS.every((field) => Number.isFinite(stats[field]))
 
 export const connectLive = (onStats: (stats: Stats) => void) => {
   let you = 0
   let latest: Stats | null = null
 
-  // Pokes are reported as a running total for this page load rather than one
-  // write per click, so writes can be coalesced without dropping pokes and a
-  // retried or duplicated write credits nothing twice: the server banks only
-  // the difference between the totals it has seen for this run.
+  // Pokes go up as a running total per page load, not one write per click: the
+  // server banks the difference, so a retried write credits nothing twice.
   let run = crypto.randomUUID()
   let seq = 0
   let acked = 0
@@ -67,9 +60,8 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
   let queued = 0
   let sending = false
 
-  // What goes on screen is the server's total plus the pokes of ours it has not
-  // banked yet. Clamping to our own running count instead would hide every other
-  // visitor's poke for as long as we are ahead of the server.
+  // The server's total plus our unbanked pokes; clamping to our own count would
+  // hide everyone else's while we are ahead.
   let server = 0
   const shown = () => server + Math.max(0, seq - acked)
 
@@ -81,11 +73,8 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
   const apply = (stats: Stats, from: 'hello' | 'write' | 'feed' = 'feed') => {
     if (!sane(stats)) return
     if (from === 'hello' && stats.you) you = stats.you
-    // A poll or socket frame that overlapped one of our writes cannot be trusted
-    // as a total: it may already count the pokes that write is banking, which
-    // paired with an `acked` that predates the write would count them twice. Any
-    // other total can only raise ours, so a response that predates our last
-    // write cannot walk the readout back either.
+    // A frame that overlapped one of our writes may already count the pokes that
+    // write is banking, which against a stale `acked` would count them twice.
     if (from === 'write' || !sending) server = Math.max(server, stats.clicks)
     emit({ ...stats, you, clicks: shown() })
   }
@@ -125,14 +114,10 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
     }
     socket.onclose = () => {
       socket = null
-      // The router disposes this page on every route change, and a close started
-      // by us must not schedule a reconnect: the timer would outlive the page and
-      // hold the whole closure, one immortal socket per navigation.
+      // A close we started must not reconnect: the timer would outlive the page.
       if (stopped) return
-      // Resetting the backoff the moment a socket opens let a server that accepts
-      // and drops immediately be retried at 400ms forever, so only a connection
-      // that lasted counts as healthy. Jitter keeps a redeploy from bringing every
-      // client back in lockstep.
+      // Only a connection that lasted counts as healthy, or a server that accepts
+      // and drops is retried at 400ms forever. Jitter avoids a lockstep stampede.
       if (openedAt && Date.now() - openedAt >= SOCKET_HEALTHY_MS) retries = 0
       const wait = Math.min(SOCKET_MAX_MS, SOCKET_BASE_MS * 2 ** retries++)
       reconnect = window.setTimeout(listen, wait / 2 + Math.random() * (wait / 2))
@@ -154,15 +139,13 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
       // Leave acked alone; the next write re-sends the same total.
     }
     sending = false
-    // The server clamps a burst to its per-IP budget, so anything it declined to
-    // bank stays pending and goes out with the next write instead of vanishing.
+    // Whatever the per-IP budget declined stays pending for the next write.
     if (acked < seq) {
       schedule()
       return
     }
-    // Square with the server, so the next poke opens a fresh run. A run is then
-    // only ever named while it still has unbanked pokes — seconds — which is what
-    // makes its expiry unable to strand a total that would be banked twice.
+    // Square with the server so the next poke opens a fresh run; a run only ever
+    // lives while it has unbanked pokes, so its expiry can strand nothing.
     run = crypto.randomUUID()
     seq = 0
     acked = 0
@@ -182,8 +165,6 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
   }
   document.addEventListener('click', onClick)
 
-  // Same simple-request reason as `post`, and doubly so here: the page is already
-  // gone to answer a preflight.
   const flush = () => {
     if (acked >= seq) return
     navigator.sendBeacon(
@@ -217,8 +198,6 @@ export const comma = (n: number) => (Number.isFinite(n) ? n.toLocaleString('en-U
 
 const unit = (n: number, name: string) => `${n} ${name}${n === 1 ? '' : 's'}`
 
-// Seconds stay on the end at every duration: the readout is only alive if its
-// last number turns over once a second.
 export const sitting = (seconds: number) => {
   const hours = Math.floor(seconds / 3600)
   const minutes = Math.floor(seconds / 60) % 60

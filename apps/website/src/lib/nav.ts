@@ -1,6 +1,5 @@
-// The masthead and footer never unmount: only `#page` swaps. The outgoing body
-// cross-fades out, the footer slides to its new position while the incoming body
-// is still hidden, and then the new body fades in.
+// Only `#page` swaps: the outgoing body fades out, the footer slides to its new
+// position while the incoming body is hidden, then the new body fades in.
 
 import { playClick } from './sounds'
 
@@ -47,7 +46,6 @@ export const startRouter = (pages: Record<string, PageInit>) => {
   const navigate = async (url: URL, push: boolean) => {
     if (busy) return
     busy = true
-    // The entrance cascade belongs to the first load; route changes cross-fade.
     document.documentElement.classList.add('routed')
     try {
       const doc = await load(url)
@@ -93,8 +91,6 @@ export const startRouter = (pages: Record<string, PageInit>) => {
     }
   }
 
-  // Scrolls to the top before navigating, so the persistent header is on screen
-  // when the body swaps.
   const leave = (url: URL, sameRoute: boolean) => {
     const go = () => {
       if (sameRoute) return
@@ -110,11 +106,9 @@ export const startRouter = (pages: Record<string, PageInit>) => {
       started = true
       go()
     }
-    // `scrollend` is missing on older Safari — feature-detect, and fall back to
-    // a distance-scaled timeout.
+    // `scrollend` is missing on older Safari; fall back to a scaled timeout.
     if (window.onscrollend !== undefined) {
       window.addEventListener('scrollend', once, { once: true })
-      // Safety net: scrollend can be missed on a re-click mid-scroll.
       window.setTimeout(once, 900)
     } else {
       window.setTimeout(once, Math.min(700, window.scrollY * 0.6))
@@ -134,8 +128,6 @@ export const startRouter = (pages: Record<string, PageInit>) => {
     const url = new URL(link.href, location.href)
     if (url.origin !== location.origin) return
     const sameRoute = normalize(url.pathname) === route
-    // Silent when it's the route we're already on — the link still scrolls to
-    // the top, but nothing navigated.
     if (!sameRoute) playClick()
     event.preventDefault()
     leave(url, sameRoute)
