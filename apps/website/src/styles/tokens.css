@@ -54,9 +54,7 @@
     --shadow-figure:
       0 0 0 0.75px rgba(254, 241, 223, 0.1),
       0 3px 7px -3px rgba(0, 0, 0, 0.4);
-    --shadow-install:
-      0 0 0 0.75px rgba(254, 241, 223, 0.14),
-      0 3px 7px -3px rgba(0, 0, 0, 0.5);
+    --shadow-install: 0 0 0 1px rgba(254, 241, 223, 0.1);
   }
 }
 
@@ -75,9 +73,7 @@
   --shadow-figure:
     0 0 0 0.75px rgba(254, 241, 223, 0.1),
     0 3px 7px -3px rgba(0, 0, 0, 0.4);
-  --shadow-install:
-    0 0 0 0.75px rgba(254, 241, 223, 0.14),
-    0 3px 7px -3px rgba(0, 0, 0, 0.5);
+  --shadow-install: 0 0 0 1px rgba(254, 241, 223, 0.1);
 }
 
 @theme {
