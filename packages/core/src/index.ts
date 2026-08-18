@@ -1,3 +1,4 @@
+import { edgeSamples, linearOf, netPushes, type Glyph, type Push } from './edge'
 import type { ScrittoOptions, Transition, Trend, Value } from './types'
 import {
   ServerSafeHTMLElement,
@@ -13,9 +14,18 @@ import {
   clearAnimStyle,
   resetAnim,
   finishIdentityAnim,
+  numberOf,
   type Char,
 } from './helpers'
-import { BOUNCE_TRANSITION, CONFIG, DEFAULT_TRANSITION, SPACE, STYLES } from './const'
+import {
+  BOUNCE_TRANSITION,
+  CONFIG,
+  DEFAULT_TRANSITION,
+  SHRINK_EASING,
+  SPACE,
+  STYLES,
+  WIDTH_ANIM,
+} from './const'
 import { ScrittoFlow, playFlows, prepareFlows } from './flow'
 
 let styleSheet: CSSStyleSheet
@@ -34,6 +44,10 @@ type Layout = {
 }
 
 type Plan = Layout & {
+  /** Host width before the commit, for the standalone width transition. */
+  fromW: number
+  /** The row's start edge before the commit; everything old is placed relative to it. */
+  fromEdge: number
   enters: HTMLElement[]
   trend: number
   oldPrefixX: number
@@ -42,9 +56,15 @@ type Plan = Layout & {
   oldRunTop: number
   exitingX: number
   tailX: number
+  /** Each exiting glyph's distance along the row from the old start edge, and its width. */
+  exitGlyphs: Glyph[]
+  tailGlyphs: Glyph[]
 }
 
+type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; entry: [HTMLElement, number] }
+
 const centerX = (rect: DOMRect) => (rect.left + rect.right) * 0.5
+const startOf = (rect: DOMRect, rtl: boolean) => (rtl ? rect.right : rect.left)
 const pending = new Set<Scritto>()
 let flushScheduled = false
 export const flushStats = { prepare: 0, commit: 0, finish: 0, hosts: 0 }
@@ -89,8 +109,18 @@ class Scritto extends ServerSafeHTMLElement {
   private _middle = createEl('span', 'section')
   private _suffix = createEl('span', 'section')
   private _tail = createEl('span', 'section')
+  private _exits = createEl('span', 'exits')
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
+  private _exitQueue: QueuedExit[] = []
+  private _pushes: Push[] = []
+  // The last exiting char finishes at `duration + its delay`, not at
+  // `duration` — a listener pacing itself off `transition.duration` alone
+  // (the flow's same-line word slide, notably) finishes early and arrives
+  // while the tail end of the roll is still fading. Reset per commit, grown
+  // by `_startExits` to the longest delay actually queued this round.
+  private _exitTail = 0
+  private _blockified = false
   private _isRTL = false
   private _value = ''
   private _prevValue = ''
@@ -102,12 +132,14 @@ class Scritto extends ServerSafeHTMLElement {
   public trend: Trend = 0
   public respectMotionPreference = true
   public bounce = false
+  public wave = false
 
   constructor() {
     super()
     const shadow = this.attachShadow({ mode: 'open' })
     if (styleSheet) shadow.adoptedStyleSheets = [styleSheet]
-    shadow.append(this._prefix, this._middle, this._suffix, this._tail)
+    this._exits.toggleAttribute('inert', true)
+    shadow.append(this._prefix, this._middle, this._suffix, this._tail, this._exits)
   }
 
   connectedCallback() {
@@ -154,8 +186,9 @@ class Scritto extends ServerSafeHTMLElement {
     this.dispatchEvent(new CustomEvent('scrittochange', { bubbles: true, detail: { phase, animate } }))
   }
 
-  setOptions({ bounce, transition, trend, respectMotionPreference }: ScrittoOptions) {
+  setOptions({ bounce, transition, trend, respectMotionPreference, wave }: ScrittoOptions) {
     if (bounce === true || bounce === false) this.bounce = bounce
+    if (wave === true || wave === false) this.wave = wave
     if (transition || bounce === true || bounce === false) {
       this.transition = { ...(this.bounce ? BOUNCE_TRANSITION : DEFAULT_TRANSITION), ...transition }
     }
@@ -185,8 +218,9 @@ class Scritto extends ServerSafeHTMLElement {
       return
     }
     this._cancelTracked()
-    this._queueExit(this._chars.slice(plan.prefixCount, plan.oldSuffix), plan.exitingX, plan.trend)
-    this._queueExit(plan.exitingTail, plan.tailX, plan.trend)
+    this._exitTail = 0
+    this._queueExit(this._chars.slice(plan.prefixCount, plan.oldSuffix), plan.exitingX, plan.exitGlyphs)
+    this._queueExit(plan.exitingTail, plan.tailX, plan.tailGlyphs)
     this._commit(plan.next, plan.prefixCount, plan.midEnd, plan.suffixCount)
     for (let i = 0; i < plan.enters.length; i++) if (plan.enters[i].textContent !== SPACE) plan.enters[i].style.opacity = '0'
     clearAnimStyle(this._prefix)
@@ -202,24 +236,105 @@ class Scritto extends ServerSafeHTMLElement {
     const prefixAnchor = plan.prefixCount ? this._chars[0].getBoundingClientRect() : null
     const suffixAnchor = plan.suffixCount ? this._chars[plan.midEnd].getBoundingClientRect() : null
     const edge = this._isRTL ? newPrefix.right : newPrefix.left
+    const toW = this.getBoundingClientRect().width
+    // The roll sweeps the row start to end over a fixed share of the duration,
+    // and a glyph joins it by where it stands, not by its index in its own
+    // string — so an old glyph and the new one under it fade together, rather
+    // than a long tail of the old value still standing over the new one.
+    const span = Math.max(plan.fromW, toW) || 1
+    const sweep = this.transition.duration * CONFIG.stagger
+    const delayAt = (offset: number) => (sweep * Math.min(offset, span)) / span
+    const enterGlyphs: Glyph[] = plan.enters.map((el) => {
+      const rect = el.getBoundingClientRect()
+      return { offset: Math.abs(startOf(rect, this._isRTL) - edge), width: rect.width }
+    })
+    const enterDelays = enterGlyphs.map((g) => delayAt(g.offset))
+    this._startExits(plan.trend, delayAt)
+    // Everything after a change is carried by the change's own glyphs; the
+    // suffix by the middle, the host's end (and so whatever follows it) by all.
+    const midEnters = plan.midEnd - plan.prefixCount
+    const midPushes = netPushes(enterGlyphs.slice(0, midEnters), plan.exitGlyphs, delayAt)
+    this._pushes = netPushes(enterGlyphs, plan.exitGlyphs.concat(plan.tailGlyphs), delayAt)
+    const total = this.transition.duration + this._exitTail
+    const midSamples = this.wave ? edgeSamples(midPushes, this.transition, total) : null
+    const suffixEasing = midSamples ? linearOf(midSamples) : SHRINK_EASING
+    // Old glyphs and kept runs are placed by where they stood along the row,
+    // not on the page: the row's own start can move — a centred value grows
+    // both ways, a flow's line re-centres — and that motion is the box's (or
+    // the flow's) to carry, with the whole row riding along. A run's slide is
+    // only the change in its distance from the start.
+    const rowShift = plan.fromEdge - edge
     for (let i = 0; i < this._exitingChars.length; i++) {
       const [el, x] = this._exitingChars[i]
-      el.style.transform = `translateX(${x - edge}px)`
+      el.style.transform = `translateX(${x - plan.fromEdge}px)`
     }
     const line = newPrefix.height || 1
     const prefixDx =
       !prefixAnchor || Math.abs(newPrefix.top - plan.oldPrefixTop) >= line * 0.5
         ? 0
-        : plan.oldPrefixX - centerX(prefixAnchor)
+        : plan.oldPrefixX - centerX(prefixAnchor) - rowShift
     const suffixDx =
       !suffixAnchor || Math.abs(newSuffix.top - plan.oldRunTop) >= line * 0.5
         ? 0
-        : plan.oldRunX - centerX(suffixAnchor)
-    const prefixFlip = flip(this._prefix, prefixDx, this.transition, true)
-    const suffixFlip = flip(this._suffix, suffixDx, this.transition, true)
+        : plan.oldRunX - centerX(suffixAnchor) - rowShift
+    const prefixFlip = flip(this._prefix, prefixDx, total, this._edgeEasing(total), true)
+    const suffixFlip = flip(this._suffix, suffixDx, total, suffixEasing, true)
     if (prefixFlip) this._anims.push(prefixFlip)
     if (suffixFlip) this._anims.push(suffixFlip)
-    this._armEnters(plan.enters, plan.trend)
+    this._armEnters(plan.enters, plan.trend, enterDelays)
+    if (!this.closest('scritto-flow')) this._transitionWidth(plan.fromW, toW)
+  }
+
+  /**
+   * On its own the host lets its width settle over the transition instead of
+   * snapping, so whatever follows it slides rather than jumps — and, on a
+   * shrink, the old glyphs dissolve at the edge rather than over the neighbour.
+   * Width needs a box, so an inline host is made inline-block for the
+   * duration; its vertical padding and border are cancelled out with margins
+   * so the line it sits on does not change height while it is one. Inside a
+   * <scritto-flow> the flow drives this itself, since it also has to carry
+   * words round line ends, which layout alone cannot.
+   *
+   * The content is start-aligned inside the box, so wherever the box is
+   * anchored — a centred value grows both ways, an end-aligned one leftward —
+   * the row starts where the box starts and moves with it, on the same curve
+   * as the width; the glyphs were placed relative to that start.
+   */
+  private _transitionWidth(fromW: number, toW: number) {
+    if (Math.abs(toW - fromW) < 0.5) return
+    const css = getComputedStyle(this)
+    if (css.display === 'inline') {
+      const top = (parseFloat(css.paddingTop) || 0) + (parseFloat(css.borderTopWidth) || 0)
+      const bottom = (parseFloat(css.paddingBottom) || 0) + (parseFloat(css.borderBottomWidth) || 0)
+      this.style.display = 'inline-block'
+      if (top) this.style.marginTop = `${-top}px`
+      if (bottom) this.style.marginBottom = `${-bottom}px`
+      this._blockified = true
+    }
+    this.style.textAlign = 'start'
+    this.setAttribute('data-shrink-clip', '')
+    const total = this.transition.duration + this._exitTail
+    const anim = this.animate(
+      { width: [`${fromW}px`, `${toW}px`] },
+      { duration: total, easing: this._edgeEasing(total), fill: 'forwards' },
+    )
+    anim.id = WIDTH_ANIM
+    anim.onfinish = () => {
+      anim.cancel()
+      this._clearWidth()
+    }
+    this._anims.push(anim)
+  }
+
+  private _clearWidth() {
+    if (this._blockified) {
+      this.style.display = ''
+      this.style.marginTop = ''
+      this.style.marginBottom = ''
+      this._blockified = false
+    }
+    this.style.textAlign = ''
+    this.removeAttribute('data-shrink-clip')
   }
 
   private _buildLayout(): Layout | null {
@@ -261,9 +376,9 @@ class Scritto extends ServerSafeHTMLElement {
 
     let trend = this.trend
     if (!trend) {
-      const cur = parseFloat(this._value)
-      const prev = parseFloat(this._prevValue)
-      trend = !isNaN(cur) && !isNaN(prev) ? (cur > prev ? 1 : -1) : 1
+      const cur = numberOf(this._value)
+      const prev = numberOf(this._prevValue)
+      trend = cur !== null && prev !== null ? (cur > prev ? 1 : -1) : 1
     }
 
     const oldPrefix = this._prefix.getBoundingClientRect()
@@ -298,8 +413,16 @@ class Scritto extends ServerSafeHTMLElement {
     }
     const prefixAnchorRect = prefixAnchor?.getBoundingClientRect()
     const runAnchorRect = runAnchor?.getBoundingClientRect()
+    const fromEdge = startOf(oldPrefix, this._isRTL)
+    const glyphsOf = (nodes: HTMLElement[]): Glyph[] =>
+      nodes.map((el) => {
+        const rect = el.getBoundingClientRect()
+        return { offset: Math.abs(startOf(rect, this._isRTL) - fromEdge), width: rect.width }
+      })
     return {
       ...layout,
+      fromW: this.getBoundingClientRect().width,
+      fromEdge,
       enters: next.slice(prefixCount, midEnd).concat(next.slice(midEnd + suffixCount)),
       trend,
       oldPrefixX: prefixAnchorRect ? centerX(prefixAnchorRect) : 0,
@@ -308,6 +431,8 @@ class Scritto extends ServerSafeHTMLElement {
       oldRunTop: runAnchor ? sectionRect(runAnchor.parentElement!).top : oldSuffixRect.top,
       exitingX: prefixCount < oldSuffix ? exitX(this._chars[prefixCount]) : 0,
       tailX: exitingTail.length ? exitX(exitingTail[0]) : 0,
+      exitGlyphs: glyphsOf(this._chars.slice(prefixCount, oldSuffix)),
+      tailGlyphs: glyphsOf(exitingTail),
     }
   }
 
@@ -335,7 +460,22 @@ class Scritto extends ServerSafeHTMLElement {
     this._chars = chars
   }
 
-  private _queueExit(nodes: HTMLElement[], x: number, trend: number) {
+  /** How much longer this update's exiting glyphs run past `transition.duration`. */
+  _exitTailMs() {
+    return this._exitTail
+  }
+
+  /** The curve everything displaced by this update's change follows over `total` ms, sampled. */
+  _edgeSamples(total: number) {
+    return this.wave ? edgeSamples(this._pushes, this.transition, total) : null
+  }
+
+  _edgeEasing(total: number) {
+    const samples = this._edgeSamples(total)
+    return samples ? linearOf(samples) : SHRINK_EASING
+  }
+
+  private _queueExit(nodes: HTMLElement[], x: number, glyphs: Glyph[]) {
     if (!nodes.length) return
     const group = createEl('span')
     group.toggleAttribute('inert', true)
@@ -345,40 +485,47 @@ class Scritto extends ServerSafeHTMLElement {
     }
     const entry: [HTMLElement, number] = [group, x]
     this._exitingChars.push(entry)
-    this.shadowRoot!.appendChild(group)
+    this._exits.appendChild(group)
+    this._exitQueue.push({ group, nodes, glyphs, entry })
+  }
 
-    let left = nodes.length
-    const stagger = this._stagger(nodes)
-    for (let i = 0; i < nodes.length; i++) {
-      this._animateChar(nodes[i], true, trend, i * stagger, () => {
-        // The group owns these chars until they are released, and releasing one
-        // detaches it. A char that has left the group was torn down early and is
-        // already back in the pool, or already standing in another value, where
-        // releasing it a second time would take a glyph off the screen.
-        if (nodes[i].parentNode !== group) return
-        releaseChar(nodes[i])
-        if (--left === 0) {
-          group.remove()
-          const idx = this._exitingChars.indexOf(entry)
-          if (idx !== -1) this._exitingChars.splice(idx, 1)
-        }
-      })
+  private _startExits(trend: number, delayAt: (offset: number) => number) {
+    const queue = this._exitQueue
+    this._exitQueue = []
+    for (const { group, nodes, glyphs, entry } of queue) {
+      let left = nodes.length
+      for (let i = 0; i < nodes.length; i++) {
+        const delay = delayAt(glyphs[i].offset)
+        this._exitTail = Math.max(this._exitTail, delay)
+        this._animateChar(nodes[i], true, trend, delay, () => {
+          // The group owns these chars until they are released, and releasing one
+          // detaches it. A char that has left the group was torn down early and is
+          // already back in the pool, or already standing in another value, where
+          // releasing it a second time would take a glyph off the screen.
+          if (nodes[i].parentNode !== group) return
+          releaseChar(nodes[i])
+          if (--left === 0) {
+            group.remove()
+            const idx = this._exitingChars.indexOf(entry)
+            if (idx !== -1) this._exitingChars.splice(idx, 1)
+          }
+        })
+      }
     }
   }
 
-  private _armEnters(enters: HTMLElement[], trend: number) {
-    const pending = enters.filter((el) => el.textContent !== SPACE)
-    if (!pending.length) return
-    const stagger = this._stagger(pending)
-    for (let i = 0; i < pending.length; i++) {
-      pending[i].style.opacity = ''
-      this._animateChar(pending[i], false, trend, i * stagger)
+  private _armEnters(enters: HTMLElement[], trend: number, delays: number[]) {
+    for (let i = 0; i < enters.length; i++) {
+      if (enters[i].textContent === SPACE) continue
+      enters[i].style.opacity = ''
+      this._animateChar(enters[i], false, trend, delays[i])
     }
   }
 
   private _cancelTracked() {
     for (let i = 0; i < this._anims.length; i++) this._anims[i].cancel()
     this._anims.length = 0
+    this._clearWidth()
   }
 
   private _reset() {
@@ -389,6 +536,7 @@ class Scritto extends ServerSafeHTMLElement {
     clearAnimStyle(this._tail)
     for (let i = 0; i < this._chars.length; i++) resetAnim(this._chars[i])
 
+    this._exitQueue = []
     const exiting = this._exitingChars
     this._exitingChars = []
     for (let i = 0; i < exiting.length; i++) {
@@ -397,12 +545,6 @@ class Scritto extends ServerSafeHTMLElement {
       for (let j = 0; j < nodes.length; j++) releaseChar(nodes[j])
       group.remove()
     }
-  }
-
-  private _stagger(nodes: HTMLElement[]) {
-    let n = 0
-    for (let i = 0; i < nodes.length; i++) if (nodes[i].textContent !== SPACE) n++
-    return (this.transition.duration * CONFIG.stagger) / (n || 1)
   }
 
   private _animateChar(el: Char, isOut: boolean, trend: number, delay: number, onFinish?: () => void) {

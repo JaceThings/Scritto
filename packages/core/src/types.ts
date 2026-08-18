@@ -12,6 +12,13 @@ export type ScrittoOptions = {
   trend?: Trend
   respectMotionPreference?: boolean
   bounce?: boolean
+  /**
+   * Let the glyphs carry whatever the change displaces — the host's edge, a
+   * kept run, the words after it — so neighbours wait for the new glyphs to
+   * land and ride in behind them, and a paragraph reflows a line at a time.
+   * Off, they slide on a plain ease from the first frame.
+   */
+  wave?: boolean
 }
 
 export type ScrittoProps = ScrittoOptions & {

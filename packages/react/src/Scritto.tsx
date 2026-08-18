@@ -5,7 +5,7 @@ import { type ScrittoProps, type Scritto as ScrittoElement, BROWSER } from '@scr
 import { type HTMLAttributes, useLayoutEffect, useRef } from 'react';
 
 type Props = ScrittoProps & HTMLAttributes<HTMLElement>;
-const Scritto = ({ value, trend, transition, respectMotionPreference, bounce, animated = true, ...rest }: Props) => {
+const Scritto = ({ value, trend, transition, respectMotionPreference, bounce, wave, animated = true, ...rest }: Props) => {
   const ref = useRef<ScrittoElement>(null);
   const isMounted = useRef(false);
 
@@ -15,8 +15,8 @@ const Scritto = ({ value, trend, transition, respectMotionPreference, bounce, an
   }, [value]);
 
   useLayoutEffect(() => {
-    if (ref.current) ref.current.setOptions({ trend, transition, respectMotionPreference, bounce });
-  }, [trend, transition, respectMotionPreference, bounce]);
+    if (ref.current) ref.current.setOptions({ trend, transition, respectMotionPreference, bounce, wave });
+  }, [trend, transition, respectMotionPreference, bounce, wave]);
 
   return (
     <scritto-text

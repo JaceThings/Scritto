@@ -1,5 +1,5 @@
 import type { Transition } from './types'
-import { SHRINK_EASING, SPACE } from './const'
+import { SPACE } from './const'
 
 export const BROWSER = 'window' in globalThis
 export const ServerSafeHTMLElement = globalThis.HTMLElement ?? class {}
@@ -102,13 +102,10 @@ export const finishIdentityAnim = (event: AnimationPlaybackEvent) => {
   if (anim instanceof Animation && anim.playState === 'finished') anim.cancel()
 }
 
-export const flip = (el: HTMLElement, dx: number, transition: Transition, alreadyCancelled = false) => {
+export const flip = (el: HTMLElement, dx: number, duration: number, easing: string, alreadyCancelled = false) => {
   if (!dx) return
   if (!alreadyCancelled) cancelAnim(el)
-  const anim = el.animate(
-    { transform: [`translateX(${dx}px)`, ''] },
-    { duration: transition.duration, easing: SHRINK_EASING, fill: 'both' },
-  )
+  const anim = el.animate({ transform: [`translateX(${dx}px)`, ''] }, { duration, easing, fill: 'both' })
   anim.onfinish = finishIdentityAnim
   return anim
 }
@@ -159,6 +156,42 @@ const RUN_BAND = 2
  */
 const MIN_FLOAT_RUN = 2
 
+/**
+ * How far a run flush with neither end may travel to be kept rather than
+ * rolled. A run at an end has no say in where it goes — the layout carries it,
+ * and SwiftUI's own numeric text will slide a matched suffix any distance at
+ * all (measured: 'supercalifragilisticlight' -> 'light' slides its five kept
+ * letters 337px without blinking). A run in the middle is different: nothing
+ * forces it to move, it was found by searching, and a short common word will
+ * happily fly the length of the value on its own while everything around it
+ * rolls — 'the light you seek is within you' -> 'you are the daylight' kept
+ * 'you ' and flew it ten places left. So a floating run buys its travel with
+ * its length, plus a group's width for the punctuation a number grows around
+ * it: exactly what '11' -> '1,001' needs, one kept digit crossing a separator
+ * and the two digits that came with it.
+ *
+ * SwiftUI declines this trade entirely and matches only a common prefix and
+ * suffix, so it never has to answer the question.
+ */
+const GROUP_WIDTH = 2
+
+const earnsTravel = (run: number, shift: number) => Math.abs(shift) <= run + GROUP_WIDTH
+
+/**
+ * The number a value reads as, for working out which way it moved. Read the
+ * way a person reads it: sign, digits, and one decimal point, with anything
+ * else — currency, units, group separators, spaces — set aside. `parseFloat`
+ * stopped at the first comma, so a grouped figure only ever compared its
+ * leading group and '9,999' -> '10,000' read as falling.
+ */
+export const numberOf = (value: string) => {
+  const match = /[-\u2212]?\d[\d,_' \u00A0\u202F]*(?:\.\d+)?/.exec(value)
+  if (!match) return null
+  const n = parseFloat(match[0].replace(/[^\d.]/g, ''))
+  if (!Number.isFinite(n)) return null
+  return /^[-\u2212]/.test(match[0]) ? -n : n
+}
+
 export const diff = (prev: HTMLElement[], newValue: string) => {
   const labels = splitGraphemes(newValue)
   const lenOld = prev.length
@@ -190,7 +223,7 @@ export const diff = (prev: HTMLElement[], newValue: string) => {
     for (let i = Math.min(lenOld, lenNew - shift) - 1; i >= lo; i--) {
       if (prev[i].textContent === labels[i + shift]) {
         run++
-        if (run > best && run >= MIN_FLOAT_RUN) {
+        if (run > best && run >= MIN_FLOAT_RUN && earnsTravel(run, shift)) {
           best = run
           oldSuffix = i
           midEnd = i + shift

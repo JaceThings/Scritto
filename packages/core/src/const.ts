@@ -7,6 +7,10 @@ export const CONFIG = {
   blur: 0.1,
   rotate: 2,
   stagger: 0.3,
+  /** How far into its roll a glyph is before it starts to carry its neighbours. */
+  push: 0.35,
+  /** How much later, as a share of the duration, each line below the host's takes up the wave. */
+  lineLag: 0.12,
 }
 
 export const DEFAULT_TRANSITION: Transition = {
@@ -22,16 +26,30 @@ export const BOUNCE_TRANSITION: Transition = {
 }
 
 export const SHRINK_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
+export const WIDTH_ANIM = 'scritto-width'
 
-const maskLayer = (prefix: string, angle: string, position: string) => `
-    ${prefix}mask-image: linear-gradient(${angle}, #000 0%, #000 100%, transparent);
-    ${prefix}mask-size: calc(100% + 0.9em) 400%;
+// While a host's width animates with text following it, its row is clipped
+// at its own edge, which the neighbour rides: exiting glyphs dissolve there
+// as the edge sweeps over them on a shrink, and entering glyphs past the old
+// edge come out from under it on a grow. The exits get a soft band just
+// inside the edge (they are fading anyway); the live row a hard clip a hair
+// past it, since a soft band there would dim the last glyph until the mask
+// lifted, and a mask cannot reach past the box for composited children. The
+// clip is loose everywhere else so a roll's vertical travel stays in.
+const EDGE_FADE = '0.3em'
+const EDGE_SLACK = '0.1em'
+
+const edgeMask = (prefix: string, angle: string, position: string) => `
+    ${prefix}mask-image: linear-gradient(${angle}, #000 calc(100% - ${EDGE_FADE}), transparent 100%);
+    ${prefix}mask-size: 100% 400%;
     ${prefix}mask-position: ${position};
-    ${prefix}mask-repeat: no-repeat;
-    ${prefix}mask-clip: no-clip;`
+    ${prefix}mask-repeat: no-repeat;`
 
-const overflowMask = (angle: string, position: string) =>
-  `${maskLayer('-webkit-', angle, position)}${maskLayer('', angle, position)}`
+const exitMask = (angle: string, position: string) =>
+  `${edgeMask('-webkit-', angle, position)}${edgeMask('', angle, position)}`
+
+const rowClip = (end: 'right' | 'left') =>
+  `clip-path: inset(-1em ${end === 'right' ? `-${EDGE_SLACK} -1em -1em` : `-1em -1em -${EDGE_SLACK}`});`
 
 export const STYLES = `
   :host {
@@ -42,28 +60,42 @@ export const STYLES = `
     isolation: isolate;
     vertical-align: baseline;
   }
+  /* Sits where a .section sits — the same line box, off the same baseline
+     anchor — so an exiting glyph lines up with the live glyph it replaces.
+     Anchoring it to the host's box instead drops it by the couple of pixels
+     the taller section boxes stick out. */
+  .exits {
+    position: absolute;
+    inset-inline-start: 0;
+    width: 100%;
+    display: inline-flex !important;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .exits::before {
+    content: "\\200B"; /* baseline anchor, as on an empty section */
+  }
   :host([data-shrink-clip]) {
-    clip-path: inset(-2em -0.9em -2em 0);${overflowMask('90deg', '0 50%')}
+    ${rowClip('right')}
   }
   :host([data-shrink-clip]:dir(rtl)) {
-    clip-path: inset(-2em 0 -2em -0.9em);${overflowMask('270deg', '100% 50%')}
+    ${rowClip('left')}
   }
-  :host([data-shrink-clip]) [inert] {
-    -webkit-mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 1.15em), transparent);
-    mask-image: linear-gradient(90deg, #000 0%, #000 calc(100% - 1.15em), transparent);
+  :host([data-shrink-clip]) .exits {${exitMask('90deg', '0 50%')}
+  }
+  :host([data-shrink-clip]:dir(rtl)) .exits {${exitMask('270deg', '100% 50%')}
   }
   span {
     margin: 0 !important;
     padding: 0 !important;
     transform-origin: center;
   }
-  [inert] {
+  .exits > [inert] {
     position: absolute !important;
     display: inline-flex !important;
     /* Exiting glyphs are placed by a transform measured from the host's start
        edge, so the layer must not fall back to its static inline position. */
     inset-inline-start: 0;
-    z-index: 2;
   }
   .section {
     position: relative !important;

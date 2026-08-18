@@ -118,6 +118,7 @@ Every framework package re-exports the core types and depends on `@scritto/core`
 - `<scritto-flow>` slides nearby words when the value changes width
 - Per-character enter/exit with stagger, blur, and trend
 - Optional `bounce` adds a little overshoot on each letter
+- Optional `wave` lets the new glyphs carry the neighbours instead of sliding them ahead
 - RTL via `Intl.Segmenter`
 - `prefers-reduced-motion` respected by default
 - Zero runtime dependencies, SSR-safe, `role="img"` + `aria-label`

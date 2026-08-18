@@ -1,13 +1,16 @@
 import { BROWSER, ServerSafeHTMLElement, visibleClip } from './helpers'
-import { SHRINK_EASING } from './const'
+import { CONFIG, SHRINK_EASING, WIDTH_ANIM } from './const'
+import { laggedSamples, landedAt, linearOf } from './edge'
 import type { Transition } from './types'
 
 export type ScrittoChangeDetail = { phase: 'before' | 'after'; animate: boolean }
 
-type FlowHost = HTMLElement & { transition: Transition }
+type FlowHost = HTMLElement & {
+  transition: Transition
+  _exitTailMs?: () => number
+  _edgeSamples?: (total: number) => number[] | null
+}
 type Box = { left: number; top: number; width: number; height: number }
-
-const WIDTH_ANIM = 'scritto-width'
 
 /** Roughly a word space: what a ghost clears so it isn't fading on top of its old neighbour. */
 const GAP = 6
@@ -72,9 +75,12 @@ const wordify = (root: HTMLElement) => {
 
 const pendingFlows = new Set<ScrittoFlow>()
 
+// Reads first, across every flow, then writes: the reads capture the paragraph
+// as it stands, mid-transition included, so an interrupted roll picks up from
+// where it is instead of jumping back to where the last one began.
 export const prepareFlows = () => {
-  for (const flow of pendingFlows) flow._prepareWrites()
   for (const flow of pendingFlows) flow._prepareReads()
+  for (const flow of pendingFlows) flow._prepareWrites()
 }
 
 export const playFlows = () => {
@@ -82,8 +88,7 @@ export const playFlows = () => {
   pendingFlows.clear()
   const measured = list.map((flow) => flow._measureLast())
   for (let i = 0; i < list.length; i++) {
-    const last = measured[i]
-    if (last) list[i]._playMeasured(last)
+    if (measured[i]) list[i]._playMeasured()
   }
 }
 
@@ -92,14 +97,15 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   private _gen = 0
   private _anims: Animation[] = []
   private _first: Box[] = []
-  private _fromW = 0
-  private _host: FlowHost | null = null
+  private _fromBox = new Map<FlowHost, Box>()
+  private _hosts = new Set<FlowHost>()
   private _wordEls: HTMLElement[] = []
   private _insetX = 0
   private _insetY = 0
-  private _pendingHost: FlowHost | null = null
+  private _rtl = false
+  private _pending = new Set<FlowHost>()
   private _last: Box[] = []
-  private _toW = 0
+  private _toBox = new Map<FlowHost, Box>()
   private _lo = 0
   private _hi = 0
   private _touched: HTMLElement[] = []
@@ -114,7 +120,12 @@ class ScrittoFlow extends ServerSafeHTMLElement {
 
   connectedCallback() {
     const css = getComputedStyle(this)
+    // A flow is a paragraph: its ghosts are placed against its box, and an
+    // inline box has no single one across lines. Left inline (the custom
+    // element default) the words measured negative and nothing ever slid.
+    if (css.display === 'inline') this.style.display = 'block'
     if (css.position === 'static') this.style.position = 'relative'
+    this._rtl = css.direction === 'rtl'
     this._insetX = parseFloat(css.borderLeftWidth) || 0
     this._insetY = parseFloat(css.borderTopWidth) || 0
     wordify(this)
@@ -136,12 +147,13 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     if (!('transition' in event.target)) return
     const { phase, animate } = event.detail
     if (phase === 'before') {
-      this._pendingHost = event.target as FlowHost
+      this._pending.add(event.target as FlowHost)
       pendingFlows.add(this)
       if (!animate) {
-        this._prepareWrites()
         this._prepareReads()
+        this._prepareWrites()
         pendingFlows.delete(this)
+        this._pending.clear()
       }
       return
     }
@@ -149,13 +161,11 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   }
 
   _prepareWrites() {
-    const host = this._pendingHost
-    if (!host) return
-    const prev = this._host
-    this._host = host
+    if (!this._pending.size) return
     this._gen += 1
     this._drop()
-    if (prev && prev !== host) this._clearHost(prev)
+    for (const prev of this._hosts) if (!this._pending.has(prev)) this._clearHost(prev)
+    this._hosts = new Set(this._pending)
     this._resetWords()
   }
 
@@ -186,21 +196,25 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   }
 
   _prepareReads() {
-    const host = this._pendingHost
-    if (!host) return
+    if (!this._pending.size) return
     const [lo, hi] = this._visibleRange()
     this._lo = lo
     this._hi = hi
     this._first = this._measureSlice(lo, hi)
-    this._fromW = host.getBoundingClientRect().width
+    this._fromBox.clear()
+    for (const host of this._pending) this._fromBox.set(host, this._boxOf(host))
   }
 
   _measureLast() {
-    const host = this._pendingHost
-    if (!host) return null
+    if (!this._pending.size) return false
     this._last = this._measureSlice(this._lo, this._hi)
-    this._toW = host.getBoundingClientRect().width
-    return host
+    this._toBox.clear()
+    for (const host of this._pending) this._toBox.set(host, this._boxOf(host))
+    return true
+  }
+
+  private _boxOf(el: HTMLElement) {
+    return boxOf(el, this.getBoundingClientRect(), this._insetX, this._insetY)
   }
 
   // Teardown walks the words this generation actually touched rather than the
@@ -221,6 +235,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     host.style.width = ''
     host.style.marginRight = ''
     host.style.display = ''
+    host.style.textAlign = ''
     host.removeAttribute('data-shrink-clip')
   }
 
@@ -230,7 +245,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     for (const anim of this._anims) anim.cancel()
     this._anims.length = 0
     this._clip.replaceChildren()
-    this._clearHost(this._host)
+    for (const host of this._hosts) this._clearHost(host)
   }
 
   // Each animation cleans its own node. A single tail-finish used to call
@@ -252,25 +267,124 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     this._resetWords()
   }
 
-  _playMeasured(host: FlowHost) {
+  _playMeasured() {
     const gen = this._gen
-    const { duration, easing } = host.transition
+    const hosts = [...this._pending]
+    this._pending.clear()
+    // A host's roll can still be fading a staggered tail of characters after
+    // its `duration` elapses (each exiting glyph starts `stagger` later than
+    // the last). Everything this function paces — the width shrinks, a
+    // same-line word's slide into the vacated space, a wrapped word's ghost
+    // handoff — has to run at least as long as the longest of them, or it
+    // arrives while old glyphs are still on screen and the two overlap.
+    let duration = 0
+    for (const host of hosts) {
+      duration = Math.max(duration, host.transition.duration + (host._exitTailMs?.() ?? 0))
+    }
+    // Everything the flow moves is displaced by the host's edge, so it rides
+    // the edge's own curve — the wave the host's glyphs carry — and lands as
+    // the last of them does. On the roll's spring a neighbour would outrun the
+    // shrink (and overshoot into it) and land on glyphs still dissolving. The
+    // wave runs down the paragraph a line at a time: a line only reflows once
+    // the line above has pushed a word onto it (or pulled one off), so each
+    // line takes it up a little after the one before, as far as the time left
+    // after the host's own line lands allows.
     const words = this._wordEls
     const last = this._last
-    const toW = this._toW
     const first = this._first
-    const fromW = this._fromW
     const lo = this._lo
     const t0 = document.timeline.currentTime
+    const samples = hosts[0]?._edgeSamples?.(duration) ?? null
+    const lineH = first[0]?.height || 1
+    const linesAway = (box: Box, boxes: Map<FlowHost, Box>) => {
+      let away = Infinity
+      for (const host of hosts) {
+        const b = boxes.get(host)
+        if (b) away = Math.min(away, Math.round(Math.abs(box.top - b.top) / lineH))
+      }
+      return away === Infinity ? 0 : away
+    }
+    let farthest = 0
+    for (let i = 0; i < first.length; i++) {
+      if (!last[i]) continue
+      farthest = Math.max(farthest, linesAway(first[i], this._fromBox), linesAway(last[i], this._toBox))
+    }
+    const hostD = hosts[0]?.transition.duration ?? duration
+    const lag = samples ? Math.min((CONFIG.lineLag * hostD) / duration, (1 - landedAt(samples)) / (farthest || 1)) : 0
+    const easings = new Map<number, string>()
+    const easingFor = (away: number) => {
+      if (!samples) return SHRINK_EASING
+      let easing = easings.get(away)
+      if (!easing) easings.set(away, (easing = linearOf(away ? laggedSamples(samples, away * lag) : samples)))
+      return easing
+    }
+    const wave = easingFor(0)
 
-    if (Math.abs(toW - fromW) >= 0.5) {
+    const play = (el: HTMLElement, frames: Keyframe[], easing: string, done?: () => void) => {
+      const anim = el.animate(frames, { duration, easing, fill: 'forwards' })
+      if (t0 !== null) anim.startTime = t0
+      this._run(anim, gen, done)
+    }
+
+    // The clip only earns its keep when something can be drawn under the
+    // host's glyphs: a word following it on its line, or any word moving
+    // this time — a host that changes line leaves its old glyphs standing
+    // where a ghost is now sliding out. Nothing following and nothing moving
+    // means nothing to collide with, so the glyphs dissolve in the clear. It
+    // is not tied to the direction of this change, nor to whether the edge
+    // itself moves: an interrupted grow can leave glyphs standing well past
+    // a host whose edge never got going, with the next word already beside it.
+    const disturbed =
+      last.length > 0 &&
+      first.some((a, i) => {
+        const b = last[i]
+        return !!b && (Math.abs(b.left - a.left) >= 0.5 || Math.abs(b.top - a.top) >= lineH * 0.5)
+      })
+    // Same line means the boxes overlap vertically; a word box is the whole
+    // line box, an inline host's only its glyphs, so tops alone do not match.
+    const followed = (boxes: Box[], host: Box | undefined) =>
+      !!host &&
+      boxes.some(
+        (b) =>
+          Math.min(b.top + b.height, host.top + host.height) - Math.max(b.top, host.top) >
+            Math.min(b.height, host.height) * 0.5 && b.left >= host.left + host.width - 0.5,
+      )
+    let clipped = false
+
+    for (const host of hosts) {
+      const from = this._fromBox.get(host)
+      const to = this._toBox.get(host)
+      const fromW = from?.width ?? 0
+      const toW = to?.width ?? 0
+      if (disturbed || followed(first, from) || followed(last, to)) {
+        host.setAttribute('data-shrink-clip', '')
+        clipped = true
+      }
+      // The host's box is already where it will end up; its row — old glyphs,
+      // kept runs, the mask's edge — was placed relative to the row's start,
+      // so when that start moved along the line (the line re-centred, say)
+      // the host slides in from where it was, on the same curve as the words
+      // beside it. A host that changed line does not fly there.
+      if (from && to && Math.abs(from.top - to.top) < Math.min(from.height, to.height) * 0.5) {
+        const shift = this._rtl ? from.left + from.width - (to.left + to.width) : from.left - to.left
+        if (Math.abs(shift) >= 0.5) {
+          host.style.transform = `translateX(${shift}px)`
+          this._touched.push(host)
+          play(host, [{ transform: `translateX(${shift}px)` }, { transform: 'none' }], wave, () => {
+            host.style.transform = ''
+          })
+        }
+      }
+      if (Math.abs(toW - fromW) < 0.5) continue
       host.style.display = 'inline-block'
       host.style.width = `${fromW}px`
       host.style.marginRight = `${toW - fromW}px`
-      if (toW < fromW) host.setAttribute('data-shrink-clip', '')
+      // The glyph slides were measured against the final layout; content must
+      // sit there from the first frame rather than re-centre in the old width.
+      host.style.textAlign = 'start'
       const hostAnim = host.animate(
         { width: [`${fromW}px`, `${toW}px`], marginRight: [`${toW - fromW}px`, '0px'] },
-        { duration, easing: SHRINK_EASING, fill: 'forwards' },
+        { duration, easing: wave, fill: 'forwards' },
       )
       hostAnim.id = WIDTH_ANIM
       if (t0 !== null) hostAnim.startTime = t0
@@ -283,7 +397,6 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     // ghosts — one carrying on past the end of the line it left, one arriving from
     // before the start of the line it joined — and the clip's edge mask dissolves
     // both, so the word reads as having gone round the corner.
-    const lineH = first[0]?.height || 1
     const wrapped = first.map((a, i) => !!last[i] && Math.abs(last[i].top - a.top) >= lineH * 0.5)
 
     // Words that wrap together travel as a group, so each line's ghosts share one
@@ -313,11 +426,6 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       return ghost
     }
 
-    const play = (el: HTMLElement, frames: Keyframe[], done?: () => void) => {
-      const anim = el.animate(frames, { duration, easing, fill: 'forwards' })
-      if (t0 !== null) anim.startTime = t0
-      this._run(anim, gen, done)
-    }
 
     for (let i = 0; i < first.length; i++) {
       const word = words[lo + i]
@@ -330,7 +438,8 @@ class ScrittoFlow extends ServerSafeHTMLElement {
         if (Math.abs(dx) < 0.5) continue
         word.style.transform = `translateX(${dx}px)`
         this._touched.push(word)
-        play(word, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], () => {
+        const easing = easingFor(linesAway(b, this._toBox))
+        play(word, [{ transform: `translateX(${dx}px)` }, { transform: 'none' }], easing, () => {
           word.style.transform = ''
         })
         continue
@@ -349,6 +458,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
           { opacity: 1, transform: 'none' },
           { opacity: 0, transform: `translateX(${leaveX}px)` },
         ],
+        easingFor(linesAway(a, this._fromBox)),
         () => leaving.remove(),
       )
       const entering = pin(word, b)
@@ -358,6 +468,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
           { opacity: 0, transform: `translateX(${enterX}px)` },
           { opacity: 1, transform: 'none' },
         ],
+        easingFor(linesAway(b, this._toBox)),
         () => {
           entering.remove()
           word.style.visibility = ''
@@ -365,7 +476,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       )
     }
 
-    if (!this._anims.length) return
+    if (!this._anims.length && !clipped) return
     this._settleTimer = setTimeout(this._settle, duration + SETTLE_SLACK, gen)
   }
 }
