@@ -1,8 +1,8 @@
 import { APPLE_SMOOTHING, generatePath } from '@lisse/core'
 
 // Squircle overlay tracking the keyboard-focused `[data-focus-ring]`, drawn in
-// page coordinates so scrolling needs no listener. The 14px default is
-// concentric with the site's 8px surfaces, whose hit areas pad them by 6px.
+// page coordinates so scrolling needs no listener. 14px is concentric with the
+// site's 8px surfaces, whose hit areas pad them by 6px.
 
 const RING = '[data-focus-ring]'
 const SECTION = '[data-focus-section]'
@@ -68,8 +68,7 @@ const stateOf = (el: HTMLElement) => {
 }
 
 // generatePath opens each side with a line back to where the previous corner
-// would have ended if the radii matched: harmless to a fill, a spur to a
-// stroke. Each pair's second line is the real edge.
+// would have ended if the radii matched: a spur to a stroke, not a fill.
 const trimSpurs = (d: string) => {
   const cmds = d.match(/[A-Za-z][^A-Za-z]*/g) ?? []
   const kept: string[] = []
@@ -107,8 +106,7 @@ const pathOf = (s: State) => {
   )
 }
 
-// The ring fades with its target, so it inherits whatever the ancestors are
-// doing — entrance cascade, route cross-fade, collapse — without naming a case.
+// Inheriting the ancestors' opacity covers every case without naming one.
 const inheritedOpacity = (el: HTMLElement) => {
   let opacity = 1
   for (let node: HTMLElement | null = el; node && node !== document.body; node = node.parentElement) {

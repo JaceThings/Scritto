@@ -85,7 +85,6 @@ const attach = (el: HTMLElement, options: SmoothCornerOptions) => {
   }
 }
 
-/** Clips the site's rounded surfaces to a smooth-corner path, shadows following. */
 export const bindCorners = (root: ParentNode = document) => {
   const bindAll = () => {
     const stops = SURFACES.flatMap(([selector, corners]) =>
@@ -99,9 +98,9 @@ export const bindCorners = (root: ParentNode = document) => {
 
   let stops = bindAll()
 
-  // A shadow is read off the element once and redrawn as SVG, so the surface
-  // would keep the shadow of whichever theme it was bound under. Read it again
-  // when the theme changes, a frame later, once the new tokens have resolved.
+  // The shadow is read once and redrawn as SVG, so a surface keeps whichever
+  // theme it was bound under. Re-read a frame after the change, once the new
+  // tokens have resolved.
   let queued = 0
   const rebind = () => {
     cancelAnimationFrame(queued)

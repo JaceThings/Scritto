@@ -3,12 +3,10 @@ import { playCopySuccess } from '../lib/sounds'
 const COPIED_MS = 1400
 const FAILED_MS = 2400
 
-/** Copy-to-clipboard command rows, confirmed one at a time. */
 export const bindInstall = (root: ParentNode) => {
   const status = root.querySelector('[data-copy-status]')
   const timers = new Set<number>()
-  // Every press owns the reset that follows it, so an earlier timer cannot cut
-  // a later row's confirmation short.
+  // Every press owns its own reset, so an earlier timer cannot cut a later one short.
   let confirmed: HTMLButtonElement | null = null
   let press = 0
 

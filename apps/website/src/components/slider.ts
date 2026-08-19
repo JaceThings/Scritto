@@ -298,8 +298,8 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
       const crossed = Math.round(Math.abs(stepped - (lastStepped ?? stepped)) / step)
       playTick()
       lastStepped = stepped
-      // One rAF loop stays alive: cancel-and-restart drops updates when pointer
-      // events outrun display frames.
+      // One rAF loop stays alive: restarting drops updates when pointer events
+      // outrun display frames.
       if (reducedMotion() || crossed > 1) {
         stopSnap()
         setReported(stepped)
@@ -326,8 +326,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
 
     const target = valueAt(event.clientX, rect)
     lastStepped = target
-    // Tick per detent crossed, so a tap-to-jump sounds like the bar travelling
-    // through them rather than landing in silence.
+    // Per detent crossed, so a tap-to-jump sounds like the bar travelling.
     let lastTick = clamp(snap(reported, step), min, max)
     const reportAndTick = (next: number) => {
       setReported(next)
@@ -356,8 +355,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     dragging = false
     pointerId = null
     releaseStretch()
-    // A real drag can leave `reported` on a sub-step fraction; a tap already
-    // animated toward its target.
+    // A drag can leave `reported` on a sub-step fraction; a tap already eased.
     if (!isClick) {
       stopPointer()
       stopPointer = tween(reported, value, PROP_CHANGE_DURATION, PROP_EASE, setReported)

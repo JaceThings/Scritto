@@ -5,9 +5,8 @@ const KM_PER_SECOND = 299_792.458
 const MINUTE_MS = 60_000
 
 /**
- * How far light has run since the top of the current minute. The minute is the
- * anchor rather than the page load because a figure that only ever climbs stops
- * changing digit width; against the minute the copy around it keeps reflowing.
+ * Anchored to the minute rather than the page load: a figure that only climbs
+ * stops changing digit width, and the copy around it stops reflowing.
  */
 const traveled = () => Math.round(((Date.now() % MINUTE_MS) / 1000) * KM_PER_SECOND)
 

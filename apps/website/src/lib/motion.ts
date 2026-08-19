@@ -1,5 +1,4 @@
-// The site's one state-change beat, shared by every swap that has to read as
-// part of the same gesture.
+// One beat, shared by every swap that reads as part of the same gesture.
 export const STATE_CHANGE_MS = 350
 export const STATE_CHANGE_EASE = 'cubic-bezier(0.32, 0.72, 0, 1)'
 

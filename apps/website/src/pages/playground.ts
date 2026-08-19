@@ -74,8 +74,7 @@ export const initPlayground = (root: ParentNode = document) => {
   ])
   const stopTicker = startLightTicker(find<Scritto>('#flow-a'))
 
-  // The editor reads the pills and the pills load the editor, so one of the two
-  // has to be reachable before it exists.
+  // Each loads the other, so one has to be reachable before it exists.
   let pills: { set: (value: Mode) => void } | null = null
 
   const editor = createHops(find('#values'), (values) => {
@@ -119,8 +118,7 @@ export const initPlayground = (root: ParentNode = document) => {
     drift.currentTime = driftPhase(offset, amplitude, leftward) * DRIFT_MS
   }
 
-  // The host's width changes as the value rolls and the stage's with the viewport,
-  // so a drift armed for the old room would swing the number into the clip.
+  // A drift armed for the old room would swing the number into the clip.
   const watchRoom = new ResizeObserver(() => {
     if (!drift || Math.abs(room() - amplitude) < 1) return
     const leftward = (Number(drift.currentTime) % DRIFT_MS) / DRIFT_MS > 0.5
@@ -142,8 +140,7 @@ export const initPlayground = (root: ParentNode = document) => {
     ] as const,
     'center',
     (value) => {
-      // Slide to the new anchor instead of re-rolling: the value is the one
-      // thing that must not change here.
+      // Slide to the new anchor: the value is the one thing that must not change.
       const from = align.host.getBoundingClientRect().left
       drift?.cancel()
       drift = null
@@ -183,8 +180,7 @@ export const initPlayground = (root: ParentNode = document) => {
     min: 0,
     max: 0.5,
     step: 0.01,
-    // Bare number: naming the preset here made the readout retype a whole word
-    // mid-drag, and the pills already say which one is on.
+    // Naming the preset here made the readout retype a whole word mid-drag.
     format: (value) => value.toFixed(2),
     onChange: (value, fromDrag) => {
       const patch = { easing: springEasing(value) }
@@ -205,12 +201,11 @@ export const initPlayground = (root: ParentNode = document) => {
     ] as const,
     'default',
     (mode) => {
-      // Custom is not a value of its own: it hands the card over to the slider.
-      // Dragging never presses a pill back, so landing on 0.20 stays Custom.
+      // Custom is not a value of its own: it hands the card to the slider, and
+      // dragging never presses a pill back, so landing on 0.20 stays Custom.
       const open = mode === 'custom'
       bounceRow.dataset.open = String(open)
-      // Collapsed is still in the layout, so without this the range input keeps
-      // its place in the tab order behind a zero-height row.
+      // Collapsed is still in the layout, and its range input still in the tab order.
       bounceRow.inert = !open
       if (open) return
       const value = mode === 'default' ? BOUNCE_DEFAULT : BOUNCE_BOUNCY

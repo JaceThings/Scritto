@@ -6,7 +6,6 @@ import { chromium, type Page } from 'playwright'
 import type { Scritto, ScrittoOptions } from '@scritto/core'
 
 const BASE = (process.env.STRESS_URL ?? 'http://localhost:5175').replace(/\/$/, '')
-const OUT = process.env.STRESS_SHOTS ?? '/tmp/scritto-stress'
 
 type Case = {
   name: string
@@ -29,8 +28,6 @@ declare global {
     __stress: { run(spec: Omit<Case, 'name'>): Promise<Result> }
   }
 }
-
-const HOST = '<scritto-text id="probe"></scritto-text>'
 
 const CASES: Case[] = [
   { name: 'plain grouped numbers', frame: 'Total: HOST', values: ['1', '1,204', '999', '1,000', '10,000', '9,999'] },
@@ -92,7 +89,7 @@ const install = () => {
       const host2 = wrap.querySelector<Scritto>('#probe2')
       if (spec.hostStyle) host.style.cssText += ';' + spec.hostStyle
       await customElements.whenDefined('scritto-text')
-      const opts = { respectMotionPreference: false, transition: { duration: 320 }, ...(spec.options ?? {}) }
+      const opts = { respectMotionPreference: false, transition: { duration: 320 }, ...spec.options }
       host.setOptions(opts)
       host2?.setOptions(opts)
       const errors: string[] = []

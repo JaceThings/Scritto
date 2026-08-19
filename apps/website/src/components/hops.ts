@@ -5,9 +5,8 @@ const SEP = ','
 const HINT_ID = 'values-hint'
 
 /**
- * The values as one comma-separated line, each its own field and the commas
- * drawn rather than typed: comma or Enter splits, Backspace at a start joins,
- * arrows step across. The trade is that a value cannot contain a comma.
+ * One comma-separated line, each value its own field and the commas drawn
+ * rather than typed, so a value cannot contain one.
  */
 export const createHops = (mount: HTMLElement, onChange: (values: string[]) => void) => {
   let values: string[] = []

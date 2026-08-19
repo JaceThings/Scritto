@@ -4,8 +4,7 @@ import { comma, company, companyCount, connectLive, nth, sitting, type Stats } f
 const OPTIONS = { respectMotionPreference: true, bounce: false }
 const SAT_DURATION = 280
 
-// The sitting timer measures the visit, not the mount: it survives moving
-// between the site's own pages, and a reload starts it over.
+// The visit, not the mount: it survives navigation and a reload starts it over.
 const SAT_KEY = 'scritto_sat_start'
 const reloaded = () => {
   const [entry] = performance.getEntriesByType('navigation')
@@ -19,15 +18,12 @@ const started = (() => {
   return now
 })()
 
-// The visit starts at one second, not zero: a fresh load would otherwise paint
-// "0 seconds" and drop the s a moment later, which reads as a glitch.
+// From one, or a fresh load paints "0 seconds" and drops the s a beat later.
 const elapsed = () => Math.max(1, Math.floor((Date.now() - started) / 1000))
 
-// The last stats paint immediately on a return visit to the page, so the
-// sentence keeps its full height instead of collapsing until /hello answers.
+// Painted immediately on a return visit, so the sentence keeps its height.
 let cached: Stats | null = null
 
-/** The opening sentence's live figures: visitor counts, pokes, and the timer. */
 export const bindLiveReadout = (root: ParentNode) => {
   const node = (id: string) => root.querySelector<Scritto>(id)!
   const sat = node('#sat')
@@ -65,8 +61,7 @@ export const bindLiveReadout = (root: ParentNode) => {
   paintSat(false)
   const ticking = window.setInterval(() => paintSat(true), 1000)
 
-  // A background tab throttles the interval; catch the figure up the moment
-  // the page is looked at again.
+  // A background tab throttles the interval.
   const onVisible = () => {
     if (!document.hidden) paintSat(true)
   }

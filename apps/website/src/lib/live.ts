@@ -27,9 +27,8 @@ const body = (extra: Record<string, string | number>) =>
 
 type Reply = Stats & { acked: number }
 
-// Error bodies are valid JSON too, so anything short of every count being a
-// real number is not an answer — one undefined reaching the arithmetic would
-// stick "NaN" on screen.
+// Error bodies are valid JSON too, and one undefined reaching the arithmetic
+// sticks "NaN" on screen.
 const parseReply = (raw: unknown): Reply | null => {
   if (typeof raw !== 'object' || raw === null) return null
   const at = (key: string) => {
@@ -70,8 +69,8 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
   let you = 0
   let latest: Stats | null = null
 
-  // A running total per page load, not one write per click: the server banks
-  // the difference, so a retry credits nothing twice.
+  // A running total, not one write per click: the server banks the difference,
+  // so a retry credits nothing twice.
   let run = crypto.randomUUID()
   let seq = 0
   let acked = 0
@@ -133,8 +132,7 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
       socket = null
       // A close we started must not reconnect: the timer would outlive the page.
       if (stopped) return
-      // Only a lasting connection counts as healthy, or a server that accepts
-      // and drops is retried at 400ms forever. Jitter avoids a stampede.
+      // Or a server that accepts and drops is retried at 400ms forever.
       if (openedAt && Date.now() - openedAt >= SOCKET_HEALTHY_MS) retries = 0
       const wait = Math.min(SOCKET_MAX_MS, SOCKET_BASE_MS * 2 ** retries++)
       reconnect = window.setTimeout(listen, wait / 2 + Math.random() * (wait / 2))
@@ -161,8 +159,7 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
       schedule()
       return
     }
-    // Square up so the next poke opens a fresh run; a run only lives while it
-    // has unbanked pokes, so expiry strands nothing.
+    // A run only lives while it has unbanked pokes, so expiry strands nothing.
     run = crypto.randomUUID()
     seq = 0
     acked = 0
@@ -224,11 +221,7 @@ export const sitting = (seconds: number) => {
   return parts.join(' ')
 }
 
-/**
- * The count rides its own host so it can take the live colour, like every
- * other figure in the line; alone, it has none to give and the clause carries
- * the whole sentence.
- */
+/** Its own host, so the count alone takes the live colour. */
 export const companyCount = (here: number) => (here <= 1 ? '' : String(here - 1))
 
 export const company = (here: number) => {

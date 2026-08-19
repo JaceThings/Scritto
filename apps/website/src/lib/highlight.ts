@@ -7,9 +7,8 @@ const DARK = '(prefers-color-scheme: dark)'
 const TIP = { angle: 7, overshoot: 7.5, angleJitter: 10 }
 
 /**
- * The page's own ink, as on corne.rs: brown on the cream page. Inverted for
- * the dark one, where `multiply` would sink any ink toward black — `screen`
- * mirrors it, lifting a cream band that leaves the light text legible.
+ * The page's own ink. Inverted for dark, where `multiply` sinks any ink toward
+ * black and `screen` lifts a cream band the light text stays legible on.
  */
 const LIGHT = { color: 'rgb(115, 87, 74)', opacity: 0.45, tip: TIP }
 const DARK_INK = { color: 'rgb(254, 241, 223)', opacity: 0.35, vivid: 'screen', tip: TIP } as const
@@ -19,10 +18,8 @@ const isDark = () =>
   (document.documentElement.dataset.theme !== 'light' && matchMedia(DARK).matches)
 
 /**
- * Paints the live selection as a marker stroke. The native `::selection` is
- * only suppressed once this is running, so the browser's own paint stands in
- * if the script never does — and on a coarse pointer, where the library
- * defers to the platform's selection UI, it is left alone.
+ * `::selection` is only suppressed once this is running, so the browser's own
+ * paint stands in if the script never does.
  */
 export const startSelectionHighlight = () => {
   if (matchMedia(TOUCH).matches) return () => {}

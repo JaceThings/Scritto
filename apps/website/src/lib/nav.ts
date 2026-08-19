@@ -37,10 +37,8 @@ const load = async (url: URL) => {
 }
 
 /**
- * The Home link comes and goes with the route: it fades and slides in from
- * the left while its siblings slide over to make room, and leaves the same
- * way — taken out of the flow first, so the siblings close the gap while it
- * fades where it stood.
+ * Home comes and goes with the route. Leaving, it is taken out of the flow
+ * first, so the siblings close the gap while it fades where it stood.
  */
 const toggleHome = (nav: HTMLElement, show: boolean) => {
   const home = nav.querySelector<HTMLElement>('.nav-home')

@@ -60,8 +60,7 @@ export const createChar = (text: string): Char => {
 }
 
 export const releaseChar = (el: Char) => {
-  // Teardown and the char's own exit callback both hand it back, in either
-  // order; a second hand-back would put it in the pool twice.
+  // Teardown and the char's own exit callback both hand it back, in either order.
   if (el.pooled) return
   el.pooled = true
   clearTimeout(el.exitTimer)
@@ -139,12 +138,10 @@ const RUN_BAND = 2
 const MIN_FLOAT_RUN = 2
 
 /**
- * A run flush with neither end was found by searching, and nothing forces it to
- * move, so it buys its travel with its length plus a group separator's width —
- * what '11' -> '1,001' needs. Otherwise a short common word flies the length of
- * the value while everything around it rolls. Runs at an end are exempt: layout
- * carries them, and SwiftUI slides a matched suffix any distance at all
- * (measured: 'supercalifragilisticlight' -> 'light', 337px).
+ * A floating run buys its travel with its length plus a separator's width, which
+ * is what '11' -> '1,001' needs; otherwise a short common word flies the length
+ * of the value while everything around it rolls. Runs at an end are exempt,
+ * since layout carries them.
  */
 const GROUP_WIDTH = 2
 
@@ -164,7 +161,6 @@ export const numberOf = (value: string) => {
   return match ? read(match[0]) : null
 }
 
-/** Every number in the value, in order. */
 export const numbersOf = (value: string) => {
   const out: number[] = []
   for (const match of value.match(NUMBER) ?? []) {
@@ -175,11 +171,9 @@ export const numbersOf = (value: string) => {
 }
 
 /**
- * Which way the value moved. A formatted value carries more than one number, so
- * the first one that differs decides: '2 minutes 12 seconds' to '2 minutes 13
- * seconds' is a rise, even though the minutes stand still. A value that gains or
- * loses a number ('59 seconds' to '1 minute 0 seconds') is not comparable that
- * way, and neither is one with no numbers at all, so both read as a rise.
+ * The first number that differs decides, so '2 minutes 12 seconds' to '2 minutes
+ * 13 seconds' rises even though the minutes stand still. Gaining or losing a
+ * number leaves nothing to compare, and reads as a rise.
  */
 export const trendOf = (prev: string, next: string) => {
   const before = numbersOf(prev)
@@ -193,9 +187,8 @@ export const trendOf = (prev: string, next: string) => {
 
 /**
  * Longest common prefix, then the longest run either value ends with, then a
- * search for a run flush with neither end. `anchor` is where the box holds
- * still as it resizes (0 start, 1 end, 0.5 middle), which decides how far a
- * floating run would actually travel on screen.
+ * search for one flush with neither end. `anchor` (0 start, 1 end, 0.5 middle)
+ * decides how far a floating run would travel on screen.
  */
 export const diff = (prev: HTMLElement[], newValue: string, anchor = 0) => {
   const labels = splitGraphemes(newValue)
@@ -211,9 +204,8 @@ export const diff = (prev: HTMLElement[], newValue: string, anchor = 0) => {
   let oldSuffix = lenOld - best
   let midEnd = lenNew - best
 
-  // '1 second' -> '2 seconds' changes at both ends, so its kept run is flush
-  // with neither. `shift` aligns old index to new (new = old + shift), walking
-  // outwards from the flush suffix, nearer side first, so ties travel least.
+  // `shift` aligns old index to new (new = old + shift), walking out from the
+  // flush suffix, nearer side first, so ties travel least.
   const near = lenNew < lenOld ? 1 : -1
   for (let step = 0; step <= RUN_BAND * 2; step++) {
     const shift = lenNew - lenOld + ((step + 1) >> 1) * (step & 1 ? near : -near)

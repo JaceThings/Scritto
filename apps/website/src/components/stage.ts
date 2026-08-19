@@ -58,8 +58,7 @@ export const createStage = (
 
   /**
    * A preset switch replaces the whole string, so the card hands one piece of
-   * content to the next rather than rolling: it blurs away, swaps while
-   * invisible, and comes back. Rolling "Creative" into "24" reads as noise.
+   * content to the next rather than rolling: "Creative" into "24" reads as noise.
    */
   const handoff = (change: () => void) => {
     if (reducedMotion()) {
@@ -95,8 +94,7 @@ export const createStage = (
           [gone, { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' }],
           { duration: SWAP_IN_MS, easing: STATE_CHANGE_EASE },
         )
-        // Only now: cancelling the held exit any earlier shows a frame of the
-        // new content at rest.
+        // Any earlier and a frame of the new content shows at rest.
         out.cancel()
         gesture = back
         void back.finished
@@ -108,10 +106,7 @@ export const createStage = (
       .catch(() => {})
   }
 
-  /**
-   * Bring the card back from a half-finished handoff, content untouched: a
-   * switch that lands on the face already showing has nothing to hand over.
-   */
+  /** Bring the card back from a half-finished handoff, content untouched. */
   const settle = () => {
     if (!gesture) return
     const css = getComputedStyle(host)
@@ -152,8 +147,7 @@ export const createStage = (
     replace,
     swap(next: string[]) {
       if (!next.length) return
-      // Switching presets while the same word stays on the card is not a
-      // handoff: blurring it out and back would read as a glitch.
+      // Not a handoff: blurring the same word out and back reads as a glitch.
       if (next[0] === list[index % list.length]) {
         replace(next)
         settle()

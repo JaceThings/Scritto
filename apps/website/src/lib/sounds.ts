@@ -39,8 +39,8 @@ declare global {
 }
 
 // Two iOS quirks, both only fixable inside a gesture: the context starts
-// suspended (pointermove is too late to resume it), and WebAudio defaults to
-// the muted ringer session unless an HTML5 source is live.
+// suspended, and WebAudio takes the muted ringer session without a live
+// HTML5 source.
 const unlock = () => {
   try {
     const c = audio()
@@ -81,8 +81,7 @@ const getNoise = (c: AudioContext) => {
   return noiseBuffer
 }
 
-// ~25 Hz: past that the ear smears the clicks into a buzz. The matching
-// queue-ahead keeps at most one tick pending, so a release feels sharp.
+// ~25 Hz: past that the ear smears the clicks into a buzz.
 const TICK_MIN_GAP_SEC = 0.04
 const MAX_QUEUE_AHEAD_SEC = 0.04
 let nextTickTime = 0
@@ -121,7 +120,7 @@ const scheduleOneTick = (c: AudioContext, when: number) => {
   pending.push({ when, osc, noise })
 }
 
-/** Cancels queued ticks; one already sounding keeps its decay, since cutting it reads as a glitch. */
+/** One already sounding keeps its decay; cutting it reads as a glitch. */
 export const cancelPendingTicks = () => {
   if (!ctx) return
   const now = ctx.currentTime
