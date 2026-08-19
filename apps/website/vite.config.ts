@@ -7,8 +7,8 @@ import { defineConfig, type Plugin } from 'vite'
 const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.url))
 
 /**
- * What the site ships. `versus.html`, `edges.html`, `suite.html` and `look.html`
- * are deliberately not here: `bun run play` serves any page in this directory,
+ * What the site ships. `versus.html`, `edges.html`, `resize.html`, `suite.html` and
+ * `look.html` are deliberately not here: `bun run play` serves any page in this directory,
  * so they stay a dev server away for the checks that drive them — flow needs
  * look, `bench:suite` needs suite, `check:versus` needs versus — without being
  * built into the deployed site.

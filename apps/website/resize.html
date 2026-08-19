@@ -3,14 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>scritto edges</title>
+    <title>scritto resize</title>
     <link rel="stylesheet" href="/src/dev/dev.css" />
   </head>
   <body class="m-6 max-w-6xl">
     <p>
       <a class="text-accent no-underline hover:text-fg" href="./playground.html">playground</a>
       ·
-      <a class="text-accent no-underline hover:text-fg" href="./resize.html">resize</a>
+      <a class="text-accent no-underline hover:text-fg" href="./edges.html">edges</a>
       ·
       <a class="text-accent no-underline hover:text-fg" href="./versus.html">versus</a>
       ·
@@ -18,24 +18,24 @@
       ·
       <a class="text-accent no-underline hover:text-fg" href="./suite.html">suite</a>
     </p>
-    <h1 class="mt-4 text-lg font-semibold">Edges</h1>
+    <h1 class="mt-4 text-lg font-semibold">Resize</h1>
     <p class="mt-1 max-w-2xl text-muted">
-      The awkward cases, most of them running on their own clock and never stopping. Each card
-      checks itself whenever it goes idle: the value it shows is the value it was handed, the host
-      is wearing none of the styles a transition puts on it, and no ink has escaped the card. A dot
-      goes red and stays red, with what it caught.
+      A value animating its width inside a container that shrink-wraps it. The container should
+      ride the transition frame by frame — never clip, never lag, never keep slack. Each card
+      measures exactly that on every frame of every roll: the host's layout box inside the
+      container's content box, and the container hugging once settled. Click any card to step it.
+      The last card is the failure for comparison: a fixed-width box that cannot follow.
     </p>
 
     <div class="mt-4 flex flex-wrap items-center gap-2" id="transport">
       <button class="rounded-lg bg-surface px-3 py-1.5 text-sm" data-role="toggle" type="button">Pause all</button>
       <button class="rounded-lg bg-surface px-3 py-1.5 text-sm" data-role="step" type="button">Step every card</button>
-      <button class="rounded-lg bg-surface px-3 py-1.5 text-sm" data-role="storm" type="button">Storm: 10s of everything at once</button>
       <button class="rounded-lg bg-surface px-3 py-1.5 text-sm" data-role="reset" type="button">Clear the dots</button>
       <span class="text-sm text-muted" data-role="tally"></span>
     </div>
     <p class="mt-2 hidden rounded-lg px-3 py-2 text-sm" data-role="crash"></p>
 
-    <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3" id="cards"></div>
-    <script type="module" src="/src/dev/edges.ts"></script>
+    <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2" id="cards"></div>
+    <script type="module" src="/src/dev/resize.ts"></script>
   </body>
 </html>
