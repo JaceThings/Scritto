@@ -2,49 +2,39 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#f7f6f2" />
-    <script>
-      (() => {
-        const stored = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1]
-        const dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
-        document.documentElement.classList.toggle('dark', dark)
-        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1c1918' : '#f7f6f2')
-      })()
-    </script>
-    <title>scritto resize</title>
-    <link rel="stylesheet" href="/src/dev/dev.css" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1918" media="(prefers-color-scheme: dark)" />
+    <title>scritto · resize</title>
+    <link rel="stylesheet" href="/src/styles/site.css" />
   </head>
-  <body class="m-6 max-w-6xl">
-    <p>
-      <a class="text-accent no-underline hover:text-fg" href="./playground.html">playground</a>
-      ·
-      <a class="text-accent no-underline hover:text-fg" href="./edges.html">edges</a>
-      ·
-      <a class="text-accent no-underline hover:text-fg" href="./versus.html">versus</a>
-      ·
-      <a class="text-accent no-underline hover:text-fg" href="./look.html">look</a>
-      ·
-      <a class="text-accent no-underline hover:text-fg" href="./suite.html">suite</a>
-    </p>
-    <h1 class="mt-4 text-lg font-semibold">Resize</h1>
-    <p class="mt-1 max-w-2xl text-muted">
-      A value animating its width inside a container that shrink-wraps it. The container should
-      ride the transition frame by frame — never clip, never lag, never keep slack. Each card
-      measures exactly that on every frame of every roll: the host's layout box inside the
-      container's content box, and the container hugging once settled. Click any card to step it.
-      The last card is the failure for comparison: a fixed-width box that cannot follow.
-    </p>
-
-    <div class="mt-4 flex flex-wrap items-center gap-2" id="transport">
-      <button class="rounded-lg bg-surface px-3 py-1.5 text-sm" data-role="toggle" type="button">Pause all</button>
-      <button class="rounded-lg bg-surface px-3 py-1.5 text-sm" data-role="step" type="button">Step every card</button>
-      <button class="rounded-lg bg-surface px-3 py-1.5 text-sm" data-role="reset" type="button">Clear the dots</button>
-      <span class="text-sm text-muted" data-role="tally"></span>
-    </div>
-    <p class="mt-2 hidden rounded-lg px-3 py-2 text-sm" data-role="crash"></p>
-
-    <div class="mt-5 grid grid-cols-1 gap-3 sm:grid-cols-2" id="cards"></div>
+  <body>
+    <main class="flex min-h-dvh w-full items-stretch justify-center bg-bg">
+      <article class="column gap-9">
+        <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
+          <h1 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Resize</h1>
+          <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+            A value animating its width inside a container that shrink-wraps it. The container
+            should ride the roll frame by frame — never clip, never lag, never hold slack. Every
+            card measures exactly that on every frame; the readout is the worst frame it has ever
+            seen. Click a card for the next value.
+          </p>
+          <p class="text-[13px] leading-[1.4] font-medium tracking-[-0.25px] text-text-secondary">
+            <a class="text-inherit no-underline hover:text-text-primary" href="./playground.html">playground</a>
+            ·
+            <a class="text-inherit no-underline hover:text-text-primary" href="./edges.html">edges</a>
+            ·
+            <a class="text-inherit no-underline hover:text-text-primary" href="./versus.html">versus</a>
+            ·
+            <a class="text-inherit no-underline hover:text-text-primary" href="./look.html">look</a>
+            ·
+            <a class="text-inherit no-underline hover:text-text-primary" href="./suite.html">suite</a>
+          </p>
+        </div>
+        <p class="hidden w-full rounded-xl px-4 py-3 text-[14px] font-medium" data-role="crash"></p>
+        <div id="page" class="flex w-full flex-col gap-12"></div>
+      </article>
+    </main>
     <script type="module" src="/src/dev/resize.ts"></script>
   </body>
 </html>
