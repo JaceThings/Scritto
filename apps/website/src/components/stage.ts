@@ -1,5 +1,5 @@
 import type { Scritto, Trend } from '@scritto/core'
-import { playClick } from '../lib/sounds'
+import { playRollSwitch } from '../lib/sounds'
 import { BOUNCE_DEFAULT, springEasing } from '../lib/spring'
 import {
   STATE_CHANGE_EASE,
@@ -127,7 +127,7 @@ export const createStage = (
   }
 
   trigger.addEventListener('click', () => {
-    playClick()
+    playRollSwitch()
     advance()
   })
   paint(false)

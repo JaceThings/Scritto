@@ -1,7 +1,8 @@
 // Files for discrete events, a synth for the slider tick (dozens a second on a
 // drag), and a silent loop keeping iOS on the session the silent switch spares.
+// Every file is peak-matched, so one volume means the same across them.
 
-const SOUND_FILES = ['/click.webm', '/copy-success.webm', '/pill-select.webm', '/silent.webm'] as const
+const SOUND_FILES = ['/click.webm', '/copy-success.webm', '/pill-select.webm', '/roll-switch.webm', '/silent.webm'] as const
 
 for (const src of SOUND_FILES) {
   const a = new Audio(src)
@@ -17,6 +18,7 @@ const playFile = (src: string, volume: number) => {
 export const playClick = () => playFile('/click.webm', 0.6)
 export const playCopySuccess = () => playFile('/copy-success.webm', 0.5)
 export const playPillSelect = () => playFile('/pill-select.webm', 0.6)
+export const playRollSwitch = () => playFile('/roll-switch.webm', 0.6)
 
 const TICK_VOLUME = 0.075
 const TICK_FREQ = 5500
