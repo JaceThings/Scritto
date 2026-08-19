@@ -483,7 +483,11 @@
 .versus-pair {
   display: grid;
   width: 100%;
-  grid-template-columns: 1fr 1fr;
+  /* `minmax(0, ...)`, not `1fr`: a bare `1fr` floors at the content's min-content
+     width, so a rolling value wide enough to overflow its stage dragged the
+     divider across and squeezed the other engine into a sliver. Each engine holds
+     half the figure whatever it is showing, and the stage clips its own overflow. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
 }
 
 .versus-side + .versus-side {
@@ -524,7 +528,7 @@
 
 @media (max-width: 640px) {
   .versus-pair {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .versus-side + .versus-side {
