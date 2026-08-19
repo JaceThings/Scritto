@@ -62,23 +62,6 @@ goes `visibility: hidden` underneath it — a hidden element still has layout an
 still reports what its animations are doing, which is all the capture needs, and
 the clone the capture builds forces itself visible.
 
-## `/readouts`
-
-The playground's slider readout, seven ways, on one page: every step rolling,
-every step hurried, live under the finger, and four pacings. Drag each one and
-pick by feel; the site default is marked. It exists because the right answer
-here is a taste call and the wrong ones only show up under a real hand.
-
-Below the seven is a Custom card: a number that never stops growing, with
-sliders for how often it changes and how far it jumps each time, plus the
-roll's own duration, stagger, blur, travel, scale and rotate live underneath —
-the same global constants every card on the page reads, so moving one retunes
-the whole page. It's also the tool that explains why a bigger number can feel
-slower to settle than a smaller one: a change that only touches one digit
-starts rolling immediately, but one that carries into a new digit (`990` to
-`1000`) spreads its start across the width of everything that changed, per
-`stagger`. Dialling stagger to 0 removes the difference outright.
-
 `check:flow` also hammers a value across widths inside a paragraph and asserts
 the box is not left dressed for a transition afterwards — display, margin,
 shrink-clip and inline width all back where they started — and that the

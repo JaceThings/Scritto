@@ -944,7 +944,7 @@ await scenario('homepage live sentence', async () => {
 // The width transition survives across updates now, so its teardown is only ever
 // reached by the animation finishing.
 await scenario('hammered across widths leaves no layout behind', async () => {
-  await visit('/readouts')
+  await visit('/playground')
   await page.evaluate(() => {
     const prose = document.createElement('p')
     prose.id = 'width-probe'

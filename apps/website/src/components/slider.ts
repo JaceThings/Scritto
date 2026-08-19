@@ -145,7 +145,8 @@ export type SliderConfig = {
  *
  * Rolling every step is the pick: it reads as one continuous number rather than
  * a series of settled ones, and the pile it leaves is bounded by the roll being
- * short. `/readouts` is the six-way comparison this came out of.
+ * short. It was chosen by hand against the alternatives, which is the only way
+ * this call can be made.
  */
 export type Readout = { duration: number; pace: number }
 
