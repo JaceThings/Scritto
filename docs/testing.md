@@ -55,6 +55,16 @@ every step hurried, live under the finger, and four pacings. Drag each one and
 pick by feel; the site default is marked. It exists because the right answer
 here is a taste call and the wrong ones only show up under a real hand.
 
+Below the seven is a Custom card: a number that never stops growing, with
+sliders for how often it changes and how far it jumps each time, plus the
+roll's own duration, stagger, blur, travel, scale and rotate live underneath —
+the same global constants every card on the page reads, so moving one retunes
+the whole page. It's also the tool that explains why a bigger number can feel
+slower to settle than a smaller one: a change that only touches one digit
+starts rolling immediately, but one that carries into a new digit (`990` to
+`1000`) spreads its start across the width of everything that changed, per
+`stagger`. Dialling stagger to 0 removes the difference outright.
+
 ## The case sweep
 
 `bun research/run-cases.ts` runs the documented value changes and
