@@ -265,20 +265,17 @@ class Scritto extends ServerSafeHTMLElement {
     const enterDelays = enterGlyphs.map((g) => enterDelayAt(g.offset))
     this._startExits(plan.trend, exitDelayAt)
     this._exitEnd = exits.reduce((end, g) => Math.max(end, g.offset + g.width), this._exitEnd)
-    // A waiting exit is fully opaque — a bare `opacity: 0` under fill both — so
-    // its ink outlives its delay by the spring's first crossing of 1.
+    // Arriving ink is laid out at its final position while the box is still
+    // widening, so the box tracks it as it fades in rather than letting it
+    // stand outside. Ink leaving keeps the box it already has: the edge fade
+    // covers its overhang, and holding the box out for it would stall the roll.
     const nowMs = performance.now()
     const duration = this.transition.duration
-    const inkLife = crossingFraction(this.transition.easing, 1) * duration
     const showsAt = crossingFraction(this.transition.easing, 0.15) * duration
-    const solidAt = crossingFraction(this.transition.easing, 0.6) * duration
+    const solidAt = crossingFraction(this.transition.easing, 0.35) * duration
     const blurPad = (parseFloat(getComputedStyle(this).fontSize) || 16) * CONFIG.blur * 2
     for (let i = this._inkSpans.length - 1; i >= 0; i--) {
       if (this._inkSpans[i].until <= nowMs) this._inkSpans.splice(i, 1)
-    }
-    for (const g of exits) {
-      const end = g.offset + g.width + blurPad
-      this._inkSpans.push({ end, from: 0, ramp: 0, until: nowMs + exitDelayAt(g.offset) + inkLife })
     }
     for (let i = 0; i < enterGlyphs.length; i++) {
       const g = enterGlyphs[i]
@@ -397,10 +394,13 @@ class Scritto extends ServerSafeHTMLElement {
     const startMoves = Math.abs(startShift) >= 0.5
     const endMoves = Math.abs(endShift) >= 0.5
     this._anchor = Math.abs(startShift) / (Math.abs(startShift) + Math.abs(endShift) || 1)
-    // A travelling edge leaves held ink outside the box behind it; the fade is
-    // the only thing that keeps that ink from showing.
-    const clipStart = startMoves
-    const clipEnd = endMoves
+    // The end side needs no neighbour to earn the fade: that is where old ink
+    // reaches past the width the box is heading for, and the slack there keeps
+    // live glyphs clear of the band. The start side has no such slack, so it
+    // fades only to keep the overhang off a neighbour.
+    const overhang = this._exitEnd > toW + 0.5
+    const clipStart = overhang && startMoves && this._besideOnLine(box, Math.abs(toW - fromW) + 1).start
+    const clipEnd = overhang && endMoves
     if (clipStart || clipEnd) {
       this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
     }
@@ -503,6 +503,31 @@ class Scritto extends ServerSafeHTMLElement {
     if (align === 'right') return this._isRTL ? 0 : 1
     if (align === 'left') return this._isRTL ? 1 : 0
     return 0
+  }
+
+  private _besideOnLine(box: DOMRect, reach: number) {
+    // The nearest ancestor owning a whole line: past inline wrappers, and past
+    // a cell, whose neighbours sit in the next cell rather than the row.
+    let block: HTMLElement | null = this.parentElement
+    while (block && /^(inline|table)/.test(getComputedStyle(block).display)) block = block.parentElement
+    const beside = { start: false, end: false }
+    if (!block) return beside
+    const range = document.createRange()
+    range.selectNodeContents(block)
+    const rects = range.getClientRects()
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i]
+      if (r.width === 0) continue
+      const overlap = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top)
+      if (overlap <= Math.min(r.height, box.height) * 0.5) continue
+      if (r.left >= box.left - 0.5 && r.right <= box.right + 0.5) continue
+      const after = r.left >= box.right - 0.5 && r.left <= box.right + reach
+      const before = r.right <= box.left + 0.5 && r.right >= box.left - reach
+      if (after) beside[this._isRTL ? 'start' : 'end'] = true
+      if (before) beside[this._isRTL ? 'end' : 'start'] = true
+    }
+    range.detach()
+    return beside
   }
 
   private _clearWidth() {

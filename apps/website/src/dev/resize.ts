@@ -230,10 +230,13 @@ const auditInk = (entry: Live, box: HTMLElement) => {
     const ink = glyph.getBoundingClientRect()
     if (alpha < VISIBLE_ALPHA || !ink.width || !(glyph.textContent ?? '').trim()) continue
     const spread = blurOf(glyph)
-    const past = Math.max(left - ink.left + spread, ink.right + spread - right)
+    const overStart = left - ink.left + spread
+    const overEnd = ink.right + spread - right
+    const past = Math.max(overStart, overEnd)
     if (past > entry.worst) entry.worst = past
     if (past > TOLERANCE) {
-      blame(entry, `ink escaped by ${past.toFixed(1)}px at opacity ${alpha.toFixed(2)}`)
+      const side = overStart > overEnd ? 'start' : 'end'
+      blame(entry, `ink ${past.toFixed(1)}px past the ${side} edge at opacity ${alpha.toFixed(2)}`)
       return
     }
   }
