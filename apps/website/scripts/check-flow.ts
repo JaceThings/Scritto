@@ -1021,6 +1021,71 @@ await scenario('hammered across widths leaves no layout behind', async () => {
   }
 })
 
+// 8. A value that changes width again before the last change has finished. The
+// box is pinned by a transition in flight, and reading it as the new width
+// finished the old transition and snapped to the new one: 31px in a frame
+// clicking through the playground's Words preset, 203px for a glyph as wide as
+// the basmala. The live value's kept ink may never move more than a few pixels
+// between two frames.
+await scenario('retarget mid-flight never snaps', async () => {
+  await visit('/playground')
+  const worst = await page.evaluate(
+    () =>
+      new Promise<{ jump: number; during: string }>((done) => {
+        const host = document.querySelector('#roll-demo')
+        if (!(host instanceof HTMLElement) || !host.shadowRoot) return done({ jump: -1, during: 'no host' })
+        // SAFETY: #roll-demo is a <scritto-text>, upgraded by load, so it carries
+        // the component's own setOptions and update.
+        const roll = host as HTMLElement & {
+          setOptions: (o: { respectMotionPreference: boolean; transition: { duration: number } }) => void
+          update: (v: string, animate: boolean) => void
+          value: string
+        }
+        roll.setOptions({ respectMotionPreference: false, transition: { duration: 550 } })
+        const root = host.shadowRoot
+        const samples: { L: number; v: string }[] = []
+        let raf = 0
+        const frame = () => {
+          const live = [...root.querySelectorAll<HTMLElement>('.char')]
+            .filter((el) => !el.closest('[inert]') && Number.parseFloat(getComputedStyle(el).opacity) > 0.5)
+            .map((el) => el.getBoundingClientRect())
+            .filter((box) => box.width > 0)
+          if (live.length) samples.push({ L: Math.min(...live.map((box) => box.left)), v: roll.value })
+          raf = requestAnimationFrame(frame)
+        }
+        frame()
+        const steps: [string, number][] = [['i', 0], ['W', 220], ['﷽', 100], ['i', 120], ['Code', 300], ['Code editor', 120], ['Co', 120], ['12', 300], ['88,900', 80], ['5', 80]]
+        let at = 0
+        for (const [value, wait] of steps) {
+          at += wait
+          setTimeout(() => roll.update(value, at > 0), at)
+        }
+        setTimeout(() => {
+          cancelAnimationFrame(raf)
+          let jump = 0
+          let during = ''
+          for (let i = 1; i < samples.length; i++) {
+            if (samples[i].v !== samples[i - 1].v) continue
+            const d = Math.abs(samples[i].L - samples[i - 1].L)
+            if (d > jump) {
+              jump = d
+              during = samples[i].v
+            }
+          }
+          done({ jump, during })
+        }, at + 1200)
+      }),
+  )
+  if (worst.jump < 0) report.violations.push({ flow: 'retarget', rule: 'drive', detail: worst.during })
+  else if (worst.jump > 6) {
+    report.violations.push({
+      flow: 'retarget',
+      rule: 'snap',
+      detail: `the live value's left edge moved ${worst.jump.toFixed(1)}px in one frame during "${worst.during}"`,
+    })
+  }
+})
+
 await page.screenshot({ path: `${OUT}-home.png` })
 await browser.close()
 

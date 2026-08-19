@@ -65,6 +65,21 @@ measurement after: 111.8px against 111.6px, and 30.4px against 30.5px. A real
 width change still animates exactly as before — the indent still travels its 8px
 and the box its 5.59px of slack.
 
+Two more things a pinned box needs. A value that wants a *different* width while
+a transition is in flight cannot be read off the box, which is pinned somewhere
+on its way to the old one; that read came back equal to the start and the
+transition finished to the old width and snapped — 31px in a frame clicking
+through the playground's Words preset, 203px for a glyph as wide as the basmala
+(U+FDFD, 260px at 40px Inter, wider than "Code editor"). The content's own width
+is summed from its sections instead, and if it differs the box is landed first
+and the new transition starts from the width it had reached. And for the length
+of a transition the host refuses to flex-shrink: a container the content
+overflows would otherwise take back the mask's slack on the way up and pin the
+box to its own edge on the way down, while the indent kept decaying under it.
+Measured on `i ↔ ﷽` against upstream, which has no width transition at all:
+the ink's edges now settle at the same millisecond, 216ms against 216ms and
+209ms against 209ms, and the live glyph's centre travels 0.0px on both.
+
 ## The box
 
 The width and the indent that goes with it use `cubic-bezier(0.22, 1, 0.36, 1)`,

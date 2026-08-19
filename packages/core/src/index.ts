@@ -126,6 +126,9 @@ class Scritto extends ServerSafeHTMLElement {
    */
   private _widthAnims: Animation[] = []
   private _widthTo: number | null = null
+  /** The running transition's timing and start-edge travel, for ghosts born mid-flight. */
+  private _widthTiming: { duration: number; easing: string; fill: 'forwards' } | null = null
+  private _widthDx = 0
   private _blockified = false
   private _isRTL = false
   private _value = ''
@@ -234,6 +237,21 @@ class Scritto extends ServerSafeHTMLElement {
     const plan = this._readyPlan
     this._readyPlan = null
     if (!plan) return
+    // A width transition in flight pins the box, so every measurement below
+    // would read a box somewhere on its way to the old width. If the new value
+    // wants a different width, let the box land first and carry the width it
+    // had reached as the new start — continuous on screen, but re-aimed. If it
+    // wants the width the transition is already heading for, leave it be.
+    let reached: number | null = null
+    if (this._widthAnims.length && this._widthTo !== null) {
+      const natural = this._naturalWidth()
+      if (Math.abs(natural - this._widthTo) >= 0.5) {
+        reached = this.getBoundingClientRect().width - edgeSlackPx(this)
+        for (let i = 0; i < this._widthAnims.length; i++) this._widthAnims[i].cancel()
+        this._widthAnims.length = 0
+        this._clearWidth()
+      }
+    }
     const newPrefix = this._prefix.getBoundingClientRect()
     const newSuffix = this._suffix.getBoundingClientRect()
     const prefixAnchor = plan.prefixCount ? this._chars[0].getBoundingClientRect() : null
@@ -273,7 +291,7 @@ class Scritto extends ServerSafeHTMLElement {
       if (anim) this._anims.push(anim)
     }
     this._armEnters(plan.enters, plan.trend, enterDelays)
-    if (!inFlow) this._transitionWidth(plan.fromW, toW, edge)
+    if (!inFlow) this._transitionWidth(reached ?? plan.fromW, toW, edge)
   }
 
   private _glyphsOf(nodes: HTMLElement[], from: number): Glyph[] {
@@ -314,11 +332,20 @@ class Scritto extends ServerSafeHTMLElement {
    * the width the box is heading for — which is a shrink.
    */
   private _transitionWidth(fromW: number, toW: number, edge: number) {
+    // Already on its way there, so let it get there. A ghost made by this update
+    // still has to ride along: the box's start edge is moving under it, and it
+    // joins the same compensation at the same phase rather than drifting.
+    if (this._widthAnims.length && this._widthTiming) {
+      const elapsed = Number(this._widthAnims[0].currentTime ?? 0)
+      for (const [group, x] of this._exitingChars) {
+        if (group.getAnimations().length) continue
+        const from = `translateX(${x - edge + this._widthDx}px)`
+        const to = `translateX(${x - edge}px)`
+        this._widthAnims.push(group.animate({ transform: [from, to] }, { ...this._widthTiming, delay: -elapsed }))
+      }
+      return
+    }
     if (Math.abs(toW - fromW) < 0.5) return
-    // Already on its way to this width, so let it get there.
-    if (this._widthTo !== null && Math.abs(toW - this._widthTo) < 0.5) return
-    for (let i = 0; i < this._widthAnims.length; i++) this._widthAnims[i].cancel()
-    this._widthAnims.length = 0
     const box = this.getBoundingClientRect()
     const beside = this._besideOnLine(box, Math.abs(toW - fromW) + 1)
     const css = getComputedStyle(this)
@@ -333,12 +360,22 @@ class Scritto extends ServerSafeHTMLElement {
     this.style.textAlign = 'start'
     const total = this.transition.duration + this._exitTail
     const timing = { duration: total, easing: SHRINK_EASING, fill: 'forwards' as const }
+    // The box has to be exactly the width the animation says, or the indent
+    // that holds the row in place is compensating for a box that is somewhere
+    // else. A flex container the content overflows would shrink it: on the way
+    // up, the mask's slack is not min-content and gets taken back, leaving the
+    // box half a slack off centre until the end; on the way down, the box is
+    // pinned to the container until the animation passes below it while the
+    // indent keeps decaying under it. Refusing to shrink for the duration is
+    // what the content already did at its natural width, which overflowed too.
+    this.style.flexShrink = '0'
     // The end margin takes the mask's slack back out of the layout.
     const slack = edgeSlackPx(this)
     this.style.marginInlineEnd = `${-slack}px`
     const anim = this.animate({ width: [`${fromW + slack}px`, `${toW + slack}px`] }, timing)
     anim.id = WIDTH_ANIM
     this._widthTo = toW
+    this._widthTiming = timing
     const start = this.getBoundingClientRect()
     const rtl = this._isRTL
     // `start` is the border box: the slack sits on its end side.
@@ -356,9 +393,10 @@ class Scritto extends ServerSafeHTMLElement {
       this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
     }
     const anims = [anim]
+    const dx = rtl ? startShift : -startShift
+    this._widthDx = startMoves ? dx : 0
     if (startMoves) {
       anims.push(this.animate({ textIndent: [`${-startShift}px`, '0px'] }, timing))
-      const dx = rtl ? startShift : -startShift
       for (const [group, x] of this._exitingChars) {
         anims.push(
           group.animate({ transform: [`translateX(${x - edge + dx}px)`, `translateX(${x - edge}px)`] }, timing),
@@ -366,12 +404,30 @@ class Scritto extends ServerSafeHTMLElement {
       }
     }
     anim.onfinish = () => {
-      for (const a of anims) a.cancel()
+      for (const a of this._widthAnims) a.cancel()
       this._widthAnims.length = 0
-      this._widthTo = null
       this._clearWidth()
     }
     this._widthAnims.push(...anims)
+  }
+
+  /**
+   * The width the box would take if nothing held it: its content, and the
+   * padding and border it wears of its own. Read while a transition has the box
+   * pinned, when the box's own width says nothing about the value in it.
+   */
+  private _naturalWidth() {
+    const css = getComputedStyle(this)
+    const sections = [this._prefix, this._middle, this._suffix, this._tail]
+    let content = 0
+    for (let i = 0; i < sections.length; i++) content += sections[i].getBoundingClientRect().width
+    return (
+      content +
+      (parseFloat(css.paddingInlineStart) || 0) +
+      (parseFloat(css.paddingInlineEnd) || 0) +
+      (parseFloat(css.borderInlineStartWidth) || 0) +
+      (parseFloat(css.borderInlineEndWidth) || 0)
+    )
   }
 
   private _anchorHint() {
@@ -411,6 +467,9 @@ class Scritto extends ServerSafeHTMLElement {
 
   private _clearWidth() {
     this._widthTo = null
+    this._widthTiming = null
+    this._widthDx = 0
+    this.style.flexShrink = ''
     if (this._blockified) {
       this.style.display = ''
       this.style.marginTop = ''
@@ -599,7 +658,6 @@ class Scritto extends ServerSafeHTMLElement {
   private _reset() {
     for (let i = 0; i < this._widthAnims.length; i++) this._widthAnims[i].cancel()
     this._widthAnims.length = 0
-    this._widthTo = null
     this._cancelTracked()
     clearAnimStyle(this._prefix)
     clearAnimStyle(this._middle)
