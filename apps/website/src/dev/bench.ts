@@ -1,7 +1,8 @@
 import type { Scritto } from '@scritto/core'
 import { bindThemeToggle } from './theme'
 
-const BASELINE_URL = 'https://esm.sh/@scritto/core@0.1.4'
+// The 0.1.x line shipped under the old name; nothing is published as @scritto yet.
+const BASELINE_URL = 'https://esm.sh/@numeric-text/core@0.1.4'
 
 const baseline = new URLSearchParams(location.search).has('baseline')
 if (baseline) await import(/* @vite-ignore */ BASELINE_URL)

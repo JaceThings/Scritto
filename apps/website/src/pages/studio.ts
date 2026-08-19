@@ -209,3 +209,5 @@ declare global {
     }
   }
 }
+
+initStudio(document)

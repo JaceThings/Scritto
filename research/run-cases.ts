@@ -1,6 +1,7 @@
 // Drives the real element through every case and records what the DOM did.
 // Needs a dev server on 5175: `bun run play`.
 import { chromium } from 'playwright'
+import type { Scritto } from '@scritto/core'
 import { writeFileSync } from 'node:fs'
 
 type Case = { group: string; from: string; to: string; note?: string }
@@ -88,13 +89,14 @@ await p.waitForTimeout(400)
 const results = []
 for (const spec of CASES) {
   const row = await p.evaluate(async ({ from, to }) => {
-    const host = document.querySelector('#probe') as any
+    // SAFETY: this script creates #probe above, once the element is defined.
+    const host = document.querySelector('#probe') as Scritto
     host.setOptions({ respectMotionPreference: false, transition: { duration: 400 } })
     host.update('', false)
     host.update(from, false)
     await new Promise((r) => requestAnimationFrame(() => r(null)))
-    const root = host.shadowRoot as ShadowRoot
-    const live = () => [...root.querySelectorAll('.char')] as HTMLElement[]
+    const root = host.shadowRoot!
+    const live = () => [...root.querySelectorAll<HTMLElement>('.char')]
     const before = new Map<HTMLElement, { text: string; x: number }>()
     for (const c of live()) before.set(c, { text: c.textContent ?? '', x: c.getBoundingClientRect().left })
     const widthBefore = host.getBoundingClientRect().width
@@ -118,7 +120,7 @@ for (const spec of CASES) {
         entering.push(text)
       }
     }
-    const all = [...root.querySelectorAll('.char')].flatMap((c) => (c as HTMLElement).getAnimations())
+    const all = [...root.querySelectorAll<HTMLElement>('.char')].flatMap((c) => c.getAnimations())
     const span = all.reduce((m, a) => Math.max(m, Number(a.effect?.getComputedTiming().endTime ?? 0)), 0)
     const delays = all.map((a) => Math.round(Number(a.effect?.getComputedTiming().delay ?? 0)))
     const keptEls = chars.filter((c) => !(exitsBox?.contains(c) ?? false) && c.getAnimations().length === 0)

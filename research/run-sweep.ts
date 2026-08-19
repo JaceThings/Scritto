@@ -1,6 +1,7 @@
 // Drives the real element through every case and records what the DOM did.
 // Needs a dev server on 5175: `bun run play`.
 import { chromium } from 'playwright'
+import type { Scritto } from '@scritto/core'
 import { writeFileSync } from 'node:fs'
 const b = await chromium.launch()
 const p = await b.newPage({ viewport: { width: 1600, height: 400 } })
@@ -14,21 +15,21 @@ await p.evaluate(() => {
 })
 await p.waitForTimeout(300)
 const out = await p.evaluate(async () => {
-  const host = document.querySelector('#probe') as any
+  // SAFETY: this script creates #probe above, once the element is defined.
+  const host = document.querySelector('#probe') as Scritto
   host.setOptions({ respectMotionPreference: false, transition: { duration: 400 } })
   host.update('', false)
   host.update('Draft', false)
   await new Promise((r) => requestAnimationFrame(() => r(null)))
   host.update('Published', true)
   await new Promise((r) => queueMicrotask(() => r(null)))
-  const root = host.shadowRoot as ShadowRoot
-  const rows = [...root.querySelectorAll('.char')].map((c) => {
-    const el = c as HTMLElement
+  const root = host.shadowRoot!
+  const rows = [...root.querySelectorAll<HTMLElement>('.char')].map((el) => {
     const a = el.getAnimations()[0]
     const timing = a?.effect?.getComputedTiming()
     return {
       text: el.textContent,
-      exiting: !!root.querySelector('.exits')?.contains(el),
+      exiting: root.querySelector('.exits')?.contains(el) === true,
       delay: Math.round(Number(timing?.delay ?? 0)),
       duration: Math.round(Number(timing?.duration ?? 0)),
       x: Math.round(el.getBoundingClientRect().left),
