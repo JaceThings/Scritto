@@ -12,8 +12,6 @@ export type ScrittoOptions = {
   trend?: Trend
   respectMotionPreference?: boolean
   bounce?: boolean
-  /** Speed outgoing glyphs up when a change lands on ink that is still leaving. */
-  hurry?: boolean
 }
 
 export type ScrittoProps = ScrittoOptions & {

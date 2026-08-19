@@ -10,7 +10,6 @@
     transition,
     respectMotionPreference,
     bounce,
-    hurry,
     animated = true,
     ...rest
   }: ScrittoProps & HTMLAttributes<HTMLElement> = $props();
@@ -26,7 +25,7 @@
   });
 
   $effect(() => {
-    text.setOptions({ trend, transition, respectMotionPreference, bounce, hurry });
+    text.setOptions({ trend, transition, respectMotionPreference, bounce });
   });
 
   onMount(() => {

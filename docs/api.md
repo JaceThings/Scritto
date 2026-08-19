@@ -27,7 +27,6 @@ Text content inside the tag is the server-rendered value. Import
 | `trend` | `0` | `1` up, `-1` down, `0` reads it off the value |
 | `bounce` | `false` | swaps the spring for the bouncier preset |
 | `respectMotionPreference` | `true` | honour `prefers-reduced-motion` |
-| `hurry` | `false` | speed up outgoing ink when changes overlap |
 
 `trend: 0` compares every number in the two values and lets the first one that
 differs decide. Values that gain or lose a number read as a rise.

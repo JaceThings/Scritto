@@ -10,13 +10,12 @@ import { bindCorners } from '../lib/corners'
 type Variant = { name: string; note: string; readout: Partial<Readout> }
 
 const VARIANTS: Variant[] = [
-  { name: 'Every step, 300ms', note: 'What 0.1.4 does: every detent rolls, and a drag stacks a dozen of them.', readout: { duration: 300, pace: 0, hurry: false } },
-  { name: 'Every step, hurried', note: 'Same, with the pile behind the newest value sped off.', readout: { duration: 300, pace: 0, hurry: true } },
+  { name: 'Every step, 300ms', note: 'What 0.1.4 does: every detent rolls, and a drag stacks a dozen of them.', readout: { duration: 300, pace: 0 } },
   { name: 'Live under the finger', note: 'No roll while dragging; the number is just the number. Rolls on release and on every other change.', readout: { pace: Infinity } },
-  { name: 'Paced 80ms, 160ms roll', note: 'Quick and busy. Rolls keep up with a fast drag.', readout: { duration: 160, pace: 80, hurry: true } },
-  { name: 'Paced 120ms, 240ms roll', note: 'The site default. Each roll gets most of itself before the next lands.', readout: { duration: 240, pace: 120, hurry: true } },
-  { name: 'Paced 150ms, 300ms roll', note: 'The full readout roll, one every 150ms. Skips more of the in-between values.', readout: { duration: 300, pace: 150, hurry: true } },
-  { name: 'Paced 200ms, 400ms roll', note: 'Slow and deliberate; the number lags the finger by a beat.', readout: { duration: 400, pace: 200, hurry: true } },
+  { name: 'Paced 80ms, 160ms roll', note: 'Quick and busy. Rolls keep up with a fast drag.', readout: { duration: 160, pace: 80 } },
+  { name: 'Paced 120ms, 240ms roll', note: 'The site default. Each roll gets most of itself before the next lands.', readout: { duration: 240, pace: 120 } },
+  { name: 'Paced 150ms, 300ms roll', note: 'The full readout roll, one every 150ms. Skips more of the in-between values.', readout: { duration: 300, pace: 150 } },
+  { name: 'Paced 200ms, 400ms roll', note: 'Slow and deliberate; the number lags the finger by a beat.', readout: { duration: 400, pace: 200 } },
 ]
 
 const mount = document.querySelector<HTMLElement>('#readouts')!
@@ -78,9 +77,6 @@ custom.innerHTML = `
     <div class="row row-slider" data-role="rotate"></div>
     <div class="row" style="padding: 16px; gap: 18px; flex-wrap: wrap">
       <label class="flex items-center gap-2 text-[13px] font-medium text-text-input">
-        <input data-role="hurry" type="checkbox" checked /> Hurry
-      </label>
-      <label class="flex items-center gap-2 text-[13px] font-medium text-text-input">
         <input data-role="bounce" type="checkbox" /> Bounce
       </label>
       <label class="flex items-center gap-2 text-[13px] font-medium text-text-input">
@@ -96,7 +92,6 @@ mount.append(custom)
 const find = <T extends HTMLElement>(role: string) => custom.querySelector<T>(`[data-role="${role}"]`)!
 const grow = custom.querySelector<Scritto>('#grow')!
 const groupCheck = find<HTMLInputElement>('group')
-const hurryCheck = find<HTMLInputElement>('hurry')
 const bounceCheck = find<HTMLInputElement>('bounce')
 const runningCheck = find<HTMLInputElement>('running')
 
@@ -183,7 +178,6 @@ const tick = () => {
   if (value > 999_999) value = 0
   grow.setOptions({
     respectMotionPreference: false,
-    hurry: hurryCheck.checked,
     bounce: bounceCheck.checked,
     transition: { duration: duration.value },
   })

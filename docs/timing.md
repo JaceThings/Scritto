@@ -59,20 +59,25 @@ A roll is left running when the next update lands. That is on purpose: a digit
 halfway out of a counter that ticks faster than its own duration finishes
 leaving rather than popping, and the churn harness asserts it.
 
-The cost is that outgoing values stack. Spam a card and you get several ghosts
-over each other, each individually legible and collectively a smear. `hurry`
-speeds the ink already on its way out — 2.5× per change, capped at 6× — so it
-keeps rolling but clears the screen sooner.
+The cost is that outgoing values stack. Change a value faster than its own
+duration and you get several ghosts over each other, each individually legible
+and collectively a smear.
 
-The newest group is never hurried. It is the one being read, and speeding it up
-is what makes a dragged readout pop instead of roll; everything behind it is
-already illegible and only wants to get out of the way. Measured on the duration
-slider through a fast drag, that takes the readout from 19 half-faded glyphs at
-its worst down to 7.
+The fix is the duration, not a shortcut. Keep a roll no longer than the gap
+between the updates driving it and nothing piles up: at 120ms between values with
+a 240ms roll, the deepest a slot ever gets is two glyphs, 20% of the time. Feed
+that same roll a value every 40ms and it goes five deep — but that cadence is
+asking for something impossible, and the answer is a shorter roll or a paced
+update, both of which the site's own readout does.
 
-`hurry` is off by default because a value that changes rarely has nothing to
-clear. Turn it on for anything that can change faster than its own duration —
-a card people click, a readout under a drag.
+There used to be an option here that sped outgoing ink up 2.5× per change, capped
+at 6×, to clear the pile. It is gone, and nothing replaced it. Measured across
+every one of the site's readout presets it changed the stack depth at none of
+them, because pacing had already prevented the pile-up; it only did anything when
+the roll ran several times longer than the gap between updates, which is the
+misconfiguration above. What it did do reliably was cause its own bugs — glyphs
+whisked off screen having never been visible, and a dragged readout popping
+instead of rolling.
 
 A glyph that survives an update keeps its own roll. Committing a new value used
 to cancel the animations on every glyph in it, including the ones that had not
@@ -80,15 +85,6 @@ changed, so a leading digit's entrance died the moment a trailing digit ticked.
 On a counter at 90ms intervals with a 590ms roll that left the leading digit 93ms
 to do a 590ms job, which is why the high-order digits looked faster than the low
 ones. It now runs the full 597ms, matching upstream exactly at a 40ms cadence.
-
-`hurry` scales every animation on a glyph in an exit group, not only its exit,
-and that is deliberate. A glyph replaced before it finished arriving carries its
-entrance into the group, and the exit reads that entrance's fill as the value to
-leave from. Sprinting the exit alone runs it away from ink the entrance has not
-drawn yet, and the glyph leaves having never been visible: measured at a 40ms
-cadence, restricting `hurry` to exits lost 69% of the ones digit's arrivals and
-59% of its departures. Carrying the whole glyph, none are lost — 0% of its exits
-and 3% of its entrances fail to visibly move, against 4% and 30% upstream.
 
 ## Reduced motion
 

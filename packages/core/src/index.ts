@@ -112,7 +112,6 @@ class Scritto extends ServerSafeHTMLElement {
   private _chars: HTMLElement[] = []
   private _exitingChars: [el: HTMLElement, left: number][] = []
   private _exitQueue: QueuedExit[] = []
-  private _crowded = false
   /** Held across commits: rapid updates leave earlier exit groups standing. */
   private _exitEnd = 0
   /** Where the box holds still as it resizes: 0 start, 1 end, 0.5 middle. */
@@ -130,7 +129,6 @@ class Scritto extends ServerSafeHTMLElement {
   public trend: Trend = 0
   public respectMotionPreference = true
   public bounce = false
-  public hurry = false
 
   constructor() {
     super()
@@ -183,7 +181,7 @@ class Scritto extends ServerSafeHTMLElement {
     this.dispatchEvent(new CustomEvent('scrittochange', { bubbles: true, detail: { phase, animate } }))
   }
 
-  setOptions({ bounce, transition, trend, respectMotionPreference, hurry }: ScrittoOptions) {
+  setOptions({ bounce, transition, trend, respectMotionPreference }: ScrittoOptions) {
     if (bounce === true || bounce === false) this.bounce = bounce
     if (transition || bounce === true || bounce === false) {
       this.transition = { ...(this.bounce ? BOUNCE_TRANSITION : DEFAULT_TRANSITION), ...transition }
@@ -192,7 +190,6 @@ class Scritto extends ServerSafeHTMLElement {
     if (respectMotionPreference === true || respectMotionPreference === false) {
       this.respectMotionPreference = respectMotionPreference
     }
-    if (hurry === true || hurry === false) this.hurry = hurry
   }
 
   private _render() {
@@ -215,8 +212,6 @@ class Scritto extends ServerSafeHTMLElement {
       return
     }
     this._cancelTracked()
-    this._crowded = this._exitingChars.length > 0
-    this._hurryExits()
     this._exitTail = 0
     this._queueExit(this._chars.slice(plan.prefixCount, plan.oldSuffix), plan.exitingX, plan.exitGlyphs)
     this._queueExit(plan.exitingTail, plan.tailX, plan.tailGlyphs)
@@ -241,7 +236,6 @@ class Scritto extends ServerSafeHTMLElement {
     const delayAt = this._sweep(enterGlyphs.concat(exits))
     const enterDelays = enterGlyphs.map((g) => delayAt(g.offset))
     this._startExits(plan.trend, delayAt)
-    if (this._crowded) this._hurryExits()
     this._exitEnd = exits.reduce((end, g) => Math.max(end, g.offset + g.width), this._exitEnd)
     const total = this.transition.duration + this._exitTail
     // A flow re-flows the row under the host, so old ink is placed against the
@@ -523,30 +517,6 @@ class Scritto extends ServerSafeHTMLElement {
 
   _exitEndPx() {
     return this._exitEnd
-  }
-
-  /**
-   * Exits keep rolling through the next update, so spamming stacks whole values
-   * over each other. The newest group is spared: it is the one being read, and
-   * hurrying it is what makes a dragged readout pop rather than roll.
-   */
-  private _hurryExits() {
-    if (!this.hurry) return
-    for (let i = 0; i < this._exitingChars.length - 1; i++) {
-      const chars = this._exitingChars[i][0].querySelectorAll<HTMLElement>('.char')
-      for (let j = 0; j < chars.length; j++) {
-        // Every animation on the char, not just its exit. A glyph replaced
-        // before it finished arriving carries that entrance into the group, and
-        // the exit reads its fill as the value to leave from. Hurrying the exit
-        // alone sprints it away from ink the entrance has not drawn yet, and the
-        // glyph is whisked off having never been visible at all — measured at a
-        // 40ms cadence, that lost 69% of the ones digit's arrivals.
-        const anims = chars[j].getAnimations()
-        for (let k = 0; k < anims.length; k++) {
-          anims[k].playbackRate = Math.min(CONFIG.hurryMax, anims[k].playbackRate * CONFIG.hurry)
-        }
-      }
-    }
   }
 
   private _queueExit(nodes: HTMLElement[], x: number, glyphs: Glyph[]) {

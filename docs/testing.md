@@ -90,32 +90,23 @@ imports it.
 Freeze pauses every animation in both shadow roots, catching each where it stands
 rather than rewinding to a shared zero — at these cadences a dozen rolls are in
 flight at different ages, and that spread is the thing worth looking at. Scrub
-then walks the whole scene forward together, in wall time, and the readout
+then walks the whole scene forward together, and the readout
 counts ink still on screen grouped by the slot it sits in.
 
-Forward only, because backward cannot be honest. A glyph that already finished
-was released, and rewinding cannot bring it back; `hurry` releases the fork's
-exits sooner than upstream's, so scrubbed back the two would show different
-pasts of the same value — the fork crisp on the old number, upstream still
-mid-roll. Wall time because a hurried exit runs at up to 6×: a millisecond of
-scrub is a millisecond on the clock for both engines.
+Forward only, because backward cannot be honest: a glyph that already finished
+was released, and rewinding cannot bring it back, so the two sides would show
+different pasts of the same value.
 
-`hurry` starts unchecked so the two are compared at parity; upstream has no
-such thing. Measured that way at 90ms and 40ms cadences the engines match to
-within a frame — lifetimes 607 against 607ms, exits on screen 248 against 236ms,
-entrances 317 against 301ms, nothing cut short on either side. Check it and the
-fork's exits live 235ms and its entrances 314ms at up to 6×, which is the whole
-of the "smoother upstream" impression: it is the fork with `hurry` off. The one
-genuine engine difference is direction — upstream reads a grouped value with
-`parseFloat`, so `5,229 → 5,236` is `5 → 5` and rolls downward there; the fork
-parses the whole number and rises.
+This page is what retired `hurry`. Measured at 90ms and 40ms cadences the two
+engines match to within a frame — lifetimes 607 against 607ms, exits on screen
+248 against 236ms, entrances 317 against 301ms, nothing cut short on either
+side — and both stack outgoing glyphs in the same slot rather than swapping or
+deleting them. Every apparent difference traced back to that option running the
+fork's exits at up to 6×.
 
-That count settles the question the page was built for. Both engines stack
-outgoing glyphs in the same slot; neither swaps or deletes them. What differs is
-`hurry`, which upstream does not have. At a 40ms cadence on a 590ms roll, a slot
-is two or more glyphs deep in 100% of frames upstream and 26% with `hurry` on,
-and the fork's mean depth is 1.29 against 2.77. Turn `hurry` off and the two
-match: 99% against 100%, mean 2.53 against 2.72.
+The one engine difference left is direction. Upstream reads a grouped value with
+`parseFloat`, so `5,229 → 5,236` is `5 → 5` and rolls downward; the fork parses
+the whole number and rises.
 
 ## The case sweep
 

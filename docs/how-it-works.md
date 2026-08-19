@@ -180,8 +180,9 @@ them without dragging them along.
 They are deliberately not cancelled when the next update lands. A digit halfway
 out of a rapidly-changing counter finishes leaving rather than popping. The cost
 is that a value spammed faster than its own duration stacks several outgoing
-copies over each other, which is what the opt-in `hurry` option is for: it
-speeds up ink that is already on its way out instead of cancelling it.
+copies over each other. The fix for that is a roll no longer than the gap
+between updates, not a shortcut that speeds the pile away; see
+[timing.md](timing.md).
 
 ## The pool
 

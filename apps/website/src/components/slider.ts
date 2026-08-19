@@ -144,9 +144,9 @@ export type SliderConfig = {
  * ones that do overlap are hurried off. `0` rolls every step; `Infinity` holds
  * the number live under the finger and never rolls a drag at all.
  */
-export type Readout = { duration: number; pace: number; hurry: boolean }
+export type Readout = { duration: number; pace: number }
 
-export const READOUT: Readout = { duration: 240, pace: 120, hurry: true }
+export const READOUT: Readout = { duration: 240, pace: 120 }
 
 let sliderCount = 0
 
@@ -193,7 +193,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
   const rangeInput = pick<HTMLInputElement>('range')
 
   labelText.setOptions({ transition: { duration: pacing.duration } })
-  valueText.setOptions({ transition: { duration: pacing.duration }, hurry: pacing.hurry })
+  valueText.setOptions({ transition: { duration: pacing.duration } })
   labelText.update(label, false)
 
   const reserved = reservedChars(min, max, step, format)

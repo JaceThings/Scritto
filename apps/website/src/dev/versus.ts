@@ -8,10 +8,8 @@ import { bindCorners } from '../lib/corners'
 import '../vendor/numeric-text'
 import { CONFIG as UPSTREAM_CONFIG } from '../vendor/numeric-text/const'
 
-/** What both engines take. Upstream drops `hurry` on the floor; it has none. */
 type RollOptions = {
   respectMotionPreference?: boolean
-  hurry?: boolean
   transition?: { duration: number }
 }
 
@@ -28,7 +26,6 @@ const fork = page.querySelector<Scritto>('#fk')!
 const both: Rollable[] = [up, fork]
 
 const groupCheck = find<HTMLInputElement>('group')
-const hurryCheck = find<HTMLInputElement>('hurry')
 const runningCheck = find<HTMLInputElement>('running')
 const freezeButton = find<HTMLButtonElement>('freeze')
 const tickButton = find<HTMLButtonElement>('tick')
@@ -51,13 +48,10 @@ const tick = () => {
   value += step.value
   if (value > 999_999) value = 0
   const text = format(value)
-  up.setOptions({ respectMotionPreference: false, transition: { duration: duration.value } })
-  fork.setOptions({
-    respectMotionPreference: false,
-    hurry: hurryCheck.checked,
-    transition: { duration: duration.value },
-  })
-  for (const host of both) host.update(text, true)
+  for (const host of both) {
+    host.setOptions({ respectMotionPreference: false, transition: { duration: duration.value } })
+    host.update(text, true)
+  }
 }
 
 const restart = () => {
@@ -92,14 +86,12 @@ const release = () => {
 }
 
 /**
- * Forward only, in wall time. Backward cannot be honest: a glyph that already
- * finished was released, and rewinding cannot bring it back — and `hurry`
- * releases the fork's exits sooner than upstream's, so the two would rewind
- * into different pasts of the same value. Wall time because a hurried exit runs
- * at up to 6×; a millisecond of scrub is a millisecond on the clock for both.
+ * Forward only. Backward cannot be honest: a glyph that already finished was
+ * released, and rewinding cannot bring it back, so the two sides would show
+ * different pasts of the same value.
  */
 const shift = (ms: number) => {
-  for (const { animation, at } of held) animation.currentTime = at + ms * animation.playbackRate
+  for (const { animation, at } of held) animation.currentTime = at + ms
 }
 
 /**
