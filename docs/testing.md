@@ -39,6 +39,13 @@ rotation, stagger, duration and trend all adjustable underneath. It exports the
 held frame as a transparent PNG at up to 8×, which is also how the icon artwork
 gets made.
 
+The type is yours: pick a bundled family, grant local font access to get every
+family installed on the machine, or upload a file. An uploaded font travels with
+the export as base64, since an SVG image cannot fetch anything; an installed one
+needs nothing, because the SVG resolves it locally the same way the page does.
+Glow is a pair of text shadows — a tight core and a wide halo — and it survives
+the export, so an icon can be lit rather than flat.
+
 It runs like a video editor: space plays and pauses, `L` loops, `⌘,` and `⌘.`
 step a single frame at 60fps (hold shift for ten), Home and End jump to the
 ends, and the rate select plays back at down to a tenth of speed without
@@ -47,6 +54,13 @@ of the transition, each one rasterised through the same capture the export uses,
 so it shows the roll rather than a drawing of it. It rebuilds a quarter second
 after the last knob moves, because sixteen captures is not something to do on
 every frame of a drag.
+
+Building the strip means walking the animations across the whole timeline, which
+is the one thing that must not be visible: it reads as the transition playing at
+some absurd speed. The stage holds a still of the frame you were on and the host
+goes `visibility: hidden` underneath it — a hidden element still has layout and
+still reports what its animations are doing, which is all the capture needs, and
+the clone the capture builds forces itself visible.
 
 ## `/readouts`
 

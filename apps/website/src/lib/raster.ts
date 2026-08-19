@@ -59,6 +59,7 @@ const PROPS = [
   'scale',
   'text-align',
   'text-indent',
+  'text-shadow',
   'text-transform',
   'top',
   'transform',
@@ -154,7 +155,15 @@ const load = (url: string) =>
     img.src = url
   })
 
-export const captureHost = async (host: HTMLElement, scale: number, pad: number) => {
+/**
+ * `extra` is CSS the SVG needs and the page cannot supply — an `@font-face` for
+ * a font that was uploaded rather than installed, say.
+ *
+ * The clone is forced visible, so the caller can hide the live host while it
+ * drives it somewhere. A hidden element still has layout and still reports what
+ * its animations are doing, which is everything the capture reads.
+ */
+export const captureHost = async (host: HTMLElement, scale: number, pad: number, extra = '') => {
   const box = host.getBoundingClientRect()
   const width = Math.max(1, Math.round((box.width + pad * 2) * scale))
   const height = Math.max(1, Math.round((box.height + pad * 2) * scale))
@@ -162,14 +171,14 @@ export const captureHost = async (host: HTMLElement, scale: number, pad: number)
   const body = flatten(host)
   body.setAttribute(
     'style',
-    `${body.getAttribute('style') ?? ''}position:absolute;left:${pad}px;top:${pad}px;`,
+    `${body.getAttribute('style') ?? ''}position:absolute;left:${pad}px;top:${pad}px;visibility:visible;opacity:1;`,
   )
 
   const markup =
     `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${box.width + pad * 2} ${box.height + pad * 2}">` +
     `<foreignObject width="100%" height="100%">` +
     `<div xmlns="http://www.w3.org/1999/xhtml" style="position:relative;width:${box.width + pad * 2}px;height:${box.height + pad * 2}px">` +
-    `<style>${await fontCss()}</style>${new XMLSerializer().serializeToString(body)}` +
+    `<style>${await fontCss()}${extra}</style>${new XMLSerializer().serializeToString(body)}` +
     `</div></foreignObject></svg>`
 
   const img = await load(`data:image/svg+xml;charset=utf-8,${encodeURIComponent(markup)}`)

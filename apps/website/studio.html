@@ -36,9 +36,31 @@
 
         <fieldset class="studio-group">
           <legend>Type</legend>
+          <label class="studio-field"><span>Font</span>
+            <select data-role="font">
+              <optgroup label="Bundled" data-role="fonts-bundled">
+                <option value="'Inter Variable', sans-serif">Inter Variable</option>
+                <option value="system-ui, sans-serif">System UI</option>
+                <option value="ui-serif, Georgia, serif">Serif</option>
+                <option value="ui-monospace, Menlo, monospace">Monospace</option>
+              </optgroup>
+            </select>
+          </label>
+          <div class="studio-buttons">
+            <button type="button" data-role="pick-local">Installed fonts…</button>
+            <label class="studio-upload">Upload…<input data-role="upload" type="file" accept=".ttf,.otf,.woff,.woff2,font/*" /></label>
+          </div>
+          <p class="studio-hint" data-role="font-note"></p>
           <label class="studio-field"><span>Size</span><input data-role="size" type="range" min="24" max="480" step="1" value="220" /><output data-out="size"></output></label>
           <label class="studio-field"><span>Weight</span><input data-role="weight" type="range" min="100" max="900" step="10" value="550" /><output data-out="weight"></output></label>
           <label class="studio-field"><span>Colour</span><input data-role="color" type="color" value="#000000" /></label>
+        </fieldset>
+
+        <fieldset class="studio-group">
+          <legend>Glow</legend>
+          <label class="studio-field"><span>Radius</span><input data-role="glow" type="range" min="0" max="120" step="1" value="0" /><output data-out="glow"></output></label>
+          <label class="studio-field"><span>Strength</span><input data-role="glowAlpha" type="range" min="5" max="100" step="5" value="60" /><output data-out="glowAlpha"></output></label>
+          <label class="studio-field"><span>Colour</span><input data-role="glowColor" type="color" value="#ffffff" /></label>
         </fieldset>
 
         <fieldset class="studio-group">

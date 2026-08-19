@@ -12,7 +12,19 @@ const FRAME_MS = 1000 / FPS
 const THUMBS = 16
 const THUMB_HEIGHT = 54
 
-type Knob = 'size' | 'weight' | 'duration' | 'blur' | 'travel' | 'scale' | 'rotate' | 'stagger' | 'shot' | 'pad'
+type Knob =
+  | 'size'
+  | 'weight'
+  | 'duration'
+  | 'blur'
+  | 'travel'
+  | 'scale'
+  | 'rotate'
+  | 'stagger'
+  | 'glow'
+  | 'glowAlpha'
+  | 'shot'
+  | 'pad'
 
 const FORMAT = {
   size: (value: number) => `${value}px`,
@@ -23,6 +35,8 @@ const FORMAT = {
   scale: (value: number) => value.toFixed(2),
   rotate: (value: number) => `${value}°`,
   stagger: (value: number) => value.toFixed(2),
+  glow: (value: number) => (value ? `${value}px` : 'off'),
+  glowAlpha: (value: number) => `${value}%`,
   shot: (value: number) => `${value}×`,
   pad: (value: number) => `${value}px`,
 } satisfies Record<Knob, (value: number) => string>
@@ -41,6 +55,10 @@ export const initStudio = (root: ParentNode = document) => {
   const trend = find<HTMLSelectElement>('trend')
   const bounce = find<HTMLInputElement>('bounce')
   const colour = find<HTMLInputElement>('color')
+  const glowColour = find<HTMLInputElement>('glowColor')
+  const fontSelect = find<HTMLSelectElement>('font')
+  const fontNote = find<HTMLParagraphElement>('font-note')
+  const stage = find<HTMLElement>('stage')
   const scrub = find<HTMLInputElement>('scrub')
   const play = find<HTMLButtonElement>('play')
   const loop = find<HTMLButtonElement>('loop')
@@ -48,6 +66,39 @@ export const initStudio = (root: ParentNode = document) => {
   const strip = find<HTMLElement>('strip')
   const playhead = find<HTMLElement>('playhead')
   const dims = find<HTMLParagraphElement>('dims')
+
+  /**
+   * A font the studio was handed as a file has to travel with the export: an
+   * SVG image cannot fetch anything, so it carries its own `@font-face`. An
+   * installed font needs none of that — the SVG resolves it locally, same as
+   * the page does.
+   */
+  let fontCss = ''
+
+  const embed = async (family: string, blob: Blob) => {
+    const bytes = new Uint8Array(await blob.arrayBuffer())
+    let binary = ''
+    for (const byte of bytes) binary += String.fromCharCode(byte)
+    await document.fonts.ready
+    const face = new FontFace(family, bytes)
+    await face.load()
+    document.fonts.add(face)
+    return `@font-face{font-family:'${family}';src:url(data:font/woff2;base64,${btoa(binary)})}`
+  }
+
+  const addOption = (group: string, value: string, label: string) => {
+    let holder = fontSelect.querySelector<HTMLOptGroupElement>(`optgroup[label="${group}"]`)
+    if (!holder) {
+      holder = document.createElement('optgroup')
+      holder.label = group
+      fontSelect.append(holder)
+    }
+    const option = document.createElement('option')
+    option.value = value
+    option.textContent = label
+    holder.prepend(option)
+    fontSelect.value = value
+  }
 
   // The stage is transparent, so a black default disappears on the dark page.
   const inkFromPage = () => {
@@ -57,7 +108,20 @@ export const initStudio = (root: ParentNode = document) => {
   }
 
   const knob = (name: Knob) => Number(find<HTMLInputElement>(name).value)
-  const knobs: Knob[] = ['size', 'weight', 'duration', 'blur', 'travel', 'scale', 'rotate', 'stagger', 'shot', 'pad']
+  const knobs: Knob[] = [
+    'size',
+    'weight',
+    'duration',
+    'blur',
+    'travel',
+    'scale',
+    'rotate',
+    'stagger',
+    'glow',
+    'glowAlpha',
+    'shot',
+    'pad',
+  ]
 
   let running: Animation[] = []
   let span = 1
@@ -104,9 +168,11 @@ export const initStudio = (root: ParentNode = document) => {
     CONFIG.rotate = knob('rotate')
     CONFIG.stagger = knob('stagger')
 
+    host.style.fontFamily = fontSelect.value
     host.style.fontSize = `${knob('size')}px`
     host.style.fontWeight = String(knob('weight'))
     host.style.color = colour.value
+    host.style.textShadow = glow()
 
     host.setOptions({
       respectMotionPreference: false,
@@ -137,6 +203,19 @@ export const initStudio = (root: ParentNode = document) => {
     })
   }
 
+  /**
+   * Two shadows rather than one: a tight core and a wide halo, which is what
+   * reads as light coming off the glyph instead of a drop shadow behind it.
+   */
+  const glow = () => {
+    const radius = knob('glow')
+    if (!radius) return 'none'
+    const rgb = glowColour.value.match(/[\da-f]{2}/gi)?.map((part) => Number.parseInt(part, 16)) ?? [255, 255, 255]
+    const alpha = knob('glowAlpha') / 100
+    const ink = (a: number) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a.toFixed(3)})`
+    return `0 0 ${radius * 0.4}px ${ink(alpha)}, 0 0 ${radius}px ${ink(alpha * 0.7)}`
+  }
+
   let stripGen = 0
   let stripQueued = 0
 
@@ -146,6 +225,24 @@ export const initStudio = (root: ParentNode = document) => {
    * it walks the animations to each position, which is why it runs once a change
    * has settled and never while something is playing.
    */
+  /** A still of the frame on screen, held over the stage while the strip builds. */
+  const freeze = async () => {
+    const box = host.getBoundingClientRect()
+    const stageBox = stage.getBoundingClientRect()
+    const shot = await captureHost(host, window.devicePixelRatio || 1, 24, fontCss)
+    shot.className = 'studio-freeze'
+    shot.style.left = `${box.left - stageBox.left - 24}px`
+    shot.style.top = `${box.top - stageBox.top - 24}px`
+    shot.style.width = `${box.width + 48}px`
+    shot.style.height = `${box.height + 48}px`
+    stage.append(shot)
+    host.style.visibility = 'hidden'
+    return () => {
+      host.style.visibility = ''
+      shot.remove()
+    }
+  }
+
   const buildStrip = async () => {
     const gen = ++stripGen
     const cells: HTMLCanvasElement[] = []
@@ -159,22 +256,30 @@ export const initStudio = (root: ParentNode = document) => {
       strip.append(cell)
     }
     const held = at
-    for (let i = 0; i < THUMBS; i++) {
-      if (gen !== stripGen) return
-      seek((span * i) / (THUMBS - 1))
-      await new Promise((done) => requestAnimationFrame(() => done(null)))
-      if (gen !== stripGen) return
-      const box = host.getBoundingClientRect()
-      const scale = box.height ? Math.min(1, THUMB_HEIGHT / box.height) : 1
-      const shot = await captureHost(host, scale, 6)
-      if (gen !== stripGen) return
-      const cell = cells[i]
-      cell.width = shot.width
-      cell.height = shot.height
-      cell.getContext('2d')?.drawImage(shot, 0, 0)
+    const thaw = await freeze()
+    if (gen !== stripGen) {
+      thaw()
+      return
     }
-    if (gen !== stripGen) return
-    seek(held)
+    try {
+      for (let i = 0; i < THUMBS; i++) {
+        if (gen !== stripGen) return
+        seek((span * i) / (THUMBS - 1))
+        await new Promise((done) => requestAnimationFrame(() => done(null)))
+        if (gen !== stripGen) return
+        const box = host.getBoundingClientRect()
+        const scale = box.height ? Math.min(1, THUMB_HEIGHT / box.height) : 1
+        const shot = await captureHost(host, scale, 6, fontCss)
+        if (gen !== stripGen) return
+        const cell = cells[i]
+        cell.width = shot.width
+        cell.height = shot.height
+        cell.getContext('2d')?.drawImage(shot, 0, 0)
+      }
+      seek(held)
+    } finally {
+      thaw()
+    }
   }
 
   const measure = () => {
@@ -248,9 +353,43 @@ export const initStudio = (root: ParentNode = document) => {
     })
   }
 
-  for (const el of [from, to, trend, bounce, colour]) {
+  for (const el of [from, to, trend, bounce, colour, glowColour, fontSelect]) {
     el.addEventListener('change', () => roll(true))
   }
+
+  find<HTMLButtonElement>('pick-local').addEventListener('click', async () => {
+    if (!window.queryLocalFonts) {
+      fontNote.textContent = 'This browser has no local font access. Upload a file instead.'
+      return
+    }
+    try {
+      const fonts = await window.queryLocalFonts()
+      const families = [...new Set(fonts.map((entry) => entry.family))].sort()
+      if (!families.length) {
+        fontNote.textContent = 'Access was granted but no families came back. Upload a file instead.'
+        return
+      }
+      for (const family of families.reverse()) addOption('Installed', `'${family}'`, family)
+      fontNote.textContent = `${families.length} installed families added, ${families[families.length - 1]} first.`
+      roll(true)
+    } catch {
+      fontNote.textContent = 'Permission declined, so the installed list stays empty.'
+    }
+  })
+
+  find<HTMLInputElement>('upload').addEventListener('change', async (event) => {
+    const file = event.target instanceof HTMLInputElement ? event.target.files?.[0] : null
+    if (!file) return
+    const family = `Uploaded ${file.name.replace(/\.[^.]+$/, '')}`
+    try {
+      fontCss = await embed(family, file)
+      addOption('Uploaded', `'${family}'`, file.name)
+      fontNote.textContent = `${file.name} is loaded and travels with the export.`
+      roll(true)
+    } catch {
+      fontNote.textContent = `${file.name} could not be read as a font.`
+    }
+  })
   for (const el of [from, to]) el.addEventListener('input', () => roll(true))
 
   for (const preset of find<HTMLElement>('presets').querySelectorAll<HTMLButtonElement>('button')) {
@@ -263,7 +402,7 @@ export const initStudio = (root: ParentNode = document) => {
 
   find<HTMLButtonElement>('replay').addEventListener('click', () => roll(false))
 
-  const shoot = () => captureHost(host, knob('shot'), knob('pad'))
+  const shoot = () => captureHost(host, knob('shot'), knob('pad'), fontCss)
 
   // A shortcut has no business firing while somebody is typing a value.
   const typing = (target: EventTarget | null) =>
@@ -329,6 +468,17 @@ export const initStudio = (root: ParentNode = document) => {
 }
 
 declare global {
+  interface FontData {
+    family: string
+    fullName: string
+    postscriptName: string
+    blob(): Promise<Blob>
+  }
+
+  interface Window {
+    queryLocalFonts?: () => Promise<FontData[]>
+  }
+
   interface ShadowRoot {
     getAnimations(): Animation[]
   }

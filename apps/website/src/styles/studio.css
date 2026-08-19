@@ -6,7 +6,7 @@
 
 .studio {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 360px;
   grid-template-rows: minmax(0, 1fr) auto;
   grid-template-areas: 'stage panel' 'timeline panel';
   width: 100%;
@@ -49,9 +49,14 @@
   overflow-y: auto;
   grid-area: panel;
   flex-direction: column;
-  gap: 18px;
-  padding: 24px 20px 32px;
+  gap: 22px;
+  padding: 24px 22px 40px;
   border-left: 1px solid var(--color-hairline);
+}
+
+.studio-panel fieldset + fieldset {
+  padding-top: 20px;
+  border-top: 1px solid color-mix(in srgb, var(--color-hairline) 70%, transparent);
 }
 
 .studio-title {
@@ -80,20 +85,24 @@
 }
 
 .studio-group legend {
-  padding: 0 0 6px;
-  font-size: 12px;
-  font-weight: 550;
-  letter-spacing: 0.02em;
+  padding: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
-  color: var(--color-text-secondary);
+  color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
 }
 
 .studio-field {
   display: grid;
   align-items: center;
-  gap: 8px;
-  grid-template-columns: 66px minmax(0, 1fr) 46px;
+  gap: 10px;
+  grid-template-columns: 62px minmax(0, 1fr) 54px;
   font-size: 13px;
+}
+
+.studio-field > span {
+  color: var(--color-text-secondary);
 }
 
 .studio-check {
@@ -104,13 +113,70 @@
 .studio-field input[type='text'],
 .studio-field select {
   min-width: 0;
-  padding: 5px 8px;
+  padding: 7px 9px;
   border: 1px solid var(--color-hairline);
-  border-radius: 6px;
-  background: transparent;
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
   font: inherit;
+  font-size: 14px;
   color: inherit;
   grid-column: 2 / -1;
+}
+
+.studio-field input[type='text']:focus,
+.studio-field select:focus {
+  border-color: color-mix(in srgb, var(--color-text-primary) 35%, transparent);
+  outline: none;
+}
+
+.studio-field input[type='color'] {
+  width: 100%;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--color-hairline);
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  grid-column: 2 / -1;
+}
+
+.studio-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.studio-upload {
+  padding: 6px 10px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.studio-upload input {
+  display: none;
+}
+
+.studio-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+.studio-hint:empty {
+  display: none;
+}
+
+/* Held over the stage while the strip is built, so the frame you are looking at
+   stops still instead of racing through the timeline. */
+.studio-freeze {
+  position: absolute;
+  z-index: 2;
+  pointer-events: none;
 }
 
 .studio-field input[type='range'] {
@@ -122,7 +188,7 @@
   font-size: 12px;
   font-variant-numeric: tabular-nums;
   text-align: right;
-  color: var(--color-text-secondary);
+  color: var(--color-text-primary);
 }
 
 .studio-presets {
@@ -132,6 +198,7 @@
 }
 
 .studio-presets button,
+.studio-buttons button,
 .studio-export,
 .studio-replay,
 .studio-play {
