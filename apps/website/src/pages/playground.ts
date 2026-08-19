@@ -177,32 +177,16 @@ export const initPlayground = (root: ParentNode = document) => {
     },
   )
 
-  const formatBounce = (value: number) => {
-    if (Math.abs(value - BOUNCE_DEFAULT) < 0.005) return `Default – ${value.toFixed(2)}`
-    if (Math.abs(value - BOUNCE_BOUNCY) < 0.005) return `Bouncy – ${value.toFixed(2)}`
-    return value.toFixed(2)
-  }
-
-  const bounceModeOf = (value: number) =>
-    Math.abs(value - BOUNCE_DEFAULT) < 0.005 ? 'default'
-    : Math.abs(value - BOUNCE_BOUNCY) < 0.005 ? 'bouncy'
-    : 'custom'
-
-  // The slider moves the pills and the pills move the slider, so one side has
-  // to be reachable before it exists — same shape as the roll card's editor.
-  let bouncePills: { set: (value: 'default' | 'bouncy' | 'custom') => void } | null = null
-
   const bounceSlider = createSlider(find('#bounce'), {
     label: 'Bounce',
     value: BOUNCE_DEFAULT,
     min: 0,
     max: 0.5,
     step: 0.01,
-    format: formatBounce,
-    formatSeed: (value) => value.toFixed(2),
-    formatSamples: [BOUNCE_DEFAULT, BOUNCE_BOUNCY],
+    // Bare number: naming the preset here made the readout retype a whole word
+    // mid-drag, and the pills already say which one is on.
+    format: (value) => value.toFixed(2),
     onChange: (value, fromDrag) => {
-      bouncePills?.set(bounceModeOf(value))
       const patch = { easing: springEasing(value) }
       if (fromDrag) bounce.configure(patch)
       else bounce.apply(patch)
@@ -210,7 +194,9 @@ export const initPlayground = (root: ParentNode = document) => {
     onRelease: () => bounce.advance(),
   })
 
-  bouncePills = createPills(
+  const bounceRow = find<HTMLElement>('[data-role="bounce-slider"]')
+
+  createPills(
     find('#bounce-mode'),
     [
       { value: 'default', label: 'Default' },
@@ -219,11 +205,14 @@ export const initPlayground = (root: ParentNode = document) => {
     ] as const,
     'default',
     (mode) => {
-      // Custom is not a value of its own: it opens the readout for typing one.
-      if (mode === 'custom') {
-        bounceSlider.edit()
-        return
-      }
+      // Custom is not a value of its own: it hands the card over to the slider.
+      // Dragging never presses a pill back, so landing on 0.20 stays Custom.
+      const open = mode === 'custom'
+      bounceRow.dataset.open = String(open)
+      // Collapsed is still in the layout, so without this the range input keeps
+      // its place in the tab order behind a zero-height row.
+      bounceRow.inert = !open
+      if (open) return
       const value = mode === 'default' ? BOUNCE_DEFAULT : BOUNCE_BOUNCY
       bounceSlider.set(value)
       bounce.apply({ easing: springEasing(value) })

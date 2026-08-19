@@ -188,6 +188,32 @@
   padding: 16px;
 }
 
+/* 0fr to 1fr rather than a height, so the row never has to be measured. Not
+   named `.collapse`: Tailwind ships that as `visibility: collapse`, which wins
+   the cascade for a property this rule never sets and hides the row for good. */
+.disclose {
+  display: grid;
+  grid-template-rows: 1fr;
+  transition: grid-template-rows 350ms var(--ease-out-quint);
+}
+
+.disclose[data-open='false'] {
+  grid-template-rows: 0fr;
+}
+
+/* The clip carries no padding of its own: a border-box height still cannot
+   shrink past its own padding, so a padded grid item never reaches zero. */
+.disclose-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disclose {
+    transition: none;
+  }
+}
+
 .row-label {
   flex: none;
   user-select: none;
@@ -213,8 +239,6 @@
   outline: none;
 }
 
-/* Not `.collapse`: Tailwind ships that name as `visibility: collapse`, which wins
-   the cascade for a property this rule never sets and hides the row for good. */
 .hops {
   position: relative;
   display: flex;

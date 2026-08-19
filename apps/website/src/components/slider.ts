@@ -22,18 +22,10 @@ const TUNING = {
 const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
 const snap = (n: number, step: number) => (step > 0 ? Math.round(n / step) * step : n)
 
-const reservedChars = (
-  min: number,
-  max: number,
-  step: number,
-  format?: (n: number) => string,
-  samples?: readonly number[],
-) => {
+const reservedChars = (min: number, max: number, step: number, format?: (n: number) => string) => {
   const decimals = String(step).includes('.') ? String(step).split('.')[1].length : 0
   const show = (n: number) => (format ? format(n) : decimals ? n.toFixed(decimals) : String(n))
-  const lengths = [show(min).length, show(max).length]
-  if (samples) for (const value of samples) lengths.push(show(value).length)
-  return Math.max(...lengths)
+  return Math.max(show(min).length, show(max).length)
 }
 
 const bezier = (x1: number, y1: number, x2: number, y2: number) => {
@@ -137,8 +129,6 @@ export type SliderConfig = {
   format?: (value: number) => string
   /** Seed for the typed input when `format` decorates the number. */
   formatSeed?: (value: number) => string
-  /** Extra values fed through `format` when reserving the readout width. */
-  formatSamples?: readonly number[]
   /** `fromDrag` is true only for continuous pointer-drag updates. */
   onChange: (next: number, fromDrag: boolean) => void
   /** Fires when a pointer drag ends, for consumers that replay on settle. */
@@ -148,7 +138,7 @@ export type SliderConfig = {
 let sliderCount = 0
 
 export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
-  const { label, min, max, format, formatSeed, formatSamples, onChange, onRelease } = config
+  const { label, min, max, format, formatSeed, onChange, onRelease } = config
   const step = config.step ?? 1
   const range = max - min || 1
   const id = `slider-${++sliderCount}`
@@ -193,7 +183,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
   }
   labelText.update(label, false)
 
-  const reserved = reservedChars(min, max, step, format, formatSamples)
+  const reserved = reservedChars(min, max, step, format)
   readout.style.minWidth = `${reserved}ch`
   input.style.minWidth = `${reserved}ch`
 

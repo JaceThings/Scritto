@@ -107,7 +107,13 @@
               <div class="row">
                 <div class="pill-group" id="bounce-mode" role="group" aria-label="Bounce preset"></div>
               </div>
-              <div class="row row-slider" id="bounce"></div>
+              <!-- The slider is Custom's own control: Default and Bouncy are values,
+                   so their row would only be a readout of a pill already pressed. -->
+              <div class="disclose" data-open="false" data-role="bounce-slider" inert>
+                <div class="disclose-clip">
+                  <div class="row row-slider" id="bounce"></div>
+                </div>
+              </div>
             </div>
           </section>
 
