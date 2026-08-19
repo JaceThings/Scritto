@@ -63,19 +63,21 @@ The cost is that outgoing values stack. Change a value faster than its own
 duration and you get several ghosts over each other, each individually legible
 and collectively a smear.
 
-The fix is the duration, not a shortcut. Keep a roll no longer than the gap
-between the updates driving it and nothing piles up: at 120ms between values with
-a 240ms roll, the deepest a slot ever gets is two glyphs, 20% of the time. Feed
-that same roll a value every 40ms and it goes five deep — but that cadence is
-asking for something impossible, and the answer is a shorter roll or a paced
-update, both of which the site's own readout does.
+The fix is the duration, not a shortcut. Keep a roll no longer than a few times
+the gap between the updates driving it and nothing piles up: the site's own
+readout rolls every step of a drag with a 300ms roll and never gets past one
+glyph in a slot. Stretch that roll to 1600ms against a value every 40ms and the
+pile is 60 outgoing values deep, half of them still inked — but that is arithmetic,
+not a defect. A glyph's last stagger delay plus its duration is how long it
+lives, and dividing that by the update gap is how many are on screen at once.
+Upstream measures 55 at those settings. The answer is a shorter roll.
 
 There used to be an option here that sped outgoing ink up 2.5× per change, capped
 at 6×, to clear the pile. It is gone, and nothing replaced it. Measured across
 every one of the site's readout presets it changed the stack depth at none of
-them, because pacing had already prevented the pile-up; it only did anything when
-the roll ran several times longer than the gap between updates, which is the
-misconfiguration above. What it did do reliably was cause its own bugs — glyphs
+them, because none of them runs a roll long enough to pile up; it only did
+anything when the roll ran several times longer than the gap between updates,
+which is the misconfiguration above. What it did do reliably was cause its own bugs — glyphs
 whisked off screen having never been visible, and a dragged readout popping
 instead of rolling.
 

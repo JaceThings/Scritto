@@ -137,16 +137,19 @@ export type SliderConfig = {
 }
 
 /**
- * A drag commits a step every few frames, and a readout that rolls each one
- * never finishes a roll. `pace` is the shortest gap between rolls while the
- * pointer is down: the readout rolls to whatever the value is by then and
- * skips what came between, so each roll gets most of its `duration` and the
- * ones that do overlap are hurried off. `0` rolls every step; `Infinity` holds
- * the number live under the finger and never rolls a drag at all.
+ * A drag commits a step every few frames. `pace` is the shortest gap between
+ * rolls while the pointer is down: the readout rolls to whatever the value is by
+ * then and skips what came between, so each roll gets most of its `duration`.
+ * `0` rolls every step; `Infinity` holds the number live under the finger and
+ * never rolls a drag at all.
+ *
+ * Rolling every step is the pick: it reads as one continuous number rather than
+ * a series of settled ones, and the pile it leaves is bounded by the roll being
+ * short. `/readouts` is the six-way comparison this came out of.
  */
 export type Readout = { duration: number; pace: number }
 
-export const READOUT: Readout = { duration: 240, pace: 120 }
+export const READOUT: Readout = { duration: 300, pace: 0 }
 
 let sliderCount = 0
 

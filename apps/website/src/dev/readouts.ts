@@ -10,10 +10,10 @@ import { bindCorners } from '../lib/corners'
 type Variant = { name: string; note: string; readout: Partial<Readout> }
 
 const VARIANTS: Variant[] = [
-  { name: 'Every step, 300ms', note: 'What 0.1.4 does: every detent rolls, and a drag stacks a dozen of them.', readout: { duration: 300, pace: 0 } },
+  { name: 'Every step, 300ms', note: 'Every detent rolls, so the number reads as one continuous value under the finger.', readout: { duration: 300, pace: 0 } },
   { name: 'Live under the finger', note: 'No roll while dragging; the number is just the number. Rolls on release and on every other change.', readout: { pace: Infinity } },
   { name: 'Paced 80ms, 160ms roll', note: 'Quick and busy. Rolls keep up with a fast drag.', readout: { duration: 160, pace: 80 } },
-  { name: 'Paced 120ms, 240ms roll', note: 'The site default. Each roll gets most of itself before the next lands.', readout: { duration: 240, pace: 120 } },
+  { name: 'Paced 120ms, 240ms roll', note: 'Each roll gets most of itself before the next lands, at the cost of skipping values.', readout: { duration: 240, pace: 120 } },
   { name: 'Paced 150ms, 300ms roll', note: 'The full readout roll, one every 150ms. Skips more of the in-between values.', readout: { duration: 300, pace: 150 } },
   { name: 'Paced 200ms, 400ms roll', note: 'Slow and deliberate; the number lags the finger by a beat.', readout: { duration: 400, pace: 200 } },
 ]
