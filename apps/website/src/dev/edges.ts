@@ -213,7 +213,7 @@ for (const spec of CASES) {
       </div>
     </div>
     <p class="mt-1 text-[12px] leading-snug text-muted">${spec.note}</p>
-    <div class="mt-2 min-h-14 overflow-hidden rounded-lg bg-surface p-2 ${spec.width ?? 'text-2xl'}" data-role="stage"></div>
+    <div class="mt-2 min-h-14 overflow-hidden rounded-lg bg-surface px-4 py-2 ${spec.width ?? 'text-2xl'}" data-role="stage"></div>
     <p class="mt-1 hidden text-[11px] leading-snug text-red-500" data-role="fault"></p>`
   cards.append(card)
 

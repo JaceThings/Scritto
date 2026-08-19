@@ -60,6 +60,12 @@ The edge mask lives in the gutters past the text, not on the content box. One
 rem of fade is exactly a 16px stage padding; more than that and the card clips
 it.
 
+It is on every flow from the constructor, so there is nothing to turn on — but a
+container that gives it less than 16px and hides its overflow cuts the fade off
+partway and leaves the hard edge the mask exists to avoid. `/edges` had a card
+doing exactly that with 8px, and it read as the mask being missing when it was
+there the whole time.
+
 ## Ghosts and interruption
 
 A word mid-handoff is `visibility: hidden` at its destination while two ghosts
