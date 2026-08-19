@@ -43,12 +43,16 @@ const traveled = (perSecond: number) => Math.round(((Date.now() % MINUTE_MS) / 1
 export const startLightTicker = (host: Scritto, unit: HTMLElement) => {
   const miles = inUS()
   const perSecond = miles ? KM_PER_SECOND / KM_PER_MILE : KM_PER_SECOND
-  unit.textContent = miles ? 'miles' : 'km'
+  // The flow wraps each word once, on connect, and holds the elements it made.
+  // Writing over the container would drop the one standing in for this word,
+  // and it would stop sliding when the figure changes width.
+  const word = unit.querySelector<HTMLElement>('[data-word]') ?? unit
+  word.textContent = miles ? 'miles' : 'km'
 
   const paint = (animate: boolean) => {
     const value = traveled(perSecond).toLocaleString('en-US')
     host.update(value, animate)
-    host.setAttribute('aria-label', `${value} ${unit.textContent}`)
+    host.setAttribute('aria-label', `${value} ${word.textContent}`)
   }
 
   paint(false)
