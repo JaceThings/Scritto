@@ -1,6 +1,6 @@
 /* Colours live on :root so they can flip with the system (or an explicit
    data-theme, which wins); the theme only aliases them. Dark values come from
-   the corne.rs dark frame (Figma 224:148): the page sits at #1b1917 and every
+   the corne.rs dark frame (Figma 224:148), bar the page fill: every
    raised thing — install rows, playground cards — at #2c2926 behind a flat
    white ring, rather than a tinted card behind a warm one. Its heading and
    body layers still carry the light fills, so those two keep ja.mt's dark
@@ -54,7 +54,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
     color-scheme: dark;
-    --bg: #1b1917;
+    --bg: #1c1918;
     --surface: #2c2926;
     --figure: #2c2926;
     --heading: #fef1df;
@@ -76,7 +76,7 @@
 
 [data-theme='dark'] {
   color-scheme: dark;
-  --bg: #1b1917;
+  --bg: #1c1918;
   --surface: #2c2926;
   --figure: #2c2926;
   --heading: #fef1df;
