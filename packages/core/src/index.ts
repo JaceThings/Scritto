@@ -518,12 +518,12 @@ class Scritto extends ServerSafeHTMLElement {
 
   /**
    * Exits keep rolling through the next update, so spamming stacks whole values
-   * over each other. Opt-in, because a readout under a drag retires one digit
-   * at a time and hurrying that reads as a pop rather than a roll.
+   * over each other. The newest group is spared: it is the one being read, and
+   * hurrying it is what makes a dragged readout pop rather than roll.
    */
   private _hurryExits() {
     if (!this.hurry) return
-    for (let i = 0; i < this._exitingChars.length; i++) {
+    for (let i = 0; i < this._exitingChars.length - 1; i++) {
       const chars = this._exitingChars[i][0].querySelectorAll<HTMLElement>('.char')
       for (let j = 0; j < chars.length; j++) {
         const anims = chars[j].getAnimations()

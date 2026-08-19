@@ -179,7 +179,9 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
   const rangeInput = pick<HTMLInputElement>('range')
 
   for (const el of [labelText, valueText]) {
-    el.setOptions({ transition: { duration: READOUT_DURATION } })
+    // A drag retires a value every few frames against a 300ms roll, so the
+    // older ones are hurried off; the newest is left alone and still rolls.
+    el.setOptions({ transition: { duration: READOUT_DURATION }, hurry: true })
   }
   labelText.update(label, false)
 
