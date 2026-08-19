@@ -62,6 +62,9 @@ type Glyph = { offset: number; width: number }
 type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; entry: [HTMLElement, number] }
 
 const centerX = (rect: DOMRect) => (rect.left + rect.right) * 0.5
+
+/** Marks a char's exit, which is the only animation on it that hurry may touch. */
+const OUT = 'out'
 const startOf = (rect: DOMRect, rtl: boolean) => (rtl ? rect.right : rect.left)
 const pending = new Set<Scritto>()
 let flushScheduled = false
@@ -503,7 +506,15 @@ class Scritto extends ServerSafeHTMLElement {
     reconcileChildren(this._middle, chars, prefixCount, midEnd)
     reconcileChildren(this._suffix, chars, midEnd, midEnd + suffixCount)
     reconcileChildren(this._tail, chars, midEnd + suffixCount, chars.length)
-    for (let i = 0; i < chars.length; i++) resetAnim(chars[i])
+    // A glyph that survives the update owns its roll. Cancelling here cut a
+    // leading digit's entrance short every time a trailing one ticked, so the
+    // high-order digits appeared to animate faster than the low ones. Clearing
+    // the inline style is still safe: an effect outranks it.
+    const kept = new Set(this._chars)
+    for (let i = 0; i < chars.length; i++) {
+      if (kept.has(chars[i])) clearAnimStyle(chars[i])
+      else resetAnim(chars[i])
+    }
     this._chars = chars
   }
 
@@ -528,6 +539,10 @@ class Scritto extends ServerSafeHTMLElement {
       for (let j = 0; j < chars.length; j++) {
         const anims = chars[j].getAnimations()
         for (let k = 0; k < anims.length; k++) {
+          // Only the exit is the group's to hurry. A glyph replaced mid-entrance
+          // carries that entrance as the base its exit reads from, so speeding it
+          // up would drag the exit's own starting point along with it.
+          if (anims[k].id !== OUT) continue
           anims[k].playbackRate = Math.min(CONFIG.hurryMax, anims[k].playbackRate * CONFIG.hurry)
         }
       }
@@ -630,6 +645,8 @@ class Scritto extends ServerSafeHTMLElement {
       anim.onfinish = finishIdentityAnim
       return
     }
+    anim.id = OUT
+
     let done = false
     const finish = () => {
       if (done) return

@@ -74,6 +74,18 @@ its worst down to 7.
 clear. Turn it on for anything that can change faster than its own duration —
 a card people click, a readout under a drag.
 
+Whatever else is going on, a glyph's own roll is its own. Two things used to
+break that, and both read as the high-order digits animating faster than the low
+ones. Committing a new value cancelled the animations on every glyph in it,
+including the ones that had not changed — so a leading digit's entrance died the
+moment a trailing digit ticked. On a counter at 90ms intervals with a 590ms roll,
+that left the leading digit 93ms to do a 590ms job, while `hurry` was separately
+scaling the leftover entrance still riding on a glyph that had moved into an exit
+group. A surviving glyph now keeps its own animation, and `hurry` only touches
+the exit it is meant to. Same counter, measured after: the leading digit's
+entrance runs its full 604ms, and no entrance anywhere is played at anything but
+1×.
+
 ## Reduced motion
 
 `respectMotionPreference` is on by default: with `prefers-reduced-motion: reduce`
