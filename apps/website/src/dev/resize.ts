@@ -108,6 +108,7 @@ type Live = {
   dot: HTMLElement
   fault: HTMLElement
   delta: HTMLElement
+  count: HTMLElement
   tick: number
   ticks: number
   due: number
@@ -183,6 +184,7 @@ for (const spec of CASES) {
     dot: card.querySelector<HTMLElement>('[data-role="dot"]')!,
     fault: card.querySelector<HTMLElement>('[data-role="fault"]')!,
     delta: card.querySelector<HTMLElement>('[data-role="delta"]')!,
+    count: card.querySelector<HTMLElement>('[data-role="count"]')!,
     tick: 0,
     ticks: 0,
     due: performance.now() + 600 + live.length * 260,
@@ -252,8 +254,7 @@ const frame = (now: number) => {
     let ticks = 0
     for (const entry of live) {
       entry.delta.textContent = entry.hugs.length ? `Δ ${entry.worst.toFixed(1)}px` : ''
-      const count = entry.delta.nextElementSibling as HTMLElement
-      count.textContent = String(entry.ticks)
+      entry.count.textContent = String(entry.ticks)
       faults += entry.faults
       ticks += entry.ticks
     }
