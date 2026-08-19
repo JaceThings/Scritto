@@ -100,6 +100,16 @@ pasts of the same value — the fork crisp on the old number, upstream still
 mid-roll. Wall time because a hurried exit runs at up to 6×: a millisecond of
 scrub is a millisecond on the clock for both engines.
 
+`hurry` starts unchecked so the two are compared at parity; upstream has no
+such thing. Measured that way at 90ms and 40ms cadences the engines match to
+within a frame — lifetimes 607 against 607ms, exits on screen 248 against 236ms,
+entrances 317 against 301ms, nothing cut short on either side. Check it and the
+fork's exits live 235ms and its entrances 314ms at up to 6×, which is the whole
+of the "smoother upstream" impression: it is the fork with `hurry` off. The one
+genuine engine difference is direction — upstream reads a grouped value with
+`parseFloat`, so `5,229 → 5,236` is `5 → 5` and rolls downward there; the fork
+parses the whole number and rises.
+
 That count settles the question the page was built for. Both engines stack
 outgoing glyphs in the same slot; neither swaps or deletes them. What differs is
 `hurry`, which upstream does not have. At a 40ms cadence on a 590ms roll, a slot
