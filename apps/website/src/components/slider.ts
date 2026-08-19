@@ -4,7 +4,6 @@ import { cancelPendingTicks, playTick } from '../lib/sounds'
 
 const PROP_CHANGE_DURATION = 350
 const PROP_CHANGE_EASE = [0.32, 0.72, 0, 1] as const
-const READOUT_DURATION = 300
 const CLICK_THRESHOLD = 3
 const STEP_SNAP_DURATION = 80
 const STEP_SNAP_EASE = [0, 0.55, 0.45, 1] as const
@@ -133,12 +132,27 @@ export type SliderConfig = {
   onChange: (next: number, fromDrag: boolean) => void
   /** Fires when a pointer drag ends, for consumers that replay on settle. */
   onRelease?: (value: number) => void
+  /** How the readout keeps up with a drag; see `Readout`. */
+  readout?: Partial<Readout>
 }
+
+/**
+ * A drag commits a step every few frames, and a readout that rolls each one
+ * never finishes a roll. `pace` is the shortest gap between rolls while the
+ * pointer is down: the readout rolls to whatever the value is by then and
+ * skips what came between, so each roll gets most of its `duration` and the
+ * ones that do overlap are hurried off. `0` rolls every step; `Infinity` holds
+ * the number live under the finger and never rolls a drag at all.
+ */
+export type Readout = { duration: number; pace: number; hurry: boolean }
+
+export const READOUT: Readout = { duration: 240, pace: 120, hurry: true }
 
 let sliderCount = 0
 
 export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
   const { label, min, max, format, formatSeed, onChange, onRelease } = config
+  const pacing = { ...READOUT, ...config.readout }
   const step = config.step ?? 1
   const range = max - min || 1
   const id = `slider-${++sliderCount}`
@@ -178,11 +192,8 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
   const fill = pick<HTMLElement>('fill')
   const rangeInput = pick<HTMLInputElement>('range')
 
-  for (const el of [labelText, valueText]) {
-    // Held arrow keys can still outrun the roll, so the pile behind the newest
-    // value is hurried off.
-    el.setOptions({ transition: { duration: READOUT_DURATION }, hurry: true })
-  }
+  labelText.setOptions({ transition: { duration: pacing.duration } })
+  valueText.setOptions({ transition: { duration: pacing.duration }, hurry: pacing.hurry })
   labelText.update(label, false)
 
   const reserved = reservedChars(min, max, step, format)
@@ -194,20 +205,41 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     return format ? format(stepped) : String(stepped)
   }
 
-  /**
-   * A drag crosses a detent every few frames, and a readout that rolls each one
-   * never finishes a roll — every digit is caught at the start of its travel and
-   * replaced. Under the finger the number is live and reads instantly; the roll
-   * belongs to the value it lands on, and to every change nobody is dragging.
-   */
   let scrubbing = false
+  let shownAt = 0
+  let showQueued = 0
 
   const paintFill = () => {
     fill.style.width = `${((clamp(reported, min, max) - min) / range) * 100}%`
   }
 
   /** The readout follows the committed value, not the bar's tween. */
-  const showValue = () => valueText.update(display(value), !scrubbing)
+  const showValue = () => {
+    if (!scrubbing) {
+      clearTimeout(showQueued)
+      showQueued = 0
+      valueText.update(display(value), true)
+      return
+    }
+    if (pacing.pace === Infinity) {
+      valueText.update(display(value), false)
+      return
+    }
+    const wait = pacing.pace - (performance.now() - shownAt)
+    if (wait <= 0) {
+      shownAt = performance.now()
+      valueText.update(display(value), true)
+      return
+    }
+    // The latest value rides the timer already set; nothing in between is shown.
+    if (!showQueued) {
+      showQueued = window.setTimeout(() => {
+        showQueued = 0
+        shownAt = performance.now()
+        valueText.update(display(value), true)
+      }, wait)
+    }
+  }
 
   const setReported = (next: number) => {
     reported = next
@@ -374,6 +406,8 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     if (!isClick) {
       stopPointer()
       scrubbing = false
+      // Whatever the pace held back lands now, rolling.
+      showValue()
       stopPointer = tween(reported, value, PROP_CHANGE_DURATION, PROP_EASE, setReported)
       onRelease?.(value)
     }
@@ -497,6 +531,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
       stopPointer()
       stopSnap()
       stopStretch()
+      clearTimeout(showQueued)
     },
   }
 }

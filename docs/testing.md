@@ -39,6 +39,13 @@ rotation, stagger, duration and trend all adjustable underneath. It exports the
 held frame as a transparent PNG at up to 8×, which is also how the icon artwork
 gets made.
 
+## `/readouts`
+
+The playground's slider readout, seven ways, on one page: every step rolling,
+every step hurried, live under the finger, and four pacings. Drag each one and
+pick by feel; the site default is marked. It exists because the right answer
+here is a taste call and the wrong ones only show up under a real hand.
+
 ## The case sweep
 
 `bun research/run-cases.ts` runs the documented value changes and
