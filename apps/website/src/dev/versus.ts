@@ -91,8 +91,15 @@ const release = () => {
   restart()
 }
 
+/**
+ * Forward only, in wall time. Backward cannot be honest: a glyph that already
+ * finished was released, and rewinding cannot bring it back — and `hurry`
+ * releases the fork's exits sooner than upstream's, so the two would rewind
+ * into different pasts of the same value. Wall time because a hurried exit runs
+ * at up to 6×; a millisecond of scrub is a millisecond on the clock for both.
+ */
 const shift = (ms: number) => {
-  for (const { animation, at } of held) animation.currentTime = Math.max(0, at + ms)
+  for (const { animation, at } of held) animation.currentTime = at + ms * animation.playbackRate
 }
 
 /**
@@ -121,12 +128,12 @@ const report = () => {
 }
 
 const scrub = createSlider(find('scrub'), {
-  label: 'Scrub (frozen)',
+  label: 'Scrub forward (frozen)',
   value: 0,
-  min: -800,
-  max: 800,
+  min: 0,
+  max: 1600,
   step: 10,
-  format: (v) => `${v > 0 ? '+' : ''}${v}ms`,
+  format: (v) => `+${v}ms`,
   onChange: (v) => {
     if (!held.length) return
     shift(v)

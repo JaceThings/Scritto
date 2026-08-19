@@ -90,8 +90,15 @@ imports it.
 Freeze pauses every animation in both shadow roots, catching each where it stands
 rather than rewinding to a shared zero — at these cadences a dozen rolls are in
 flight at different ages, and that spread is the thing worth looking at. Scrub
-then walks the whole scene together, and the readout counts ink still on screen
-grouped by the slot it sits in.
+then walks the whole scene forward together, in wall time, and the readout
+counts ink still on screen grouped by the slot it sits in.
+
+Forward only, because backward cannot be honest. A glyph that already finished
+was released, and rewinding cannot bring it back; `hurry` releases the fork's
+exits sooner than upstream's, so scrubbed back the two would show different
+pasts of the same value — the fork crisp on the old number, upstream still
+mid-roll. Wall time because a hurried exit runs at up to 6×: a millisecond of
+scrub is a millisecond on the clock for both engines.
 
 That count settles the question the page was built for. Both engines stack
 outgoing glyphs in the same slot; neither swaps or deletes them. What differs is
