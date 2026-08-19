@@ -69,6 +69,29 @@ paragraph never gains a line box while the hammering runs. The width transition
 survives across updates now, so its teardown is only ever reached by the
 animation finishing, and that is the thing worth guarding.
 
+## `/edges`
+
+Twenty awkward cases in a grid, most on their own clock and never stopping: the
+widest glyph this font stack renders against the narrowest, a width re-aimed
+every 90ms against a 590ms roll, digits crossing a group separator, sign flips,
+decimals arriving, empty and back, whitespace only, ZWJ emoji and skin tones,
+combining marks, right-to-left, mixed scripts, Thai and Devanagari clusters,
+sixty characters against one, a prefix and suffix kept either side, a value in
+running copy inside a flow, three hosts sharing a line, an overshooting spring
+over 1.4s, a value counting at 16ms, and two changes 8ms apart.
+
+Every card audits itself whenever it goes idle, which is the point of the page:
+the value on screen is the value it was handed, the host is wearing none of the
+inline styles a width transition puts on it — display, width, text-indent,
+margin-inline-end, flex-shrink, text-align, data-shrink-clip — and no glyph has
+settled outside the box the value is measured to occupy. Against the host's own
+box, not the card's: a long value with nowrap is meant to run past a narrow
+card. A dot goes red and stays red with what it caught, and a banner catches
+anything thrown or rejected.
+
+Storm runs every card at once for ten seconds. Measured over a storm: 20 cards,
+4,393 changes, nothing caught, no errors.
+
 ## `bun run check:versus`
 
 Holds this fork against the upstream it forked. `/versus` already runs both
