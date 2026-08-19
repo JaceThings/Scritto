@@ -106,6 +106,31 @@ export const createStage = (
       .catch(() => {})
   }
 
+  /**
+   * Bring the card back from a half-finished handoff, content untouched: a
+   * switch that lands on the face already showing has nothing to hand over.
+   */
+  const settle = () => {
+    if (!gesture) return
+    const css = getComputedStyle(host)
+    const at: Keyframe = {
+      opacity: css.opacity,
+      transform: css.transform === 'none' ? 'scale(1)' : css.transform,
+      filter: css.filter === 'none' ? 'blur(0px)' : css.filter,
+    }
+    gesture.cancel()
+    const back = host.animate([at, { opacity: 1, transform: 'scale(1)', filter: 'blur(0px)' }], {
+      duration: SWAP_IN_MS,
+      easing: STATE_CHANGE_EASE,
+    })
+    gesture = back
+    void back.finished
+      .then(() => {
+        if (gesture === back) gesture = null
+      })
+      .catch(() => {})
+  }
+
   trigger.addEventListener('click', () => {
     playClick()
     advance()
@@ -125,6 +150,13 @@ export const createStage = (
     replace,
     swap(next: string[]) {
       if (!next.length) return
+      // Switching presets while the same word stays on the card is not a
+      // handoff: blurring it out and back would read as a glitch.
+      if (next[0] === list[index % list.length]) {
+        replace(next)
+        settle()
+        return
+      }
       handoff(() => replace(next))
     },
     dispose() {
