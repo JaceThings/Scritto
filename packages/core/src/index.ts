@@ -11,6 +11,8 @@ import {
   diff,
   reconcileChildren,
   clearAnimStyle,
+  crossingFraction,
+  cubicBezierEase,
   resetAnim,
   finishIdentityAnim,
   trendOf,
@@ -33,6 +35,11 @@ if (BROWSER) {
   styleSheet = new CSSStyleSheet()
   styleSheet.replaceSync(STYLES)
 }
+
+/** SHRINK_EASING in JS. Keep the two in step. */
+const shrinkEase = cubicBezierEase(0.22, 1, 0.36, 1)
+
+const ENVELOPE_STEPS = 32
 
 type Layout = {
   prefixCount: number
@@ -122,6 +129,9 @@ class Scritto extends ServerSafeHTMLElement {
   private _widthTo: number | null = null
   private _widthTiming: { duration: number; easing: string; fill: 'forwards' } | null = null
   private _widthDx = 0
+  /** How far each glyph's ink reaches, and while when it needs the box to cover it. */
+  private _inkSpans: { end: number; from: number; ramp: number; until: number }[] = []
+  private _widthTravel: number[] | null = null
   private _blockified = false
   private _isRTL = false
   private _value = ''
@@ -255,6 +265,30 @@ class Scritto extends ServerSafeHTMLElement {
     const enterDelays = enterGlyphs.map((g) => enterDelayAt(g.offset))
     this._startExits(plan.trend, exitDelayAt)
     this._exitEnd = exits.reduce((end, g) => Math.max(end, g.offset + g.width), this._exitEnd)
+    // A waiting exit is fully opaque — a bare `opacity: 0` under fill both — so
+    // its ink outlives its delay by the spring's first crossing of 1.
+    const nowMs = performance.now()
+    const duration = this.transition.duration
+    const inkLife = crossingFraction(this.transition.easing, 1) * duration
+    const showsAt = crossingFraction(this.transition.easing, 0.15) * duration
+    const solidAt = crossingFraction(this.transition.easing, 0.6) * duration
+    const blurPad = (parseFloat(getComputedStyle(this).fontSize) || 16) * CONFIG.blur * 2
+    for (let i = this._inkSpans.length - 1; i >= 0; i--) {
+      if (this._inkSpans[i].until <= nowMs) this._inkSpans.splice(i, 1)
+    }
+    for (const g of exits) {
+      const end = g.offset + g.width + blurPad
+      this._inkSpans.push({ end, from: 0, ramp: 0, until: nowMs + exitDelayAt(g.offset) + inkLife })
+    }
+    for (let i = 0; i < enterGlyphs.length; i++) {
+      const g = enterGlyphs[i]
+      this._inkSpans.push({
+        end: Math.min(g.offset + g.width + blurPad, toW),
+        from: nowMs + enterDelays[i] + showsAt,
+        ramp: Math.max(solidAt - showsAt, 1),
+        until: nowMs + enterDelays[i] + duration,
+      })
+    }
     const total = this.transition.duration + this._exitTail
     // A flow re-flows the row under the host, so old ink is placed against the
     // row's start rather than the page.
@@ -309,8 +343,7 @@ class Scritto extends ServerSafeHTMLElement {
   /**
    * An inline host turns inline-block for the duration, its vertical padding and
    * border cancelled by margins so the line's height holds, and its content
-   * indented back by however far the start edge travels. Only a shrink with a
-   * neighbour in reach earns the mask.
+   * indented back by however far the start edge travels.
    */
   private _transitionWidth(fromW: number, toW: number, edge: number) {
     // Already on its way there. A ghost born now still joins the compensation,
@@ -319,15 +352,14 @@ class Scritto extends ServerSafeHTMLElement {
       const elapsed = Number(this._widthAnims[0].currentTime ?? 0)
       for (const [group, x] of this._exitingChars) {
         if (group.getAnimations().length) continue
-        const from = `translateX(${x - edge + this._widthDx}px)`
-        const to = `translateX(${x - edge}px)`
-        this._widthAnims.push(group.animate({ transform: [from, to] }, { ...this._widthTiming, delay: -elapsed }))
+        this._widthAnims.push(
+          group.animate(this._rideFrames(x - edge, this._widthDx), { ...this._widthTiming, delay: -elapsed }),
+        )
       }
       return
     }
     if (Math.abs(toW - fromW) < 0.5) return
     const box = this.getBoundingClientRect()
-    const beside = this._besideOnLine(box, Math.abs(toW - fromW) + 1)
     const css = getComputedStyle(this)
     if (css.display === 'inline') {
       const top = (parseFloat(css.paddingTop) || 0) + (parseFloat(css.borderTopWidth) || 0)
@@ -339,17 +371,22 @@ class Scritto extends ServerSafeHTMLElement {
     }
     this.style.textAlign = 'start'
     const total = this.transition.duration + this._exitTail
-    const timing = { duration: total, easing: SHRINK_EASING, fill: 'forwards' as const }
+    const envelope = this._inkEnvelope(fromW, toW, total)
+    const timing = { duration: total, easing: envelope ? 'linear' : SHRINK_EASING, fill: 'forwards' as const }
     // The indent compensates for a box of exactly this width, so a flex parent
     // must not shrink it. The content overflowed at its natural width anyway.
     this.style.flexShrink = '0'
     // The end margin takes the mask's slack back out of the layout.
     const slack = edgeSlackPx(this)
     this.style.marginInlineEnd = `${-slack}px`
+    // Pinned to fromW while the shifts below are measured: the envelope only
+    // holds the box wider, and compensating for that would push content out of
+    // it. Its samples go on once those are known.
     const anim = this.animate({ width: [`${fromW + slack}px`, `${toW + slack}px`] }, timing)
     anim.id = WIDTH_ANIM
     this._widthTo = toW
     this._widthTiming = timing
+    this._widthTravel = envelope ? envelope.map((w) => (w - toW) / (fromW - toW)) : null
     const start = this.getBoundingClientRect()
     const rtl = this._isRTL
     // `start` is the border box: the slack sits on its end side.
@@ -360,9 +397,10 @@ class Scritto extends ServerSafeHTMLElement {
     const startMoves = Math.abs(startShift) >= 0.5
     const endMoves = Math.abs(endShift) >= 0.5
     this._anchor = Math.abs(startShift) / (Math.abs(startShift) + Math.abs(endShift) || 1)
-    const overhang = this._exitEnd > toW + 0.5
-    const clipStart = overhang && startMoves && beside.start
-    const clipEnd = overhang && endMoves && beside.end
+    // A travelling edge leaves held ink outside the box behind it; the fade is
+    // the only thing that keeps that ink from showing.
+    const clipStart = startMoves
+    const clipEnd = endMoves
     if (clipStart || clipEnd) {
       this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
     }
@@ -370,12 +408,14 @@ class Scritto extends ServerSafeHTMLElement {
     const dx = rtl ? startShift : -startShift
     this._widthDx = startMoves ? dx : 0
     if (startMoves) {
-      anims.push(this.animate({ textIndent: [`${-startShift}px`, '0px'] }, timing))
+      anims.push(this.animate(this._indentFrames(startShift), timing))
       for (const [group, x] of this._exitingChars) {
-        anims.push(
-          group.animate({ transform: [`translateX(${x - edge + dx}px)`, `translateX(${x - edge}px)`] }, timing),
-        )
+        anims.push(group.animate(this._rideFrames(x - edge, dx), timing))
       }
+    }
+    const effect = anim.effect
+    if (envelope && effect instanceof KeyframeEffect) {
+      effect.setKeyframes(envelope.map((w, k) => ({ width: `${w + slack}px`, offset: k / ENVELOPE_STEPS })))
     }
     anim.onfinish = () => {
       for (const a of this._widthAnims) a.cancel()
@@ -383,6 +423,61 @@ class Scritto extends ServerSafeHTMLElement {
       this._clearWidth()
     }
     this._widthAnims.push(...anims)
+  }
+
+  /**
+   * The width track sampled: the eased base, never below the reach of ink that
+   * is still visible. Null when the plain two-keyframe track already covers it.
+   */
+  private _inkEnvelope(fromW: number, toW: number, total: number): number[] | null {
+    const spans = this._inkSpans
+    if (!spans.length) return null
+    const now = performance.now()
+    let binds = false
+    let peak = Math.max(fromW, toW)
+    const widths = Array.from<number>({ length: ENVELOPE_STEPS + 1 })
+    for (let k = 0; k <= ENVELOPE_STEPS; k++) {
+      const at = k / ENVELOPE_STEPS
+      const base = fromW + (toW - fromW) * shrinkEase(at)
+      let w = base
+      const t = now + at * total
+      for (const s of spans) {
+        if (t < s.from || t >= s.until) continue
+        const eased = s.ramp > 0 ? base + (s.end - base) * Math.min((t - s.from) / s.ramp, 1) : s.end
+        if (eased > w) {
+          w = eased
+          binds = true
+        }
+      }
+      widths[k] = w
+      if (w > peak) peak = w
+    }
+    if (!binds) return null
+    // A span expiring between samples would drop the box a glyph's width in one
+    // step: cap the descent, then walk it back so the track still lands on toW.
+    const drop = ((peak - Math.min(fromW, toW)) * total) / ENVELOPE_STEPS / 180
+    for (let k = 1; k <= ENVELOPE_STEPS; k++) {
+      if (widths[k] < widths[k - 1] - drop) widths[k] = widths[k - 1] - drop
+    }
+    widths[ENVELOPE_STEPS] = toW
+    for (let k = ENVELOPE_STEPS - 1; k > 0; k--) {
+      if (widths[k] > widths[k + 1] + drop) widths[k] = widths[k + 1] + drop
+    }
+    return widths
+  }
+
+  /** Cancels the start edge's travel, so it moves with the box, not against it. */
+  private _indentFrames(startShift: number): Keyframe[] | PropertyIndexedKeyframes {
+    const travel = this._widthTravel
+    if (!travel) return { textIndent: [`${-startShift}px`, '0px'] }
+    return travel.map((r, k) => ({ textIndent: `${-startShift * r}px`, offset: k / ENVELOPE_STEPS }))
+  }
+
+  /** A ghost rides the box's travel, so it holds still while the box moves. */
+  private _rideFrames(base: number, dx: number): Keyframe[] | PropertyIndexedKeyframes {
+    const travel = this._widthTravel
+    if (!travel) return { transform: [`translateX(${base + dx}px)`, `translateX(${base}px)`] }
+    return travel.map((r, k) => ({ transform: `translateX(${base + dx * r}px)`, offset: k / ENVELOPE_STEPS }))
   }
 
   /** What the box would measure if a transition were not pinning it. */
@@ -410,35 +505,11 @@ class Scritto extends ServerSafeHTMLElement {
     return 0
   }
 
-  private _besideOnLine(box: DOMRect, reach: number) {
-    // The nearest ancestor owning a whole line: past inline wrappers, and past
-    // a cell, whose neighbours sit in the next cell rather than the row.
-    let block: HTMLElement | null = this.parentElement
-    while (block && /^(inline|table)/.test(getComputedStyle(block).display)) block = block.parentElement
-    const beside = { start: false, end: false }
-    if (!block) return beside
-    const range = document.createRange()
-    range.selectNodeContents(block)
-    const rects = range.getClientRects()
-    for (let i = 0; i < rects.length; i++) {
-      const r = rects[i]
-      if (r.width === 0) continue
-      const overlap = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top)
-      if (overlap <= Math.min(r.height, box.height) * 0.5) continue
-      if (r.left >= box.left - 0.5 && r.right <= box.right + 0.5) continue
-      const after = r.left >= box.right - 0.5 && r.left <= box.right + reach
-      const before = r.right <= box.left + 0.5 && r.right >= box.left - reach
-      if (after) beside[this._isRTL ? 'start' : 'end'] = true
-      if (before) beside[this._isRTL ? 'end' : 'start'] = true
-    }
-    range.detach()
-    return beside
-  }
-
   private _clearWidth() {
     this._widthTo = null
     this._widthTiming = null
     this._widthDx = 0
+    this._widthTravel = null
     this.style.flexShrink = ''
     if (this._blockified) {
       this.style.display = ''
@@ -626,6 +697,7 @@ class Scritto extends ServerSafeHTMLElement {
 
     this._exitQueue = []
     this._exitEnd = 0
+    this._inkSpans = []
     const exiting = this._exitingChars
     this._exitingChars = []
     for (let i = 0; i < exiting.length; i++) {

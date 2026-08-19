@@ -201,6 +201,44 @@ const blame = (entry: Live, detail: string) => {
 /** 2.5px absorbs subpixel border rounding; a real lag or clip measures in tens. */
 const TOLERANCE = 2.5
 
+const VISIBLE_ALPHA = 0.15
+
+const blurOf = (glyph: Element) => {
+  const match = /blur\((\d*\.?\d+)px\)/.exec(getComputedStyle(glyph).filter)
+  return match ? Number.parseFloat(match[1]) : 0
+}
+
+/**
+ * The check the layout-box one cannot make: a container can hug its child on
+ * every frame and still have the ghosts that child abandoned hanging outside
+ * it. A side wearing the edge fade cannot leak — the mask clips to the host's
+ * border box and fades to nothing inside it, which pixel-diffing confirms.
+ */
+const auditInk = (entry: Live, box: HTMLElement) => {
+  const host = entry.host
+  const clip = host.getAttribute('data-shrink-clip')
+  const rect = box.getBoundingClientRect()
+  const css = getComputedStyle(box)
+  const right =
+    clip === '' || clip === 'end' || clip === 'both'
+      ? Infinity
+      : rect.right - (Number.parseFloat(css.borderRightWidth) || 0)
+  const left =
+    clip === 'start' || clip === 'both' ? -Infinity : rect.left + (Number.parseFloat(css.borderLeftWidth) || 0)
+  for (const glyph of host.shadowRoot?.querySelectorAll<HTMLElement>('.char') ?? []) {
+    const alpha = Number.parseFloat(getComputedStyle(glyph).opacity)
+    const ink = glyph.getBoundingClientRect()
+    if (alpha < VISIBLE_ALPHA || !ink.width || !(glyph.textContent ?? '').trim()) continue
+    const spread = blurOf(glyph)
+    const past = Math.max(left - ink.left + spread, ink.right + spread - right)
+    if (past > entry.worst) entry.worst = past
+    if (past > TOLERANCE) {
+      blame(entry, `ink escaped by ${past.toFixed(1)}px at opacity ${alpha.toFixed(2)}`)
+      return
+    }
+  }
+}
+
 const audit = (entry: Live) => {
   for (const box of entry.hugs) {
     const inner = contentWidth(box)
@@ -211,18 +249,7 @@ const audit = (entry: Live) => {
       blame(entry, `container ${inner > kids ? 'lagging wide' : 'pinching'} by ${gap.toFixed(1)}px mid-roll`)
       return
     }
-    const css = getComputedStyle(box)
-    const rect = box.getBoundingClientRect()
-    const left = rect.left + (Number.parseFloat(css.paddingLeft) || 0) + (Number.parseFloat(css.borderLeftWidth) || 0)
-    const right = rect.right - (Number.parseFloat(css.paddingRight) || 0) - (Number.parseFloat(css.borderRightWidth) || 0)
-    for (const child of box.children) {
-      const kid = child.getBoundingClientRect()
-      const end = kid.right + (Number.parseFloat(getComputedStyle(child).marginInlineEnd) || 0)
-      if (kid.left < left - TOLERANCE || end > right + TOLERANCE) {
-        blame(entry, `a child escaped the content box by ${Math.max(left - kid.left, end - right).toFixed(1)}px`)
-        return
-      }
-    }
+    if (box.contains(entry.host)) auditInk(entry, box)
   }
 }
 

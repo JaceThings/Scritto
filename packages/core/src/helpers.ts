@@ -207,3 +207,49 @@ export const diff = (prev: HTMLElement[], newValue: string, anchor = 0) => {
 
   return { prefixCount: start, suffixCount: best, oldSuffix, midEnd, labels }
 }
+
+/** y(x) for a CSS cubic-bezier, by Newton. */
+export const cubicBezierEase = (x1: number, y1: number, x2: number, y2: number) => {
+  const cx = 3 * x1
+  const bx = 3 * (x2 - x1) - cx
+  const ax = 1 - cx - bx
+  const cy = 3 * y1
+  const by = 3 * (y2 - y1) - cy
+  const ay = 1 - cy - by
+  const xAt = (t: number) => ((ax * t + bx) * t + cx) * t
+  const slopeAt = (t: number) => (3 * ax * t + 2 * bx) * t + cx
+  return (x: number) => {
+    if (x <= 0) return 0
+    if (x >= 1) return 1
+    let t = x
+    for (let i = 0; i < 8; i++) {
+      const off = xAt(t) - x
+      if (Math.abs(off) < 1e-5) break
+      const slope = slopeAt(t)
+      if (Math.abs(slope) < 1e-6) break
+      t -= off / slope
+    }
+    if (t < 0) t = 0
+    else if (t > 1) t = 1
+    return ((ay * t + by) * t + cy) * t
+  }
+}
+
+/**
+ * Where a `linear()` spring first reaches `target`, as a fraction of its run.
+ * At 1 an exit's clamped opacity is 0, so its ink is gone. Anything unreadable
+ * gets the conservative 1.
+ */
+export const crossingFraction = (easing: string, target: number) => {
+  if (!easing.startsWith('linear(') || !easing.endsWith(')')) return 1
+  const stops = easing.slice(7, -1).split(',').map(Number)
+  if (stops.length < 2 || stops.some(Number.isNaN)) return 1
+  for (let i = 1; i < stops.length; i++) {
+    if (stops[i] >= target) {
+      const lo = stops[i - 1]
+      const within = lo >= target ? 0 : (target - lo) / (stops[i] - lo)
+      return (i - 1 + within) / (stops.length - 1)
+    }
+  }
+  return 1
+}
