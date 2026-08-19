@@ -56,7 +56,10 @@ const wordify = (root: HTMLElement) => {
   for (const node of nodes) {
     if (node.parentElement?.closest('scritto-text')) continue
     const parts = node.textContent?.split(/(\s+)/) ?? []
-    if (parts.length < 2) continue
+    // Not `parts.length < 2`: a lone token has no whitespace to split on, so
+    // the full stop after a value was left as bare text and jumped to its new
+    // place while every word around it slid.
+    if (!parts.some((part) => part && !/^\s+$/.test(part))) continue
     const frag = document.createDocumentFragment()
     for (const part of parts) {
       if (!part) continue
