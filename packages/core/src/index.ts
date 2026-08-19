@@ -608,22 +608,21 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   private _animateChar(el: Char, isOut: boolean, trend: number, delay: number, onFinish?: () => void) {
-    if (el.textContent === SPACE) {
-      // The timer belongs to the char and `releaseChar` disarms it: by the time
-      // it fires the char may be standing in another value.
-      if (isOut && onFinish) el.exitTimer = setTimeout(onFinish, this.transition.duration + delay)
-      return
-    }
-
     const dir = isOut ? -1 : 1
     const transform = `translateY(${dir * trend * CONFIG.y}em) scale(${CONFIG.scale}) rotateZ(${CONFIG.rotate}deg)`
     const filter = `blur(${CONFIG.blur}em)`
+    // A space has no ink to roll, but it still holds its slot until the group
+    // goes. It runs an animation that does nothing rather than a timer, so it
+    // is released by the same clock as the glyphs around it — a paused or
+    // scrubbed roll would otherwise lose its spaces on the wall clock.
     const anim = el.animate(
-      {
-        opacity: isOut ? 0 : [0, 1],
-        transform: isOut ? transform : [transform, ''],
-        filter: isOut ? filter : [filter, ''],
-      },
+      el.textContent === SPACE
+        ? { opacity: 1 }
+        : {
+            opacity: isOut ? 0 : [0, 1],
+            transform: isOut ? transform : [transform, ''],
+            filter: isOut ? filter : [filter, ''],
+          },
       { ...this.transition, fill: 'both', delay },
     )
     // Untracked on purpose: an exit plays on through the next update.

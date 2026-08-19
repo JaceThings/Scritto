@@ -186,6 +186,7 @@ speeds up ink that is already on its way out instead of cancelling it.
 ## The pool
 
 Glyph elements are recycled through a pool rather than created and thrown away.
-A release is armed with the animation that finishes it, and disarmed if the
-element is claimed again first — otherwise a timer fires on an element that is
-now standing in a different value, and takes a live glyph off the screen.
+A release rides the animation that finishes it, spaces included: a space has no
+ink to roll, so it runs an animation that does nothing rather than a wall-clock
+timer. Anything holding the roll still — a paused scrub, a background tab —
+would otherwise lose its spaces while the glyphs around them stayed.

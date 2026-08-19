@@ -33,10 +33,9 @@ export const isOnscreen = (el: HTMLElement) => {
   return rect.bottom > clip.top && rect.top < clip.bottom && rect.right > clip.left && rect.left < clip.right
 }
 
-/** A pooled glyph: `pooled` is the pool's claim, `exitTimer` a release still armed. */
+/** A pooled glyph; `pooled` is the pool's claim on it. */
 export type Char = HTMLElement & {
   pooled?: boolean
-  exitTimer?: ReturnType<typeof setTimeout>
 }
 
 const CHAR_POOL: Char[] = []
@@ -63,8 +62,6 @@ export const releaseChar = (el: Char) => {
   // Teardown and the char's own exit callback both hand it back, in either order.
   if (el.pooled) return
   el.pooled = true
-  clearTimeout(el.exitTimer)
-  el.exitTimer = undefined
   resetAnim(el)
   el.remove()
   if (CHAR_POOL.length < CHAR_POOL_MAX) CHAR_POOL.push(el)
