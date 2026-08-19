@@ -6,7 +6,7 @@ import { defineConfig, type Plugin } from 'vite'
 
 const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.url))
 
-const PAGES = ['index', 'playground', 'docs', 'bench', 'stress', 'suite', 'look', 'values']
+const PAGES = ['index', 'playground', 'docs', 'studio', 'bench', 'stress', 'suite', 'look', 'values']
 
 /**
  * `<!-- @include footer.html i=14 -->` inlines `partials/footer.html`, filling

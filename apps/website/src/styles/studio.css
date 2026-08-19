@@ -1,0 +1,203 @@
+.studio-body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.studio {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: 'stage panel' 'timeline panel';
+  width: 100%;
+  height: 100dvh;
+}
+
+.studio-stage {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  grid-area: stage;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+/* The board reads through whatever the export will leave transparent. */
+.studio-checker {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(45deg, var(--color-hairline) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-hairline) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-hairline) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-hairline) 75%);
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+  background-size: 24px 24px;
+  opacity: 0.6;
+}
+
+.studio-text {
+  position: relative;
+  line-height: 1;
+  letter-spacing: -0.25px;
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-panel {
+  display: flex;
+  overflow-y: auto;
+  grid-area: panel;
+  flex-direction: column;
+  gap: 18px;
+  padding: 24px 20px 32px;
+  border-left: 1px solid var(--color-hairline);
+}
+
+.studio-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 550;
+  letter-spacing: -0.25px;
+}
+
+.studio-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.studio-group {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+
+.studio-group legend {
+  padding: 0 0 6px;
+  font-size: 12px;
+  font-weight: 550;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.studio-field {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  grid-template-columns: 66px minmax(0, 1fr) 46px;
+  font-size: 13px;
+}
+
+.studio-check {
+  grid-template-columns: 66px auto;
+  justify-content: start;
+}
+
+.studio-field input[type='text'],
+.studio-field select {
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 6px;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  grid-column: 2 / -1;
+}
+
+.studio-field input[type='range'] {
+  width: 100%;
+  min-width: 0;
+}
+
+.studio-field output {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--color-text-secondary);
+}
+
+.studio-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.studio-presets button,
+.studio-export,
+.studio-replay,
+.studio-play {
+  padding: 6px 10px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.studio-export {
+  padding: 9px 10px;
+  border-color: transparent;
+  background: var(--color-text-primary);
+  color: var(--color-bg);
+  font-weight: 550;
+}
+
+.studio-size {
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.studio-timeline {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  border-top: 1px solid var(--color-hairline);
+  grid-area: timeline;
+}
+
+.studio-scrub {
+  flex: 1;
+  min-width: 0;
+}
+
+.studio-play {
+  width: 40px;
+  text-align: center;
+}
+
+.studio-time {
+  min-width: 96px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--color-text-secondary);
+}
+
+@media (max-width: 860px) {
+  .studio {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: 46dvh auto auto;
+    grid-template-areas: 'stage' 'timeline' 'panel';
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .studio-panel {
+    border-left: 0;
+    border-top: 1px solid var(--color-hairline);
+  }
+}

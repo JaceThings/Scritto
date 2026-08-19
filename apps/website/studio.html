@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en" data-route="/studio">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1b1917" media="(prefers-color-scheme: dark)" />
+    <title>scritto · studio</title>
+    <link rel="stylesheet" href="/src/styles/site.css" />
+    <link rel="stylesheet" href="/src/styles/studio.css" />
+  </head>
+  <body class="studio-body">
+    <main class="studio">
+      <section class="studio-stage" data-role="stage">
+        <div class="studio-checker"></div>
+        <scritto-text id="studio-text" class="studio-text" role="img"></scritto-text>
+      </section>
+
+      <aside class="studio-panel">
+        <h1 class="studio-title">Studio</h1>
+        <p class="studio-note">
+          Scrub a roll to the frame you want and export it as a transparent PNG.
+        </p>
+
+        <fieldset class="studio-group">
+          <legend>Value</legend>
+          <label class="studio-field"><span>From</span><input data-role="from" type="text" value="9" /></label>
+          <label class="studio-field"><span>To</span><input data-role="to" type="text" value="10" /></label>
+          <div class="studio-presets" data-role="presets">
+            <button type="button" data-from="9" data-to="10">9 → 10</button>
+            <button type="button" data-from="Creative" data-to="Code">word</button>
+            <button type="button" data-from="👋" data-to="🌍">emoji</button>
+            <button type="button" data-from="$2.50" data-to="$12.75">money</button>
+          </div>
+        </fieldset>
+
+        <fieldset class="studio-group">
+          <legend>Type</legend>
+          <label class="studio-field"><span>Size</span><input data-role="size" type="range" min="24" max="480" step="1" value="220" /><output data-out="size"></output></label>
+          <label class="studio-field"><span>Weight</span><input data-role="weight" type="range" min="100" max="900" step="10" value="550" /><output data-out="weight"></output></label>
+          <label class="studio-field"><span>Colour</span><input data-role="color" type="color" value="#000000" /></label>
+        </fieldset>
+
+        <fieldset class="studio-group">
+          <legend>Roll</legend>
+          <label class="studio-field"><span>Duration</span><input data-role="duration" type="range" min="120" max="4000" step="10" value="1600" /><output data-out="duration"></output></label>
+          <label class="studio-field"><span>Blur</span><input data-role="blur" type="range" min="0" max="1" step="0.005" value="0.1" /><output data-out="blur"></output></label>
+          <label class="studio-field"><span>Travel</span><input data-role="travel" type="range" min="0" max="1.5" step="0.01" value="0.35" /><output data-out="travel"></output></label>
+          <label class="studio-field"><span>Scale</span><input data-role="scale" type="range" min="0.1" max="1.6" step="0.01" value="0.6" /><output data-out="scale"></output></label>
+          <label class="studio-field"><span>Rotate</span><input data-role="rotate" type="range" min="-30" max="30" step="0.5" value="2" /><output data-out="rotate"></output></label>
+          <label class="studio-field"><span>Stagger</span><input data-role="stagger" type="range" min="0" max="1" step="0.01" value="0.3" /><output data-out="stagger"></output></label>
+          <label class="studio-field"><span>Trend</span>
+            <select data-role="trend">
+              <option value="0">auto</option>
+              <option value="1">up</option>
+              <option value="-1">down</option>
+            </select>
+          </label>
+          <label class="studio-field studio-check"><span>Bounce</span><input data-role="bounce" type="checkbox" /></label>
+        </fieldset>
+
+        <fieldset class="studio-group">
+          <legend>Export</legend>
+          <label class="studio-field"><span>Scale</span><input data-role="shot" type="range" min="1" max="8" step="1" value="4" /><output data-out="shot"></output></label>
+          <label class="studio-field"><span>Padding</span><input data-role="pad" type="range" min="0" max="200" step="4" value="40" /><output data-out="pad"></output></label>
+          <p class="studio-size" data-role="dims"></p>
+          <button class="studio-export" type="button" data-role="export">Export PNG</button>
+        </fieldset>
+      </aside>
+
+      <footer class="studio-timeline">
+        <button class="studio-play" type="button" data-role="play" aria-label="Play">▶</button>
+        <input class="studio-scrub" data-role="scrub" type="range" min="0" max="1000" step="1" value="400" aria-label="Timeline" />
+        <output class="studio-time" data-out="time"></output>
+        <button class="studio-replay" type="button" data-role="replay">Replay</button>
+      </footer>
+    </main>
+    <script type="module" src="/src/pages/studio-entry.ts"></script>
+  </body>
+</html>
