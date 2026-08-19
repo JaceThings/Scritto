@@ -8,9 +8,11 @@ const TIP = { angle: 7, overshoot: 7.5, angleJitter: 10 }
 
 /**
  * The page's own ink. Inverted for dark, where `multiply` sinks any ink toward
- * black and `screen` lifts a cream band the light text stays legible on.
+ * black and `screen` lifts a cream band the light text stays legible on. `vivid`
+ * is set either way because `update` merges: left out, light keeps dark's screen
+ * layer and washes out to nothing.
  */
-const LIGHT = { color: 'rgb(115, 87, 74)', opacity: 0.45, tip: TIP }
+const LIGHT = { color: 'rgb(115, 87, 74)', opacity: 0.45, vivid: false, tip: TIP } as const
 const DARK_INK = { color: 'rgb(254, 241, 223)', opacity: 0.35, vivid: 'screen', tip: TIP } as const
 
 const isDark = () =>
@@ -36,9 +38,12 @@ export const startSelectionHighlight = () => {
   const scheme = matchMedia(DARK)
   const restyle = () => mark.update(isDark() ? DARK_INK : LIGHT)
   scheme.addEventListener('change', restyle)
+  const themed = new MutationObserver(restyle)
+  themed.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
 
   return () => {
     scheme.removeEventListener('change', restyle)
+    themed.disconnect()
     mark.remove()
     document.documentElement.classList.remove('selection-highlight-ready')
   }
