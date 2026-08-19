@@ -74,17 +74,21 @@ its worst down to 7.
 clear. Turn it on for anything that can change faster than its own duration —
 a card people click, a readout under a drag.
 
-Whatever else is going on, a glyph's own roll is its own. Two things used to
-break that, and both read as the high-order digits animating faster than the low
-ones. Committing a new value cancelled the animations on every glyph in it,
-including the ones that had not changed — so a leading digit's entrance died the
-moment a trailing digit ticked. On a counter at 90ms intervals with a 590ms roll,
-that left the leading digit 93ms to do a 590ms job, while `hurry` was separately
-scaling the leftover entrance still riding on a glyph that had moved into an exit
-group. A surviving glyph now keeps its own animation, and `hurry` only touches
-the exit it is meant to. Same counter, measured after: the leading digit's
-entrance runs its full 604ms, and no entrance anywhere is played at anything but
-1×.
+A glyph that survives an update keeps its own roll. Committing a new value used
+to cancel the animations on every glyph in it, including the ones that had not
+changed, so a leading digit's entrance died the moment a trailing digit ticked.
+On a counter at 90ms intervals with a 590ms roll that left the leading digit 93ms
+to do a 590ms job, which is why the high-order digits looked faster than the low
+ones. It now runs the full 597ms, matching upstream exactly at a 40ms cadence.
+
+`hurry` scales every animation on a glyph in an exit group, not only its exit,
+and that is deliberate. A glyph replaced before it finished arriving carries its
+entrance into the group, and the exit reads that entrance's fill as the value to
+leave from. Sprinting the exit alone runs it away from ink the entrance has not
+drawn yet, and the glyph leaves having never been visible: measured at a 40ms
+cadence, restricting `hurry` to exits lost 69% of the ones digit's arrivals and
+59% of its departures. Carrying the whole glyph, none are lost — 0% of its exits
+and 3% of its entrances fail to visibly move, against 4% and 30% upstream.
 
 ## Reduced motion
 

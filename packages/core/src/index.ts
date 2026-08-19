@@ -63,8 +63,6 @@ type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; e
 
 const centerX = (rect: DOMRect) => (rect.left + rect.right) * 0.5
 
-/** Marks a char's exit, which is the only animation on it that hurry may touch. */
-const OUT = 'out'
 const startOf = (rect: DOMRect, rtl: boolean) => (rtl ? rect.right : rect.left)
 const pending = new Set<Scritto>()
 let flushScheduled = false
@@ -537,12 +535,14 @@ class Scritto extends ServerSafeHTMLElement {
     for (let i = 0; i < this._exitingChars.length - 1; i++) {
       const chars = this._exitingChars[i][0].querySelectorAll<HTMLElement>('.char')
       for (let j = 0; j < chars.length; j++) {
+        // Every animation on the char, not just its exit. A glyph replaced
+        // before it finished arriving carries that entrance into the group, and
+        // the exit reads its fill as the value to leave from. Hurrying the exit
+        // alone sprints it away from ink the entrance has not drawn yet, and the
+        // glyph is whisked off having never been visible at all — measured at a
+        // 40ms cadence, that lost 69% of the ones digit's arrivals.
         const anims = chars[j].getAnimations()
         for (let k = 0; k < anims.length; k++) {
-          // Only the exit is the group's to hurry. A glyph replaced mid-entrance
-          // carries that entrance as the base its exit reads from, so speeding it
-          // up would drag the exit's own starting point along with it.
-          if (anims[k].id !== OUT) continue
           anims[k].playbackRate = Math.min(CONFIG.hurryMax, anims[k].playbackRate * CONFIG.hurry)
         }
       }
@@ -645,7 +645,6 @@ class Scritto extends ServerSafeHTMLElement {
       anim.onfinish = finishIdentityAnim
       return
     }
-    anim.id = OUT
 
     let done = false
     const finish = () => {
