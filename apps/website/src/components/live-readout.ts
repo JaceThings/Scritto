@@ -19,7 +19,9 @@ const started = (() => {
   return now
 })()
 
-const elapsed = () => Math.floor((Date.now() - started) / 1000)
+// The visit starts at one second, not zero: a fresh load would otherwise paint
+// "0 seconds" and drop the s a moment later, which reads as a glitch.
+const elapsed = () => Math.max(1, Math.floor((Date.now() - started) / 1000))
 
 // The last stats paint immediately on a return visit to the page, so the
 // sentence keeps its full height instead of collapsing until /hello answers.
