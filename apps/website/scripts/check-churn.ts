@@ -480,7 +480,7 @@ for (const item of POSITION_CASES) {
 
 {
   // One 600 ms cycle can miss a leftover fill:both on a pooled glyph. Hammer
-  // Words→Numbers→Words so flushes overlap; after each return, Creative's eight
+  // Words→Numbers→Words so flushes overlap; after each return, Motion's six
   // live letters must all compute to a non-zero opacity.
   const CYCLES = 12
   const words = page.locator('#mode .pill').nth(0)
@@ -502,7 +502,7 @@ for (const item of POSITION_CASES) {
       // The leftover fill:both flush only shows after the fade-in settles.
       await page.waitForFunction(() => {
         const host = document.querySelector('#roll-demo')
-        return host?.getAttribute('aria-label') === 'Creative' && getComputedStyle(host).opacity === '1'
+        return host?.getAttribute('aria-label') === 'Motion' && getComputedStyle(host).opacity === '1'
       })
       const got = await page.evaluate(() => {
         const host = document.querySelector('#roll-demo')
@@ -523,13 +523,13 @@ for (const item of POSITION_CASES) {
         }
       })
       const letters = got.live.map((g) => g.t).join('')
-      if (got.aria !== 'Creative') fail('aria', `label is ${JSON.stringify(got.aria)}`)
+      if (got.aria !== 'Motion') fail('aria', `label is ${JSON.stringify(got.aria)}`)
       if (got.hostOpacity !== 1) fail('handoff', `host opacity ${got.hostOpacity} after settle`)
-      if (got.live.length !== 8) fail('live count', `${got.live.length} glyphs, want 8 (${letters})`)
-      if (letters !== 'Creative') fail('live text', JSON.stringify(letters))
+      if (got.live.length !== 6) fail('live count', `${got.live.length} glyphs, want 6 (${letters})`)
+      if (letters !== 'Motion') fail('live text', JSON.stringify(letters))
       const lead = got.live[0]
-      if (!lead || lead.t !== 'C' || lead.o === 0 || lead.w <= 0 || lead.h <= 0) {
-        fail('leading C', `first live glyph is ${JSON.stringify(lead)}`)
+      if (!lead || lead.t !== 'M' || lead.o === 0 || lead.w <= 0 || lead.h <= 0) {
+        fail('leading M', `first live glyph is ${JSON.stringify(lead)}`)
       }
       const gone = got.live.filter((g) => g.o === 0).map((g) => g.t || '·')
       if (gone.length) fail('stale flush', `live glyphs at opacity 0: ${gone.join('')}`)
@@ -549,5 +549,5 @@ if (violations.length) {
   process.exit(1)
 }
 console.log(
-  `\nno churn: ${CASES.length} transitions redraw only what changed; ${POSITION_CASES.length} kept-run position checks passed; rapid 0.23→0.40 keeps the 2 rolling; 12 overlapping Words→Numbers→Words cycles keep Creative's 8 glyphs visible`,
+  `\nno churn: ${CASES.length} transitions redraw only what changed; ${POSITION_CASES.length} kept-run position checks passed; rapid 0.23→0.40 keeps the 2 rolling; 12 overlapping Words→Numbers→Words cycles keep Motion's 6 glyphs visible`,
 )

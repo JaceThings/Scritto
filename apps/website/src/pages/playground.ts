@@ -11,7 +11,7 @@ import { STATE_CHANGE_EASE, STATE_CHANGE_MS } from '../lib/motion'
 import { BOUNCE_BOUNCY, BOUNCE_DEFAULT, springEasing } from '../lib/spring'
 
 const PRESETS = {
-  Words: ['Creative', 'Create', 'Code', 'Code editor', 'Creator'],
+  Words: ['Motion', 'Emotion', 'Notion', 'Devotion', 'Motion design'],
   Numbers: ['24', '-20', '10', '5', '$2.5', '$2'],
   Emoji: ['Hello 👋', 'Hola 👋', 'Hey 👋'],
 } as const

@@ -56,7 +56,7 @@ export const createStage = (
 
   /**
    * A preset switch replaces the whole string, so the card hands one piece of
-   * content to the next rather than rolling: "Creative" into "24" reads as noise.
+   * content to the next rather than rolling: "Motion" into "24" reads as noise.
    */
   const handoff = (change: () => void) => {
     if (reducedMotion()) {
