@@ -71,7 +71,7 @@ animation finishing, and that is the thing worth guarding.
 
 ## `/edges`
 
-Twenty awkward cases in a grid, most on their own clock and never stopping: the
+Twenty-one awkward cases in a grid, most on their own clock and never stopping: the
 widest glyph this font stack renders against the narrowest, a width re-aimed
 every 90ms against a 590ms roll, digits crossing a group separator, sign flips,
 decimals arriving, empty and back, whitespace only, ZWJ emoji and skin tones,
@@ -79,6 +79,15 @@ combining marks, right-to-left, mixed scripts, Thai and Devanagari clusters,
 sixty characters against one, a prefix and suffix kept either side, a value in
 running copy inside a flow, three hosts sharing a line, an overshooting spring
 over 1.4s, a value counting at 16ms, and two changes 8ms apart.
+
+One of those cards was wrong and the page earned its keep by looking wrong: the
+bounce card fed itself unrelated random numbers, and `trend: 0` reads a roll's
+direction off the value, so every roll went the opposite way to the last. That
+reads as jitter and has nothing to do with the spring. Measured as reversals in
+an entering glyph's vertical travel, where an overshoot is legitimately one:
+2.76 per glyph on random values against 1.24 climbing, and turning the bounce
+off made it worse, not better, at 3.05. The card climbs now, and the flipping
+direction is its own card, on purpose.
 
 Every card audits itself whenever it goes idle, which is the point of the page:
 the value on screen is the value it was handed, the host is wearing none of the
@@ -89,8 +98,8 @@ box, not the card's: a long value with nowrap is meant to run past a narrow
 card. A dot goes red and stays red with what it caught, and a banner catches
 anything thrown or rejected.
 
-Storm runs every card at once for ten seconds. Measured over a storm: 20 cards,
-4,393 changes, nothing caught, no errors.
+Storm runs every card at once for ten seconds. Measured over a storm: 21 cards,
+4,519 changes, nothing caught, no errors.
 
 ## `bun run check:versus`
 

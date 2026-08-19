@@ -23,6 +23,9 @@ const cycle =
   (tick: number) =>
     values[tick % values.length]
 
+/** Only ever climbs, so `trend: 0` reads the same direction every time. */
+const climbing = (tick: number) => (1000 + tick * 137).toLocaleString('en-US')
+
 const randomDigits = (tick: number) => {
   const digits = 1 + ((tick * 7) % 6)
   let out = ''
@@ -151,11 +154,18 @@ const CASES: Case[] = [
   },
   {
     name: 'bounce, long roll',
-    note: 'An overshooting spring over 1.4s, so a change always lands mid-overshoot.',
-    next: randomDigits,
+    note: 'An overshooting spring over 1.4s, climbing, so a change always lands mid-overshoot.',
+    next: climbing,
     every: 400,
     duration: 1400,
     bounce: true,
+  },
+  {
+    name: 'direction keeps flipping',
+    note: 'trend 0 reads the direction off the value, so unrelated numbers send each roll the opposite way.',
+    next: randomDigits,
+    every: 420,
+    duration: 900,
   },
   {
     name: 'one frame apart',
