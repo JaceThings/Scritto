@@ -87,17 +87,19 @@ that page at three cadences — 90ms, 40ms and 20ms against a 590ms roll — and
 compares what a person would actually see rather than what the code intends.
 
 It records with the frame limiter off, which lands around 100fps, well above a
-display's refresh, then measures two things per cadence: solid ink per half
-straight off the recorded frames, and how long a departing glyph lives from the
-moment its animation is created to the moment it leaves the DOM. It fails if the
-fork carries more than 1.15x upstream's solid ink or a glyph's life differs by
-more than 90ms.
+display's refresh, then measures three things per cadence: ink per half straight
+off the recorded frames, how wide that ink spreads, and how long a departing
+glyph lives from the moment its animation is created to the moment it leaves the
+DOM. Ink and spread are guarded both ways — carrying less than upstream is a
+divergence too — at 1.03x and 1.04x, and a glyph's life within 90ms.
 
-Measured now: 1.008x at 90ms, 1.02x at 40ms, 1.045x at 20ms, with a glyph living
-623ms here against 591ms upstream. The residual is the position-swept stagger
-described in [timing.md](timing.md) — the fork delays a glyph by where it sits
-across the changed span, upstream by its index within the group, and the fork's
-delays come out larger. More ghost lives longer, so the pile reads more solidly.
+Ink is summed brightness over the background, not a count of pixels past a
+cutoff. A cutoff read 1.05x off a difference in how the brightness was
+distributed while the ink itself was level, and nothing in these frames ever
+reaches a lift of 150 out of 255, so the cutoff was sitting in the tail.
+
+Measured now, stable across runs and against the deployed site: ink 0.998x at
+every cadence, spread 1.000x, a glyph living 590ms here against 591ms upstream.
 
 ## `/versus`
 

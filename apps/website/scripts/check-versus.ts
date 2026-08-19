@@ -15,8 +15,13 @@ const CADENCES = [90, 40, 20]
 
 /** How far apart the two engines may drift before it is a real difference. */
 const TOLERANCE = {
-  /** Solid ink on screen, as a ratio of fork to upstream. Measured 1.05 at worst. */
-  ink: 1.15,
+  /**
+   * Ink on screen, as a ratio of fork to upstream. Summed brightness over the
+   * background, not a count of pixels past a cutoff: a cutoff near the top of
+   * the range read 1.05 off a distribution difference while the ink itself was
+   * level, and nothing in these frames ever reaches a lift of 150. Measured 0.99.
+   */
+  ink: 1.03,
   /** A departing glyph's life, in ms. Measured 32ms apart. */
   life: 90,
   /**
@@ -25,7 +30,7 @@ const TOLERANCE = {
    * on every update: at a 20ms cadence the fork spread 144.6px against 111.6px
    * before it was fixed, and matches to a fifth of a pixel after.
    */
-  spread: 1.08,
+  spread: 1.04,
 }
 
 type Exit = { who: string; born: number; life: number }
@@ -89,7 +94,7 @@ await page.evaluate(() => {
 })
 
 const failures: string[] = []
-console.log('  cadence   solid ink up/fork  ratio   glyph life up/fork   ink width up/fork  ratio   fps')
+console.log('  cadence      ink up/fork  ratio   glyph life up/fork   ink width up/fork  ratio   fps')
 
 for (const cadence of CADENCES) {
   await page.evaluate((ms) => {
@@ -115,7 +120,7 @@ for (const cadence of CADENCES) {
   await cdp.send('Page.stopScreencast')
   const fps = shots.length / ((Date.now() - startedAt) / 1000)
 
-  // Solid ink per half, straight off the recorded frames.
+  // Ink per half, straight off the recorded frames.
   const solid = await page.evaluate(async (encoded: string[]) => {
     const canvas = document.createElement('canvas')
     const ctx = canvas.getContext('2d')
@@ -133,14 +138,15 @@ for (const cadence of CADENCES) {
       const background = px[0]
       for (let y = 0; y < height; y++) {
         for (let x = 0; x < width; x++) {
-          if (px[(y * width + x) * 4] - background <= 90) continue
-          if (x < width / 2 - seam) left++
-          else if (x > width / 2 + seam) right++
+          const lift = px[(y * width + x) * 4] - background
+          if (lift <= 0) continue
+          if (x < width / 2 - seam) left += lift
+          else if (x > width / 2 + seam) right += lift
         }
       }
       bitmap.close()
     }
-    return [left / encoded.length, right / encoded.length]
+    return [left / encoded.length / 255, right / encoded.length / 255]
   }, shots)
 
   // How wide the ink runs, live value and outgoing ghosts together.
@@ -185,10 +191,12 @@ for (const cadence of CADENCES) {
   console.log(
     `  ${String(cadence).padStart(5)}ms  ${solid[0].toFixed(0).padStart(8)} ${solid[1].toFixed(0).padStart(8)}  ${ratio.toFixed(3).padStart(6)}   ${upLife.toFixed(0).padStart(6)}ms ${forkLife.toFixed(0).padStart(7)}ms  ${spread[0].toFixed(0).padStart(5)}px ${spread[1].toFixed(0).padStart(6)}px ${spreadRatio.toFixed(3).padStart(7)}  ${fps.toFixed(0).padStart(4)}`,
   )
-  if (spreadRatio > TOLERANCE.spread) {
+  if (spreadRatio > TOLERANCE.spread || spreadRatio < 1 / TOLERANCE.spread) {
     failures.push(`${cadence}ms: fork's ink spreads ${spreadRatio.toFixed(2)}x as wide as upstream's`)
   }
-  if (ratio > TOLERANCE.ink) failures.push(`${cadence}ms: fork carries ${ratio.toFixed(2)}x upstream's solid ink`)
+  if (ratio > TOLERANCE.ink || ratio < 1 / TOLERANCE.ink) {
+    failures.push(`${cadence}ms: fork carries ${ratio.toFixed(3)}x upstream's ink`)
+  }
   if (lifeGap > TOLERANCE.life) {
     failures.push(`${cadence}ms: a departing glyph lives ${lifeGap.toFixed(0)}ms longer than upstream's`)
   }
@@ -200,4 +208,4 @@ if (failures.length) {
   console.log(`\nversus drift:\n${failures.map((failure) => `  ${failure}`).join('\n')}`)
   process.exit(1)
 }
-console.log(`\nversus holds: both engines within ${TOLERANCE.ink}x on solid ink and ${TOLERANCE.life}ms on glyph life`)
+console.log(`\nversus holds: both engines within ${TOLERANCE.ink}x on ink and ${TOLERANCE.life}ms on glyph life`)
