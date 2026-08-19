@@ -155,13 +155,7 @@ const read = (match: string) => {
   return /^[-\u2212]/.test(match) ? -n : n
 }
 
-/** Sign, digits and one decimal point; `parseFloat` stops at the first group separator. */
-export const numberOf = (value: string) => {
-  const match = new RegExp(NUMBER.source).exec(value)
-  return match ? read(match[0]) : null
-}
-
-export const numbersOf = (value: string) => {
+const numbersOf = (value: string) => {
   const out: number[] = []
   for (const match of value.match(NUMBER) ?? []) {
     const n = read(match)

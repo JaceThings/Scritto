@@ -498,4 +498,3 @@ if (params.has('auto')) {
   } else void runAll()
 }
 
-export const CASE_IDS = CASES.map((spec) => spec.id)
