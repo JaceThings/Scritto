@@ -79,6 +79,27 @@ starts rolling immediately, but one that carries into a new digit (`990` to
 `1000`) spreads its start across the width of everything that changed, per
 `stagger`. Dialling stagger to 0 removes the difference outright.
 
+## `/versus`
+
+Upstream `numeric-text` and this fork in one figure, on one timer, with every
+constant written into both engines' `CONFIG` so the only thing differing is the
+code. Upstream is vendored unmodified at `apps/website/src/vendor/numeric-text`
+and registers `<numeric-text>`, so the two tags coexist; nothing else on the site
+imports it.
+
+Freeze pauses every animation in both shadow roots, catching each where it stands
+rather than rewinding to a shared zero — at these cadences a dozen rolls are in
+flight at different ages, and that spread is the thing worth looking at. Scrub
+then walks the whole scene together, and the readout counts ink still on screen
+grouped by the slot it sits in.
+
+That count settles the question the page was built for. Both engines stack
+outgoing glyphs in the same slot; neither swaps or deletes them. What differs is
+`hurry`, which upstream does not have. At a 40ms cadence on a 590ms roll, a slot
+is two or more glyphs deep in 100% of frames upstream and 26% with `hurry` on,
+and the fork's mean depth is 1.29 against 2.77. Turn `hurry` off and the two
+match: 99% against 100%, mean 2.53 against 2.72.
+
 ## The case sweep
 
 `bun research/run-cases.ts` runs the documented value changes and
