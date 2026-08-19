@@ -4,23 +4,25 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+/* The site's own palette (styles/tokens.css), so a dev page never looks like
+   a different product: warm paper light, #1c1918 dark. */
 @theme {
   --font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
-  --color-bg: #fff;
-  --color-fg: #000;
-  --color-surface: oklch(96.75% 0 0);
-  --color-line: oklch(92.09% 0 0);
-  --color-muted: oklch(63.51% 0 0);
-  --color-accent: oklch(59.6% 0.201 257);
+  --color-bg: #f7f6f2;
+  --color-fg: #73574a;
+  --color-surface: #ffffff;
+  --color-line: #edece8;
+  --color-muted: rgba(154, 145, 138, 0.75);
+  --color-accent: #5b5ddf;
 }
 
 .dark {
-  --color-bg: oklch(19.38% 0 0);
-  --color-fg: #fff;
-  --color-surface: oklch(32.85% 0 0);
-  --color-line: oklch(43.74% 0 0);
-  --color-muted: oklch(76.04% 0 0);
-  --color-accent: oklch(70% 0.16 257);
+  --color-bg: #1c1918;
+  --color-fg: #fef1df;
+  --color-surface: #2c2926;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-muted: #9a928a;
+  --color-accent: #8b8de8;
 }
 
 @layer base {

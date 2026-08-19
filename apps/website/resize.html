@@ -3,6 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f6f2" />
+    <script>
+      (() => {
+        const stored = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1]
+        const dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.classList.toggle('dark', dark)
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1c1918' : '#f7f6f2')
+      })()
+    </script>
     <title>scritto resize</title>
     <link rel="stylesheet" href="/src/dev/dev.css" />
   </head>
