@@ -194,11 +194,19 @@
 .disclose {
   display: grid;
   grid-template-rows: 1fr;
-  transition: grid-template-rows 350ms var(--ease-out-quint);
+  opacity: 1;
+  translate: 0;
+  transition:
+    grid-template-rows 485ms var(--ease-settle),
+    opacity 485ms var(--ease-settle),
+    translate 485ms var(--ease-settle);
 }
 
 .disclose[data-open='false'] {
   grid-template-rows: 0fr;
+  opacity: 0;
+  /* The row leaves upward into the pills it belongs to, not straight down. */
+  translate: 0 -4px;
 }
 
 /* The clip carries no padding of its own: a border-box height still cannot
