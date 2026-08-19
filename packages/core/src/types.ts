@@ -12,6 +12,12 @@ export type ScrittoOptions = {
   trend?: Trend
   respectMotionPreference?: boolean
   bounce?: boolean
+  /**
+   * Speed the outgoing glyphs up when a change lands on ink that is still
+   * leaving. Off by default: it keeps a spammed value legible, but on a
+   * readout driven by a drag it makes each digit vanish instead of roll.
+   */
+  hurry?: boolean
 }
 
 export type ScrittoProps = ScrittoOptions & {

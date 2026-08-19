@@ -135,6 +135,7 @@ class Scritto extends ServerSafeHTMLElement {
   public trend: Trend = 0
   public respectMotionPreference = true
   public bounce = false
+  public hurry = false
 
   constructor() {
     super()
@@ -187,7 +188,7 @@ class Scritto extends ServerSafeHTMLElement {
     this.dispatchEvent(new CustomEvent('scrittochange', { bubbles: true, detail: { phase, animate } }))
   }
 
-  setOptions({ bounce, transition, trend, respectMotionPreference }: ScrittoOptions) {
+  setOptions({ bounce, transition, trend, respectMotionPreference, hurry }: ScrittoOptions) {
     if (bounce === true || bounce === false) this.bounce = bounce
     if (transition || bounce === true || bounce === false) {
       this.transition = { ...(this.bounce ? BOUNCE_TRANSITION : DEFAULT_TRANSITION), ...transition }
@@ -196,6 +197,7 @@ class Scritto extends ServerSafeHTMLElement {
     if (respectMotionPreference === true || respectMotionPreference === false) {
       this.respectMotionPreference = respectMotionPreference
     }
+    if (hurry === true || hurry === false) this.hurry = hurry
   }
 
   private _render() {
@@ -543,11 +545,14 @@ class Scritto extends ServerSafeHTMLElement {
   /**
    * A roll is left running when the next update lands, so a rapid change
    * stacks its outgoing glyphs rather than popping them. Spammed, that stacks
-   * whole values: each is legible, and they pile up over each other. Every
-   * change hurries the ink already on its way out instead, so what is leaving
-   * keeps rolling and clears the screen for what is arriving.
+   * whole values: each is legible, and they pile up over each other. With
+   * `hurry`, every change speeds the ink already on its way out instead, so
+   * what is leaving keeps rolling and clears the screen for what is arriving.
+   * It is opt-in: on a readout a drag is retiring one digit at a time, and
+   * hurrying that reads as the number popping rather than rolling.
    */
   private _hurryExits() {
+    if (!this.hurry) return
     for (let i = 0; i < this._exitingChars.length; i++) {
       const chars = this._exitingChars[i][0].querySelectorAll<HTMLElement>('.char')
       for (let j = 0; j < chars.length; j++) {

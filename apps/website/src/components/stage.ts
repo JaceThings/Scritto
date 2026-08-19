@@ -32,6 +32,8 @@ export const createStage = (
     const value = list[index % list.length]
     host.setOptions({
       respectMotionPreference: false,
+      // The card invites clicking, so a spammed value has to clear itself.
+      hurry: true,
       trend: options.trend,
       transition: { duration: options.duration, easing: options.easing },
     })
