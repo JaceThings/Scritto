@@ -28,8 +28,11 @@
 
         <section class="stagger w-full text-text-primary" style="--i: 6">
           <!-- Live values live in a shadow root, so the marker cannot measure them
-               and paints the scraps between them as stray blobs. -->
-          <scritto-flow data-highlight-exclude class="block text-[14px] leading-[1.4] font-medium tracking-[-0.25px] text-pretty">
+               and paints the scraps between them as stray blobs.
+               No text-wrap: pretty here either: it re-wraps the whole block, so the
+               timer gaining a digit would shuffle every line above it. Greedy
+               wrapping keeps a growing value's effect below where it sits. -->
+          <scritto-flow data-highlight-exclude class="block text-[14px] leading-[1.4] font-medium tracking-[-0.25px] text-wrap">
             You're the <scritto-text id="you" class="live align-baseline"></scritto-text> visitor.
             <scritto-text id="here" class="align-baseline"></scritto-text>
             This page has been opened <scritto-text id="views" class="live align-baseline"></scritto-text>
