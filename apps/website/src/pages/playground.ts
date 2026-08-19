@@ -72,7 +72,7 @@ export const initPlayground = (root: ParentNode = document) => {
     'the light you seek is within you',
     'you are not separate from every other thing',
   ])
-  const stopTicker = startLightTicker(find<Scritto>('#flow-a'))
+  const stopTicker = startLightTicker(find<Scritto>('#flow-a'), find('#light-unit'))
 
   // Each loads the other, so one has to be reachable before it exists.
   let pills: { set: (value: Mode) => void } | null = null
