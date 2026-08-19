@@ -242,9 +242,10 @@ class Scritto extends ServerSafeHTMLElement {
     const toW = this.getBoundingClientRect().width
     const exits = plan.exitGlyphs.concat(plan.tailGlyphs)
     const enterGlyphs = this._glyphsOf(plan.enters, edge)
-    const delayAt = this._sweep(enterGlyphs.concat(exits))
-    const enterDelays = enterGlyphs.map((g) => delayAt(g.offset))
-    this._startExits(plan.trend, delayAt)
+    const exitDelayAt = this._sweep(exits)
+    const enterDelayAt = this._sweep(enterGlyphs)
+    const enterDelays = enterGlyphs.map((g) => enterDelayAt(g.offset))
+    this._startExits(plan.trend, exitDelayAt)
     this._exitEnd = exits.reduce((end, g) => Math.max(end, g.offset + g.width), this._exitEnd)
     const total = this.transition.duration + this._exitTail
     // A flow re-flows the row under the host, so old ink is placed against the
@@ -289,14 +290,19 @@ class Scritto extends ServerSafeHTMLElement {
    */
   private _sweep(glyphs: Glyph[]) {
     let lo = Infinity
-    let hi = -Infinity
+    let last = -Infinity
     for (const g of glyphs) {
       lo = Math.min(lo, g.offset)
-      hi = Math.max(hi, g.offset + g.width)
+      last = Math.max(last, g.offset)
     }
-    const span = hi > lo ? hi - lo : 1
-    const sweep = this.transition.duration * CONFIG.stagger
-    return (offset: number) => (sweep * Math.min(Math.max(offset - lo, 0), span)) / span
+    const reach = last > lo ? last - lo : 1
+    // Spanning where the glyphs start rather than how far they reach, and ending
+    // one step short, so a row of even glyphs gets exactly the ladder counting
+    // them would: the last waits (n-1)/n of the sweep, not all of it. Measuring
+    // to the far edge instead handed a narrow last glyph — a comma, a 1 — a
+    // longer wait than its share, and an exit waiting is an exit at full opacity.
+    const step = (this.transition.duration * CONFIG.stagger * Math.max(glyphs.length - 1, 0)) / (glyphs.length || 1)
+    return (offset: number) => (step * Math.min(Math.max(offset - lo, 0), reach)) / reach
   }
 
   /**
