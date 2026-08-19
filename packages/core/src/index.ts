@@ -13,7 +13,7 @@ import {
   clearAnimStyle,
   resetAnim,
   finishIdentityAnim,
-  numberOf,
+  trendOf,
   type Char,
 } from './helpers'
 import {
@@ -458,11 +458,7 @@ class Scritto extends ServerSafeHTMLElement {
     if (!layout) return null
 
     let trend = this.trend
-    if (!trend) {
-      const cur = numberOf(this._value)
-      const prev = numberOf(this._prevValue)
-      trend = cur !== null && prev !== null ? (cur > prev ? 1 : -1) : 1
-    }
+    if (!trend) trend = trendOf(this._prevValue, this._value)
 
     const oldPrefix = this._prefix.getBoundingClientRect()
     const oldSuffixRect = this._suffix.getBoundingClientRect()

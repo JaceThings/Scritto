@@ -150,13 +150,45 @@ const GROUP_WIDTH = 2
 
 const earnsTravel = (run: number, travel: number) => Math.abs(travel) <= run + GROUP_WIDTH
 
+const NUMBER = /[-\u2212]?\d[\d,_' \u00A0\u202F]*(?:\.\d+)?/g
+
+const read = (match: string) => {
+  const n = parseFloat(match.replace(/[^\d.]/g, ''))
+  if (!Number.isFinite(n)) return null
+  return /^[-\u2212]/.test(match) ? -n : n
+}
+
 /** Sign, digits and one decimal point; `parseFloat` stops at the first group separator. */
 export const numberOf = (value: string) => {
-  const match = /[-\u2212]?\d[\d,_' \u00A0\u202F]*(?:\.\d+)?/.exec(value)
-  if (!match) return null
-  const n = parseFloat(match[0].replace(/[^\d.]/g, ''))
-  if (!Number.isFinite(n)) return null
-  return /^[-\u2212]/.test(match[0]) ? -n : n
+  const match = new RegExp(NUMBER.source).exec(value)
+  return match ? read(match[0]) : null
+}
+
+/** Every number in the value, in order. */
+export const numbersOf = (value: string) => {
+  const out: number[] = []
+  for (const match of value.match(NUMBER) ?? []) {
+    const n = read(match)
+    if (n !== null) out.push(n)
+  }
+  return out
+}
+
+/**
+ * Which way the value moved. A formatted value carries more than one number, so
+ * the first one that differs decides: '2 minutes 12 seconds' to '2 minutes 13
+ * seconds' is a rise, even though the minutes stand still. A value that gains or
+ * loses a number ('59 seconds' to '1 minute 0 seconds') is not comparable that
+ * way, and neither is one with no numbers at all, so both read as a rise.
+ */
+export const trendOf = (prev: string, next: string) => {
+  const before = numbersOf(prev)
+  const after = numbersOf(next)
+  if (!before.length || before.length !== after.length) return 1
+  for (let i = 0; i < before.length; i++) {
+    if (after[i] !== before[i]) return after[i] > before[i] ? 1 : -1
+  }
+  return 1
 }
 
 /**
