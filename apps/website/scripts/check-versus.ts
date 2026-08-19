@@ -19,6 +19,13 @@ const TOLERANCE = {
   ink: 1.15,
   /** A departing glyph's life, in ms. Measured 32ms apart. */
   life: 90,
+  /**
+   * How far the ink spreads, leftmost to rightmost, as a ratio of fork to
+   * upstream. This is the one that caught the width transition re-arming itself
+   * on every update: at a 20ms cadence the fork spread 144.6px against 111.6px
+   * before it was fixed, and matches to a fifth of a pixel after.
+   */
+  spread: 1.08,
 }
 
 type Exit = { who: string; born: number; life: number }
@@ -82,7 +89,7 @@ await page.evaluate(() => {
 })
 
 const failures: string[] = []
-console.log('  cadence   solid ink up/fork  ratio   glyph life up/fork    fps')
+console.log('  cadence   solid ink up/fork  ratio   glyph life up/fork   ink width up/fork  ratio   fps')
 
 for (const cadence of CADENCES) {
   await page.evaluate((ms) => {
@@ -136,6 +143,37 @@ for (const cadence of CADENCES) {
     return [left / encoded.length, right / encoded.length]
   }, shots)
 
+  // How wide the ink runs, live value and outgoing ghosts together.
+  const spread = await page.evaluate(
+    () =>
+      new Promise<[number, number]>((done) => {
+        const upWidths: number[] = []
+        const forkWidths: number[] = []
+        const endAt = performance.now() + 1500
+        const frame = () => {
+          for (const [key, id] of [['up', '#up'], ['fk', '#fk']] as const) {
+            const host = document.querySelector(id)
+            if (!(host instanceof HTMLElement) || !host.shadowRoot) continue
+            const boxes: DOMRect[] = [...host.shadowRoot.querySelectorAll<HTMLElement>('.char')]
+              .filter((el) => Number.parseFloat(getComputedStyle(el).opacity) > 0.08)
+              .map((el) => el.getBoundingClientRect())
+              .filter((box) => box.width > 0)
+            if (boxes.length) {
+              const width = Math.max(...boxes.map((b) => b.right)) - Math.min(...boxes.map((b) => b.left))
+              if (key === 'up') upWidths.push(width)
+              else forkWidths.push(width)
+            }
+          }
+          if (performance.now() < endAt) requestAnimationFrame(frame)
+          else {
+            const mean = (v: number[]) => (v.length ? v.reduce((a, c) => a + c, 0) / v.length : 0)
+            done([mean(upWidths), mean(forkWidths)])
+          }
+        }
+        frame()
+      }),
+  )
+
   const exits = await page.evaluate(() => window.versusExits)
   const lifeOf = (who: string) => median(exits.filter((exit) => exit.who === who && exit.life).map((exit) => exit.life))
   const upLife = lifeOf('up')
@@ -143,9 +181,13 @@ for (const cadence of CADENCES) {
   const ratio = solid[1] / Math.max(solid[0], 1)
   const lifeGap = Math.abs(forkLife - upLife)
 
+  const spreadRatio = spread[1] / Math.max(spread[0], 1)
   console.log(
-    `  ${String(cadence).padStart(5)}ms  ${solid[0].toFixed(0).padStart(8)} ${solid[1].toFixed(0).padStart(8)}  ${ratio.toFixed(3).padStart(6)}   ${upLife.toFixed(0).padStart(6)}ms ${forkLife.toFixed(0).padStart(7)}ms  ${fps.toFixed(0).padStart(5)}`,
+    `  ${String(cadence).padStart(5)}ms  ${solid[0].toFixed(0).padStart(8)} ${solid[1].toFixed(0).padStart(8)}  ${ratio.toFixed(3).padStart(6)}   ${upLife.toFixed(0).padStart(6)}ms ${forkLife.toFixed(0).padStart(7)}ms  ${spread[0].toFixed(0).padStart(5)}px ${spread[1].toFixed(0).padStart(6)}px ${spreadRatio.toFixed(3).padStart(7)}  ${fps.toFixed(0).padStart(4)}`,
   )
+  if (spreadRatio > TOLERANCE.spread) {
+    failures.push(`${cadence}ms: fork's ink spreads ${spreadRatio.toFixed(2)}x as wide as upstream's`)
+  }
   if (ratio > TOLERANCE.ink) failures.push(`${cadence}ms: fork carries ${ratio.toFixed(2)}x upstream's solid ink`)
   if (lifeGap > TOLERANCE.life) {
     failures.push(`${cadence}ms: a departing glyph lives ${lifeGap.toFixed(0)}ms longer than upstream's`)

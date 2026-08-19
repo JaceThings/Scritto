@@ -117,6 +117,15 @@ class Scritto extends ServerSafeHTMLElement {
   /** Where the box holds still as it resizes: 0 start, 1 end, 0.5 middle. */
   private _anchor: number | null = null
   private _exitTail = 0
+  /**
+   * The width transition is held apart from the tracked animations. Every update
+   * cancels those, and tearing the width down mid-flight only to re-arm it from
+   * whatever width it had reached meant that at a cadence faster than the
+   * transition it never converged: the box stayed inflated and start-aligned, so
+   * the value sat off its centre and the outgoing ink spread into the slack.
+   */
+  private _widthAnims: Animation[] = []
+  private _widthTo: number | null = null
   private _blockified = false
   private _isRTL = false
   private _value = ''
@@ -300,6 +309,10 @@ class Scritto extends ServerSafeHTMLElement {
    */
   private _transitionWidth(fromW: number, toW: number, edge: number) {
     if (Math.abs(toW - fromW) < 0.5) return
+    // Already on its way to this width, so let it get there.
+    if (this._widthTo !== null && Math.abs(toW - this._widthTo) < 0.5) return
+    for (let i = 0; i < this._widthAnims.length; i++) this._widthAnims[i].cancel()
+    this._widthAnims.length = 0
     const box = this.getBoundingClientRect()
     const beside = this._besideOnLine(box, Math.abs(toW - fromW) + 1)
     const css = getComputedStyle(this)
@@ -319,6 +332,7 @@ class Scritto extends ServerSafeHTMLElement {
     this.style.marginInlineEnd = `${-slack}px`
     const anim = this.animate({ width: [`${fromW + slack}px`, `${toW + slack}px`] }, timing)
     anim.id = WIDTH_ANIM
+    this._widthTo = toW
     const start = this.getBoundingClientRect()
     const rtl = this._isRTL
     // `start` is the border box: the slack sits on its end side.
@@ -347,9 +361,11 @@ class Scritto extends ServerSafeHTMLElement {
     }
     anim.onfinish = () => {
       for (const a of anims) a.cancel()
+      this._widthAnims.length = 0
+      this._widthTo = null
       this._clearWidth()
     }
-    this._anims.push(...anims)
+    this._widthAnims.push(...anims)
   }
 
   private _anchorHint() {
@@ -388,6 +404,7 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   private _clearWidth() {
+    this._widthTo = null
     if (this._blockified) {
       this.style.display = ''
       this.style.marginTop = ''
@@ -569,10 +586,14 @@ class Scritto extends ServerSafeHTMLElement {
   private _cancelTracked() {
     for (let i = 0; i < this._anims.length; i++) this._anims[i].cancel()
     this._anims.length = 0
-    this._clearWidth()
+    // A width transition still running owns the box; leave it and its styles be.
+    if (!this._widthAnims.length) this._clearWidth()
   }
 
   private _reset() {
+    for (let i = 0; i < this._widthAnims.length; i++) this._widthAnims[i].cancel()
+    this._widthAnims.length = 0
+    this._widthTo = null
     this._cancelTracked()
     clearAnimStyle(this._prefix)
     clearAnimStyle(this._middle)

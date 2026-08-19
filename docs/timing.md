@@ -45,6 +45,26 @@ edit lively inside a long value. `2 minutes 12 seconds` → `2 minutes 13 second
 changes one glyph, and that glyph uses the whole duration rather than a thirtieth
 of it.
 
+### A transition that cannot finish
+
+The width transition is held apart from the animations a commit cancels. Every
+update cancels those, and the width used to go with them: torn down mid-flight
+and re-armed from whatever width it had reached, with its indent compensation
+recomputed against a box that was itself moving.
+
+At a cadence slower than the roll that converges anyway. Faster, it never did.
+The box stayed blockified and start-aligned, so the value sat left of the centre
+it was supposed to hold and outgoing ink spread into the slack. Measured against
+upstream, which has no width transition at all, at a 20ms cadence on a 590ms
+roll: ink spread 144.6px against 111.6px, and the value sat 53px left of its
+stage centre against upstream's 31px.
+
+A transition already heading for a width is now left alone rather than restarted,
+and `_clearWidth` keeps its hands off the box while one is in flight. Same
+measurement after: 111.8px against 111.6px, and 30.4px against 30.5px. A real
+width change still animates exactly as before — the indent still travels its 8px
+and the box its 5.59px of slack.
+
 ## The box
 
 The width and the indent that goes with it use `cubic-bezier(0.22, 1, 0.36, 1)`,
