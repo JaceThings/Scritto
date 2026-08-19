@@ -79,6 +79,13 @@ starts rolling immediately, but one that carries into a new digit (`990` to
 `1000`) spreads its start across the width of everything that changed, per
 `stagger`. Dialling stagger to 0 removes the difference outright.
 
+`check:flow` also hammers a value across widths inside a paragraph and asserts
+the box is not left dressed for a transition afterwards — display, margin,
+shrink-clip and inline width all back where they started — and that the
+paragraph never gains a line box while the hammering runs. The width transition
+survives across updates now, so its teardown is only ever reached by the
+animation finishing, and that is the thing worth guarding.
+
 ## `bun run check:versus`
 
 Holds this fork against the upstream it forked. `/versus` already runs both

@@ -939,6 +939,88 @@ await scenario('homepage live sentence', async () => {
   await checkSettled(page, 'home sentence', selector, report)
 })
 
+// 7. A value hammered across widths must not leave the box dressed for a
+// transition, and must not push its paragraph onto another line while it runs.
+// The width transition survives across updates now, so its teardown is only ever
+// reached by the animation finishing.
+await scenario('hammered across widths leaves no layout behind', async () => {
+  await visit('/readouts')
+  await page.evaluate(() => {
+    const prose = document.createElement('p')
+    prose.id = 'width-probe'
+    prose.style.cssText = 'width:214px;font:400 16px system-ui;line-height:1.4;margin:0'
+    prose.innerHTML = 'Total <scritto-text id="width-probe-host">9</scritto-text> items sold'
+    document.body.prepend(prose)
+  })
+  await page.waitForTimeout(300)
+
+  const readState = () =>
+    page.evaluate(() => {
+      const host = document.querySelector('#width-probe-host')
+      const prose = document.querySelector('#width-probe')
+      if (!(host instanceof HTMLElement) || !(prose instanceof HTMLElement)) return null
+      const css = getComputedStyle(host)
+      const range = document.createRange()
+      range.selectNodeContents(prose)
+      return {
+        display: css.display,
+        marginEnd: css.marginInlineEnd,
+        clip: host.getAttribute('data-shrink-clip'),
+        inlineWidth: host.style.width,
+        lines: range.getClientRects().length,
+      }
+    })
+
+  const before = await readState()
+  const peakLines = await page.evaluate(async () => {
+    const host = document.querySelector('#width-probe-host')
+    const prose = document.querySelector('#width-probe')
+    if (!(host instanceof HTMLElement) || !(prose instanceof HTMLElement)) return 0
+    // SAFETY: the element is <scritto-text>, upgraded by the time the page has
+    // loaded, so it carries the component's own setOptions and update.
+    const roll = host as HTMLElement & {
+      setOptions: (o: { respectMotionPreference: boolean; transition: { duration: number } }) => void
+      update: (v: string, animate: boolean) => void
+    }
+    roll.setOptions({ respectMotionPreference: false, transition: { duration: 590 } })
+    const values = ['9', '99', '999', '9,999', '99,999', '999,999', '9,999', '999', '99']
+    let peak = 0
+    for (let i = 0; i < 45; i++) {
+      roll.update(values[i % values.length], true)
+      await new Promise((resolve) => setTimeout(resolve, 25))
+      const range = document.createRange()
+      range.selectNodeContents(prose)
+      peak = Math.max(peak, range.getClientRects().length)
+    }
+    return peak
+  })
+  await page.waitForTimeout(2500)
+  const after = await readState()
+
+  if (!before || !after) {
+    report.violations.push({ flow: 'width probe', rule: 'drive', detail: 'probe did not mount' })
+    return
+  }
+  if (peakLines > before.lines) {
+    report.violations.push({
+      flow: 'width probe',
+      rule: 'wrap',
+      detail: `hammering took the paragraph from ${before.lines} line boxes to ${peakLines}`,
+    })
+  }
+  for (const [rule, was, now] of [
+    ['display', before.display, after.display],
+    ['margin-inline-end', before.marginEnd, after.marginEnd],
+    ['shrink-clip', String(before.clip), String(after.clip)],
+    ['inline width', before.inlineWidth, after.inlineWidth],
+    ['line boxes', String(before.lines), String(after.lines)],
+  ] as const) {
+    if (was !== now) {
+      report.violations.push({ flow: 'width probe', rule: 'teardown', detail: `${rule} left at ${now}, was ${was}` })
+    }
+  }
+})
+
 await page.screenshot({ path: `${OUT}-home.png` })
 await browser.close()
 
