@@ -179,8 +179,8 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
   const rangeInput = pick<HTMLInputElement>('range')
 
   for (const el of [labelText, valueText]) {
-    // A drag retires a value every few frames against a 300ms roll, so the
-    // older ones are hurried off; the newest is left alone and still rolls.
+    // Held arrow keys can still outrun the roll, so the pile behind the newest
+    // value is hurried off.
     el.setOptions({ transition: { duration: READOUT_DURATION }, hurry: true })
   }
   labelText.update(label, false)
@@ -194,17 +194,28 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     return format ? format(stepped) : String(stepped)
   }
 
-  const paint = () => {
+  /**
+   * A drag crosses a detent every few frames, and a readout that rolls each one
+   * never finishes a roll — every digit is caught at the start of its travel and
+   * replaced. Under the finger the number is live and reads instantly; the roll
+   * belongs to the value it lands on, and to every change nobody is dragging.
+   */
+  let scrubbing = false
+
+  const paintFill = () => {
     fill.style.width = `${((clamp(reported, min, max) - min) / range) * 100}%`
-    valueText.update(display(reported), true)
   }
+
+  /** The readout follows the committed value, not the bar's tween. */
+  const showValue = () => valueText.update(display(value), !scrubbing)
 
   const setReported = (next: number) => {
     reported = next
-    paint()
+    paintFill()
   }
 
-  paint()
+  paintFill()
+  showValue()
 
   let stretchPx = 0
   let stopStretch: Stop = NOOP
@@ -275,6 +286,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     if (next === value) return
     value = next
     rangeInput.value = String(next)
+    showValue()
     onChange(next, fromDrag)
   }
 
@@ -347,6 +359,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
       if (!downAt || Math.abs(event.clientX - downAt.x) < CLICK_THRESHOLD) return
       stopPointer()
       isClick = false
+      scrubbing = true
     }
     applyPointer(event.clientX)
   })
@@ -360,6 +373,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     // A drag can leave `reported` on a sub-step fraction; a tap already eased.
     if (!isClick) {
       stopPointer()
+      scrubbing = false
       stopPointer = tween(reported, value, PROP_CHANGE_DURATION, PROP_EASE, setReported)
       onRelease?.(value)
     }
@@ -376,6 +390,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
     const next = Number(rangeInput.value)
     if (next === value) return
     value = next
+    showValue()
     onChange(next, false)
     settle()
   })
@@ -474,6 +489,7 @@ export const createSlider = (mount: HTMLElement, config: SliderConfig) => {
       if (stepped === value) return
       value = stepped
       rangeInput.value = String(stepped)
+      showValue()
       settle()
     },
     destroy() {
