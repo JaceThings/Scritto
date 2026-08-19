@@ -79,6 +79,26 @@ starts rolling immediately, but one that carries into a new digit (`990` to
 `1000`) spreads its start across the width of everything that changed, per
 `stagger`. Dialling stagger to 0 removes the difference outright.
 
+## `bun run check:versus`
+
+Holds this fork against the upstream it forked. `/versus` already runs both
+engines on one timer with the same constants pushed into both, so this drives
+that page at three cadences — 90ms, 40ms and 20ms against a 590ms roll — and
+compares what a person would actually see rather than what the code intends.
+
+It records with the frame limiter off, which lands around 100fps, well above a
+display's refresh, then measures two things per cadence: solid ink per half
+straight off the recorded frames, and how long a departing glyph lives from the
+moment its animation is created to the moment it leaves the DOM. It fails if the
+fork carries more than 1.15x upstream's solid ink or a glyph's life differs by
+more than 90ms.
+
+Measured now: 1.008x at 90ms, 1.02x at 40ms, 1.045x at 20ms, with a glyph living
+623ms here against 591ms upstream. The residual is the position-swept stagger
+described in [timing.md](timing.md) — the fork delays a glyph by where it sits
+across the changed span, upstream by its index within the group, and the fork's
+delays come out larger. More ghost lives longer, so the pile reads more solidly.
+
 ## `/versus`
 
 Upstream `numeric-text` and this fork in one figure, on one timer, with every
