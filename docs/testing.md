@@ -69,6 +69,10 @@ paragraph never gains a line box while the hammering runs. The width transition
 survives across updates now, so its teardown is only ever reached by the
 animation finishing, and that is the thing worth guarding.
 
+The dev pages — `/versus`, `/edges`, `/suite` and `/look` — are served by
+`bun run play` but are not built into the deployed site. The checks drive them
+against the dev server, which is where they were always pointed.
+
 ## `/edges`
 
 Twenty-one awkward cases in a grid, most on their own clock and never stopping: the

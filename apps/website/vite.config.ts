@@ -6,7 +6,14 @@ import { defineConfig, type Plugin } from 'vite'
 
 const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.url))
 
-const PAGES = ['index', 'playground', 'docs', 'studio', 'versus', 'edges', 'bench', 'stress', 'suite', 'look']
+/**
+ * What the site ships. `versus.html`, `edges.html`, `suite.html` and `look.html`
+ * are deliberately not here: `bun run play` serves any page in this directory,
+ * so they stay a dev server away for the checks that drive them — flow needs
+ * look, `bench:suite` needs suite, `check:versus` needs versus — without being
+ * built into the deployed site.
+ */
+const PAGES = ['index', 'playground', 'docs', 'studio']
 
 /**
  * `<!-- @include footer.html i=14 -->` inlines `partials/footer.html`, filling
