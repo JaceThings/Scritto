@@ -1,5 +1,5 @@
 import type { Scritto } from '@scritto/core'
-import { comma, company, connectLive, nth, sitting, type Stats } from '../lib/live'
+import { comma, company, companyCount, connectLive, nth, sitting, type Stats } from '../lib/live'
 
 const OPTIONS = { respectMotionPreference: true, bounce: false }
 const SAT_DURATION = 280
@@ -34,6 +34,7 @@ export const bindLiveReadout = (root: ParentNode) => {
 
   const fields: Array<[Scritto, (stats: Stats) => string]> = [
     [node('#you'), (stats) => nth(stats.you)],
+    [node('#here-count'), (stats) => companyCount(stats.here)],
     [node('#here'), (stats) => company(stats.here)],
     [node('#views'), (stats) => comma(stats.views)],
     [node('#clicks'), (stats) => comma(stats.clicks)],

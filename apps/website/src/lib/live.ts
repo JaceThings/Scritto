@@ -224,8 +224,15 @@ export const sitting = (seconds: number) => {
   return parts.join(' ')
 }
 
+/**
+ * The count rides its own host so it can take the live colour, like every
+ * other figure in the line; alone, it has none to give and the clause carries
+ * the whole sentence.
+ */
+export const companyCount = (here: number) => (here <= 1 ? '' : String(here - 1))
+
 export const company = (here: number) => {
   if (here <= 1) return "You're the only one here right now."
-  if (here === 2) return 'One other person is here right now.'
-  return `${here - 1} other people are here right now.`
+  if (here === 2) return 'other person is here right now.'
+  return 'other people are here right now.'
 }

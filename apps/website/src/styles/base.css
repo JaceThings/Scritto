@@ -134,6 +134,12 @@ scritto-text.live {
   color: var(--color-live);
 }
 
+/* Alone, the visitor count has nothing to show, and an empty inline-block still
+   holds the spaces either side of it apart. */
+#here-count:empty {
+  display: none;
+}
+
 /* Assistive-tech copy: keep it out of Cmd+A, and so out of the marker.
    `user-select` alone would not: the pipeline reads the Range, not the paint. */
 .sr-only {
