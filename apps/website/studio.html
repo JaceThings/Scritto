@@ -69,10 +69,32 @@
       </aside>
 
       <footer class="studio-timeline">
-        <button class="studio-play" type="button" data-role="play" aria-label="Play">▶</button>
-        <input class="studio-scrub" data-role="scrub" type="range" min="0" max="1000" step="1" value="400" aria-label="Timeline" />
-        <output class="studio-time" data-out="time"></output>
-        <button class="studio-replay" type="button" data-role="replay">Replay</button>
+        <div class="studio-track">
+          <div class="studio-strip" data-role="strip">
+            <div class="studio-playhead" data-role="playhead"></div>
+          </div>
+          <input class="studio-scrub" data-role="scrub" type="range" min="0" max="1000" step="1" value="400" aria-label="Timeline" />
+        </div>
+        <div class="studio-transport">
+          <button class="studio-play" type="button" data-role="play" aria-label="Play">▶</button>
+          <button class="studio-step" type="button" data-role="back" aria-label="Previous frame">◀|</button>
+          <button class="studio-step" type="button" data-role="next" aria-label="Next frame">|▶</button>
+          <button class="studio-step" type="button" data-role="loop" aria-pressed="false" aria-label="Loop">↻</button>
+          <label class="studio-rate"><span class="sr-only">Playback rate</span>
+            <select data-role="rate">
+              <option value="1">1×</option>
+              <option value="0.5">0.5×</option>
+              <option value="0.25">0.25×</option>
+              <option value="0.1">0.1×</option>
+            </select>
+          </label>
+          <output class="studio-time" data-out="time"></output>
+          <button class="studio-replay" type="button" data-role="replay">Replay</button>
+        </div>
+        <p class="studio-keys">
+          <kbd>space</kbd> play · <kbd>⌘,</kbd> <kbd>⌘.</kbd> step a frame · <kbd>⇧</kbd> ten ·
+          <kbd>L</kbd> loop · <kbd>⌥⌘S</kbd> export
+        </p>
       </footer>
     </main>
     <script type="module" src="/src/pages/studio.ts"></script>

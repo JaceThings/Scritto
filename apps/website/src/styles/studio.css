@@ -162,21 +162,107 @@
 
 .studio-timeline {
   display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 14px 20px;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 20px 14px;
   border-top: 1px solid var(--color-hairline);
   grid-area: timeline;
 }
 
-.studio-scrub {
-  flex: 1;
+.studio-track {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* One rasterised frame per cell, so the strip is the transition itself rather
+   than a picture of a slider. */
+.studio-strip {
+  position: relative;
+  display: grid;
+  overflow: hidden;
+  grid-auto-columns: minmax(0, 1fr);
+  grid-auto-flow: column;
+  height: 56px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
+}
+
+.studio-strip canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
   min-width: 0;
+  border-right: 1px solid color-mix(in srgb, var(--color-hairline) 60%, transparent);
+  object-fit: contain;
+}
+
+.studio-strip canvas:last-of-type {
+  border-right: 0;
+}
+
+.studio-playhead {
+  position: absolute;
+  z-index: 1;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: var(--color-live);
+  pointer-events: none;
+}
+
+.studio-scrub {
+  width: 100%;
+  min-width: 0;
+}
+
+.studio-transport {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .studio-play {
   width: 40px;
   text-align: center;
+}
+
+.studio-step {
+  min-width: 34px;
+  padding: 6px 8px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.studio-step[aria-pressed='true'] {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
+}
+
+.studio-rate select {
+  padding: 5px 6px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+}
+
+.studio-keys {
+  margin: 0;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+}
+
+.studio-keys kbd {
+  padding: 1px 4px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 4px;
+  font: inherit;
+  font-size: 10px;
 }
 
 .studio-time {
@@ -199,5 +285,9 @@
   .studio-panel {
     border-left: 0;
     border-top: 1px solid var(--color-hairline);
+  }
+
+  .studio-transport {
+    flex-wrap: wrap;
   }
 }

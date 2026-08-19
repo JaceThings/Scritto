@@ -39,6 +39,15 @@ rotation, stagger, duration and trend all adjustable underneath. It exports the
 held frame as a transparent PNG at up to 8×, which is also how the icon artwork
 gets made.
 
+It runs like a video editor: space plays and pauses, `L` loops, `⌘,` and `⌘.`
+step a single frame at 60fps (hold shift for ten), Home and End jump to the
+ends, and the rate select plays back at down to a tenth of speed without
+changing the roll's own timing. The strip above the scrubber is sixteen frames
+of the transition, each one rasterised through the same capture the export uses,
+so it shows the roll rather than a drawing of it. It rebuilds a quarter second
+after the last knob moves, because sixteen captures is not something to do on
+every frame of a drag.
+
 ## `/readouts`
 
 The playground's slider readout, seven ways, on one page: every step rolling,
