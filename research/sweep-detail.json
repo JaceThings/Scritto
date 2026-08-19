@@ -1,0 +1,104 @@
+{
+  "rows": [
+    {
+      "text": "P",
+      "exiting": false,
+      "delay": 0,
+      "duration": 400,
+      "x": 46
+    },
+    {
+      "text": "u",
+      "exiting": false,
+      "delay": 16,
+      "duration": 400,
+      "x": 76
+    },
+    {
+      "text": "b",
+      "exiting": false,
+      "delay": 32,
+      "duration": 400,
+      "x": 105
+    },
+    {
+      "text": "l",
+      "exiting": false,
+      "delay": 47,
+      "duration": 400,
+      "x": 131
+    },
+    {
+      "text": "i",
+      "exiting": false,
+      "delay": 54,
+      "duration": 400,
+      "x": 143
+    },
+    {
+      "text": "s",
+      "exiting": false,
+      "delay": 60,
+      "duration": 400,
+      "x": 158
+    },
+    {
+      "text": "h",
+      "exiting": false,
+      "delay": 74,
+      "duration": 400,
+      "x": 184
+    },
+    {
+      "text": "e",
+      "exiting": false,
+      "delay": 89,
+      "duration": 400,
+      "x": 213
+    },
+    {
+      "text": "d",
+      "exiting": false,
+      "delay": 104,
+      "duration": 400,
+      "x": 241
+    },
+    {
+      "text": "D",
+      "exiting": true,
+      "delay": 0,
+      "duration": 400,
+      "x": 40
+    },
+    {
+      "text": "r",
+      "exiting": true,
+      "delay": 18,
+      "duration": 400,
+      "x": 74
+    },
+    {
+      "text": "a",
+      "exiting": true,
+      "delay": 28,
+      "duration": 400,
+      "x": 93
+    },
+    {
+      "text": "f",
+      "exiting": true,
+      "delay": 43,
+      "duration": 400,
+      "x": 120
+    },
+    {
+      "text": "t",
+      "exiting": true,
+      "delay": 52,
+      "duration": 400,
+      "x": 138
+    }
+  ],
+  "easing": "cubic-bezier(0.22, 1, 0.36, 1)",
+  "spring": "linear(0,.1052,.3155,.532,.7112,.8414,.9265,.9765,1.0023,1.013,1.0151,1.0133,1.01,1.0068,1.0041,1.0022,1.001,1)"
+}
