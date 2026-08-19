@@ -156,12 +156,9 @@ const load = (url: string) =>
   })
 
 /**
- * `extra` is CSS the SVG needs and the page cannot supply — an `@font-face` for
- * a font that was uploaded rather than installed, say.
- *
- * The clone is forced visible, so the caller can hide the live host while it
- * drives it somewhere. A hidden element still has layout and still reports what
- * its animations are doing, which is everything the capture reads.
+ * `extra` is CSS the SVG needs and the page cannot supply, such as an
+ * `@font-face` for an uploaded font. The clone forces itself visible so the
+ * caller can hide the live host while driving it; hidden still has layout.
  */
 export const captureHost = async (host: HTMLElement, scale: number, pad: number, extra = '') => {
   const box = host.getBoundingClientRect()

@@ -1077,7 +1077,9 @@ await scenario('retarget mid-flight never snaps', async () => {
       }),
   )
   if (worst.jump < 0) report.violations.push({ flow: 'retarget', rule: 'drive', detail: worst.during })
-  else if (worst.jump > 6) {
+  // A real snap was 31px clicking, 56px on the shipped core, 203px on the
+  // basmala; a legitimate move is 2.4px, and a dropped frame doubles it.
+  else if (worst.jump > 12) {
     report.violations.push({
       flow: 'retarget',
       rule: 'snap',

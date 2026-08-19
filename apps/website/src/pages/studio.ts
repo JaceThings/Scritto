@@ -1,8 +1,6 @@
 import '@scritto/core'
 import type { Scritto, Trend } from '@scritto/core'
-// The roll's shape lives in one module-level object rather than per instance.
-// The site resolves `@scritto/core` to this same source, so the studio holds the
-// object the element itself reads.
+// The site resolves `@scritto/core` to this source, so this is the live object.
 import { CONFIG } from '../../../../packages/core/src/const'
 import { captureHost, download } from '../lib/raster'
 
@@ -67,12 +65,7 @@ export const initStudio = (root: ParentNode = document) => {
   const playhead = find<HTMLElement>('playhead')
   const dims = find<HTMLParagraphElement>('dims')
 
-  /**
-   * A font the studio was handed as a file has to travel with the export: an
-   * SVG image cannot fetch anything, so it carries its own `@font-face`. An
-   * installed font needs none of that — the SVG resolves it locally, same as
-   * the page does.
-   */
+  /** An uploaded font travels with the export; an installed one resolves locally. */
   let fontCss = ''
 
   const embed = async (family: string, blob: Blob) => {
@@ -129,8 +122,7 @@ export const initStudio = (root: ParentNode = document) => {
   let playing = false
   let frame = 0
 
-  // A document's animations stop at the shadow boundary, so the roll's own
-  // glyphs are only reachable through the root that holds them.
+  // A document's animations stop at the shadow boundary.
   const tracked = () => [...host.getAnimations({ subtree: true }), ...(host.shadowRoot?.getAnimations() ?? [])]
 
   const seek = (ms: number) => {

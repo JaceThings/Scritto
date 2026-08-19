@@ -1,7 +1,6 @@
 import '@scritto/core'
 import type { Scritto } from '@scritto/core'
-// Both engines read their own copy of these. A comparison is only worth
-// anything if the knobs land on both, so every one of them is written twice.
+// Each engine reads its own copy, so every knob is written to both.
 import { CONFIG } from '../../../../packages/core/src/const'
 import { createSlider } from '../components/slider'
 import { bindCorners } from '../lib/corners'
@@ -35,10 +34,7 @@ let value = 0
 let timer = 0
 const format = (n: number) => (groupCheck.checked ? n.toLocaleString('en-US') : String(n))
 
-/**
- * A document's animations stop at the shadow boundary, so a roll's glyphs are
- * only reachable through the root that holds them.
- */
+/** A document's animations stop at the shadow boundary. */
 const animationsOf = (host: Rollable) => host.shadowRoot?.getAnimations() ?? []
 
 /** What is frozen, and where each one stood at the moment it was caught. */
@@ -59,11 +55,7 @@ const restart = () => {
   if (runningCheck.checked && !held.length) timer = window.setInterval(tick, interval.value)
 }
 
-/**
- * Everything on screen is caught where it stands, not rewound to a shared zero:
- * at this cadence a dozen rolls are in flight at different ages, and that spread
- * is the thing worth looking at. Scrub then walks the whole scene together.
- */
+/** Caught where each stands, not rewound: the spread of ages is the point. */
 const freeze = () => {
   window.clearInterval(timer)
   held = both.flatMap((host) =>
@@ -85,19 +77,12 @@ const release = () => {
   restart()
 }
 
-/**
- * Forward only. Backward cannot be honest: a glyph that already finished was
- * released, and rewinding cannot bring it back, so the two sides would show
- * different pasts of the same value.
- */
+/** Forward only: a finished glyph was released, and rewinding cannot undo that. */
 const shift = (ms: number) => {
   for (const { animation, at } of held) animation.currentTime = at + ms
 }
 
-/**
- * Glyphs stacked in one slot is the whole question, so it is counted rather
- * than eyeballed: ink still on screen, grouped by where it sits.
- */
+/** Ink still on screen, grouped by the slot it sits in. */
 const report = () => {
   if (!held.length) {
     count.textContent = ''

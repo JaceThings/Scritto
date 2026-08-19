@@ -143,10 +143,8 @@ export type SliderConfig = {
  * `0` rolls every step; `Infinity` holds the number live under the finger and
  * never rolls a drag at all.
  *
- * Rolling every step is the pick: it reads as one continuous number rather than
- * a series of settled ones, and the pile it leaves is bounded by the roll being
- * short. It was chosen by hand against the alternatives, which is the only way
- * this call can be made.
+ * Rolling every step reads as one continuous number, and a short roll bounds
+ * the pile it leaves.
  */
 export type Readout = { duration: number; pace: number }
 

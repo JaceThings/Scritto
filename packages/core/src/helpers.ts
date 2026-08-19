@@ -134,12 +134,7 @@ const RUN_BAND = 2
 /** One letter shared by two unrelated words ('seven' -> 'nine') is noise, not a run. */
 const MIN_FLOAT_RUN = 2
 
-/**
- * A floating run buys its travel with its length plus a separator's width, which
- * is what '11' -> '1,001' needs; otherwise a short common word flies the length
- * of the value while everything around it rolls. Runs at an end are exempt,
- * since layout carries them.
- */
+/** A run buys its travel with its own length plus a separator's width. */
 const GROUP_WIDTH = 2
 
 const earnsTravel = (run: number, travel: number) => Math.abs(travel) <= run + GROUP_WIDTH
@@ -161,11 +156,7 @@ const numbersOf = (value: string) => {
   return out
 }
 
-/**
- * The first number that differs decides, so '2 minutes 12 seconds' to '2 minutes
- * 13 seconds' rises even though the minutes stand still. Gaining or losing a
- * number leaves nothing to compare, and reads as a rise.
- */
+/** The first number that differs decides; a changed count reads as a rise. */
 export const trendOf = (prev: string, next: string) => {
   const before = numbersOf(prev)
   const after = numbersOf(next)
@@ -177,9 +168,8 @@ export const trendOf = (prev: string, next: string) => {
 }
 
 /**
- * Longest common prefix, then the longest run either value ends with, then a
- * search for one flush with neither end. `anchor` (0 start, 1 end, 0.5 middle)
- * decides how far a floating run would travel on screen.
+ * Longest common prefix, then the longest run either value ends with, then one
+ * flush with neither end. `anchor` is 0 start, 1 end, 0.5 middle.
  */
 export const diff = (prev: HTMLElement[], newValue: string, anchor = 0) => {
   const labels = splitGraphemes(newValue)

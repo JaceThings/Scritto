@@ -117,16 +117,9 @@ class Scritto extends ServerSafeHTMLElement {
   /** Where the box holds still as it resizes: 0 start, 1 end, 0.5 middle. */
   private _anchor: number | null = null
   private _exitTail = 0
-  /**
-   * The width transition is held apart from the tracked animations. Every update
-   * cancels those, and tearing the width down mid-flight only to re-arm it from
-   * whatever width it had reached meant that at a cadence faster than the
-   * transition it never converged: the box stayed inflated and start-aligned, so
-   * the value sat off its centre and the outgoing ink spread into the slack.
-   */
+  /** Held apart from `_anims`, which every commit cancels. */
   private _widthAnims: Animation[] = []
   private _widthTo: number | null = null
-  /** The running transition's timing and start-edge travel, for ghosts born mid-flight. */
   private _widthTiming: { duration: number; easing: string; fill: 'forwards' } | null = null
   private _widthDx = 0
   private _blockified = false
@@ -237,11 +230,8 @@ class Scritto extends ServerSafeHTMLElement {
     const plan = this._readyPlan
     this._readyPlan = null
     if (!plan) return
-    // A width transition in flight pins the box, so every measurement below
-    // would read a box somewhere on its way to the old width. If the new value
-    // wants a different width, let the box land first and carry the width it
-    // had reached as the new start — continuous on screen, but re-aimed. If it
-    // wants the width the transition is already heading for, leave it be.
+    // A transition in flight pins the box, so the width below has to come from
+    // the content instead. Re-aim by landing the box and starting from here.
     let reached: number | null = null
     if (this._widthAnims.length && this._widthTo !== null) {
       const natural = this._naturalWidth()
@@ -301,11 +291,7 @@ class Scritto extends ServerSafeHTMLElement {
     })
   }
 
-  /**
-   * Delay by position, not index, so a glyph and the one replacing it move
-   * together. Spanning the changed stretch alone, or a small change inside a
-   * long value would start late and unroll in a sliver of its duration.
-   */
+  /** Delay by position, so a glyph and the one replacing it move together. */
   private _sweep(glyphs: Glyph[]) {
     let lo = Infinity
     let last = -Infinity
@@ -314,27 +300,21 @@ class Scritto extends ServerSafeHTMLElement {
       last = Math.max(last, g.offset)
     }
     const reach = last > lo ? last - lo : 1
-    // Spanning where the glyphs start rather than how far they reach, and ending
-    // one step short, so a row of even glyphs gets exactly the ladder counting
-    // them would: the last waits (n-1)/n of the sweep, not all of it. Measuring
-    // to the far edge instead handed a narrow last glyph — a comma, a 1 — a
-    // longer wait than its share, and an exit waiting is an exit at full opacity.
+    // Spans starts, not reach, and stops one step short: an even row gets the
+    // ladder counting it would, and a narrow last glyph no more than its share.
     const step = (this.transition.duration * CONFIG.stagger * Math.max(glyphs.length - 1, 0)) / (glyphs.length || 1)
     return (offset: number) => (step * Math.min(Math.max(offset - lo, 0), reach)) / reach
   }
 
   /**
-   * Width needs a box, so an inline host turns inline-block for the duration
-   * with its vertical padding and border cancelled by margins, leaving the
-   * line's height alone. Content is indented back by however far the start edge
-   * travels so the row holds where it will land. The mask is only earned when
-   * that edge moves, a neighbour is within reach, and the old row reaches past
-   * the width the box is heading for — which is a shrink.
+   * An inline host turns inline-block for the duration, its vertical padding and
+   * border cancelled by margins so the line's height holds, and its content
+   * indented back by however far the start edge travels. Only a shrink with a
+   * neighbour in reach earns the mask.
    */
   private _transitionWidth(fromW: number, toW: number, edge: number) {
-    // Already on its way there, so let it get there. A ghost made by this update
-    // still has to ride along: the box's start edge is moving under it, and it
-    // joins the same compensation at the same phase rather than drifting.
+    // Already on its way there. A ghost born now still joins the compensation,
+    // at the phase the run has reached.
     if (this._widthAnims.length && this._widthTiming) {
       const elapsed = Number(this._widthAnims[0].currentTime ?? 0)
       for (const [group, x] of this._exitingChars) {
@@ -360,14 +340,8 @@ class Scritto extends ServerSafeHTMLElement {
     this.style.textAlign = 'start'
     const total = this.transition.duration + this._exitTail
     const timing = { duration: total, easing: SHRINK_EASING, fill: 'forwards' as const }
-    // The box has to be exactly the width the animation says, or the indent
-    // that holds the row in place is compensating for a box that is somewhere
-    // else. A flex container the content overflows would shrink it: on the way
-    // up, the mask's slack is not min-content and gets taken back, leaving the
-    // box half a slack off centre until the end; on the way down, the box is
-    // pinned to the container until the animation passes below it while the
-    // indent keeps decaying under it. Refusing to shrink for the duration is
-    // what the content already did at its natural width, which overflowed too.
+    // The indent compensates for a box of exactly this width, so a flex parent
+    // must not shrink it. The content overflowed at its natural width anyway.
     this.style.flexShrink = '0'
     // The end margin takes the mask's slack back out of the layout.
     const slack = edgeSlackPx(this)
@@ -411,11 +385,7 @@ class Scritto extends ServerSafeHTMLElement {
     this._widthAnims.push(...anims)
   }
 
-  /**
-   * The width the box would take if nothing held it: its content, and the
-   * padding and border it wears of its own. Read while a transition has the box
-   * pinned, when the box's own width says nothing about the value in it.
-   */
+  /** What the box would measure if a transition were not pinning it. */
   private _naturalWidth() {
     const css = getComputedStyle(this)
     const sections = [this._prefix, this._middle, this._suffix, this._tail]
@@ -488,9 +458,8 @@ class Scritto extends ServerSafeHTMLElement {
 
     let oldSuffix = found.oldSuffix
     let midEnd = found.midEnd
-    // A comma at the front of the change is a group arriving or leaving: it
-    // rolls alone while the digits behind it are kept and shifted. Only sound
-    // with nothing kept from the end, which is placed straight after the peel.
+    // A leading comma is a group arriving or leaving: it rolls alone while the
+    // digits behind it are kept. Only sound with nothing kept from the end.
     if (!suffixCount) {
       let peel = prefixCount
       while (peel < midEnd && labels[peel] === ',') peel++
@@ -531,15 +500,9 @@ class Scritto extends ServerSafeHTMLElement {
     }
 
     const { prefixCount, suffixCount, oldSuffix, midEnd, exitingTail, next } = layout
-    // The only exact reference across the commit: offsetLeft rounds, so
-    // measuring the section instead invents a sub-pixel FLIP.
+    // offsetLeft rounds, and a rounded reference invents a sub-pixel FLIP.
     const prefixAnchor = prefixCount ? this._chars[0] : null
     const runAnchor = suffixCount ? this._chars[oldSuffix] : null
-    // Its own roll carries no layout information but skews its measured centre.
-    for (const anim of this._anims) {
-      const target = anim.effect instanceof KeyframeEffect ? anim.effect.target : null
-      if (target === prefixAnchor || target === runAnchor) anim.cancel()
-    }
     const prefixAnchorRect = prefixAnchor?.getBoundingClientRect()
     const runAnchorRect = runAnchor?.getBoundingClientRect()
     const fromEdge = startOf(oldPrefix, this._isRTL)
@@ -580,10 +543,8 @@ class Scritto extends ServerSafeHTMLElement {
     reconcileChildren(this._middle, chars, prefixCount, midEnd)
     reconcileChildren(this._suffix, chars, midEnd, midEnd + suffixCount)
     reconcileChildren(this._tail, chars, midEnd + suffixCount, chars.length)
-    // A glyph that survives the update owns its roll. Cancelling here cut a
-    // leading digit's entrance short every time a trailing one ticked, so the
-    // high-order digits appeared to animate faster than the low ones. Clearing
-    // the inline style is still safe: an effect outranks it.
+    // A survivor owns its roll; cancelling here cut it short. Clearing the
+    // inline style is safe, since an effect outranks it.
     const kept = new Set(this._chars)
     for (let i = 0; i < chars.length; i++) {
       if (kept.has(chars[i])) clearAnimStyle(chars[i])
@@ -624,9 +585,7 @@ class Scritto extends ServerSafeHTMLElement {
         const delay = delayAt(glyphs[i].offset)
         this._exitTail = Math.max(this._exitTail, delay)
         this._animateChar(nodes[i], true, trend, delay, () => {
-          // Releasing detaches, so a char that has left the group is already
-          // released, possibly into another value where a second release would
-          // take a live glyph off the screen.
+          // Already released, and released again would take a live glyph.
           if (nodes[i].parentNode !== group) return
           releaseChar(nodes[i])
           if (--left === 0) {
@@ -681,10 +640,8 @@ class Scritto extends ServerSafeHTMLElement {
     const dir = isOut ? -1 : 1
     const transform = `translateY(${dir * trend * CONFIG.y}em) scale(${CONFIG.scale}) rotateZ(${CONFIG.rotate}deg)`
     const filter = `blur(${CONFIG.blur}em)`
-    // A space has no ink to roll, but it still holds its slot until the group
-    // goes. It runs an animation that does nothing rather than a timer, so it
-    // is released by the same clock as the glyphs around it — a paused or
-    // scrubbed roll would otherwise lose its spaces on the wall clock.
+    // A space holds its slot on the same clock as the glyphs beside it, so it
+    // runs an animation that does nothing rather than a wall-clock timer.
     const anim = el.animate(
       el.textContent === SPACE
         ? { opacity: 1 }

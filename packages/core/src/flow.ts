@@ -282,10 +282,9 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   }
 
   /**
-   * Only a shrink earns the mask: old ink reaches past the width the box is
-   * heading for and the neighbour slides in over it. A grow lays its glyphs at
-   * their final places and fades them in there, so there is nothing to hide.
-   * Tested by where the old glyphs reach, which also covers an interrupted grow.
+   * Only a shrink earns the mask: old ink reaches past where the box is heading
+   * and the neighbour slides in over it. Tested by reach, so an interrupted grow
+   * counts too.
    */
   private _playHosts(hosts: FlowHost[], play: Play) {
     const { _first: first, _last: last } = this
@@ -351,9 +350,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
 
   /**
    * A word keeping its line slides along it. One changing line hands off between
-   * two ghosts instead, carrying on past the end of the line it left and
-   * arriving from before the start of the one it joined; flown diagonally it
-   * would drag the eye through unrelated text.
+   * two ghosts, since flying it diagonally drags the eye through unrelated text.
    */
   private _playWords(play: Play) {
     const { _first: first, _last: last, _wordEls: words, _lo: lo } = this

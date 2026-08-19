@@ -24,16 +24,10 @@ export const BOUNCE_TRANSITION: Transition = {
 export const SHRINK_EASING = 'cubic-bezier(0.22, 1, 0.36, 1)'
 export const WIDTH_ANIM = 'scritto-width'
 
-// A linear-gradient mask varies in one axis, leaving the other unbounded, so a
-// roll's vertical travel is never touched.
-//
-// The band sits past the content: the box converges on its width asymptotically,
-// so the last glyph spends the back half of the transition a pixel or two beyond
-// the edge at full opacity, and a band inside the box would dim it the whole way
-// and pop when the mask lifted. `EDGE_SLACK` widens the mask's box (the border
-// box, which a mask cannot reach past) and a negative end margin takes that back
-// out of the layout. It stays inside a word space, so real overflow lands in the
-// gap rather than on the neighbour.
+// The band sits past the content, not inside it: the box converges on its width
+// asymptotically, so a band within it would dim the last glyph the whole way and
+// pop when the mask lifted. `EDGE_SLACK` widens the mask's box and a negative end
+// margin takes that back out of the layout, staying inside a word space.
 const EDGE_FADE = '0.3em'
 
 /** How far past the content the mask's box reaches, in em. */
