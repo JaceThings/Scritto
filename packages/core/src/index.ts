@@ -26,6 +26,7 @@ import {
   SPACE,
   STYLES,
   WIDTH_ANIM,
+  blockSlackPx,
   edgeSlackPx,
 } from './const'
 import { ScrittoFlow, playFlows, prepareFlows } from './flow'
@@ -408,6 +409,7 @@ class Scritto extends ServerSafeHTMLElement {
     const clipEnd = overhang && endMoves
     if (clipStart || clipEnd) {
       this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
+      if (this._blockified) this._openBlockRoom(css)
     }
     const anims = [anim]
     const dx = rtl ? startShift : -startShift
@@ -538,6 +540,20 @@ class Scritto extends ServerSafeHTMLElement {
     return beside
   }
 
+  /**
+   * The mask clips to the border box, which stops short of a descender or a
+   * blurred glyph. Padding gives the band that room; margins hand it back to
+   * the line, and baseline alignment keeps the content where it was.
+   */
+  private _openBlockRoom(css: CSSStyleDeclaration) {
+    const room = blockSlackPx(this)
+    const style = this.style
+    style.paddingTop = `${(parseFloat(css.paddingTop) || 0) + room}px`
+    style.paddingBottom = `${(parseFloat(css.paddingBottom) || 0) + room}px`
+    style.marginTop = `${(parseFloat(style.marginTop) || 0) - room}px`
+    style.marginBottom = `${(parseFloat(style.marginBottom) || 0) - room}px`
+  }
+
   private _clearWidth() {
     this._widthTo = null
     this._widthTiming = null
@@ -546,6 +562,8 @@ class Scritto extends ServerSafeHTMLElement {
     this.style.flexShrink = ''
     if (this._blockified) {
       this.style.display = ''
+      this.style.paddingTop = ''
+      this.style.paddingBottom = ''
       this.style.marginTop = ''
       this.style.marginBottom = ''
       this._blockified = false

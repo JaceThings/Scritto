@@ -35,6 +35,11 @@ export const EDGE_SLACK = 0.4
 
 export const edgeSlackPx = (el: HTMLElement) => (parseFloat(getComputedStyle(el).fontSize) || 16) * EDGE_SLACK
 
+/** Room above and below the line for a descender and its blur, in em. */
+const BLOCK_SLACK = 0.5
+
+export const blockSlackPx = (el: HTMLElement) => (parseFloat(getComputedStyle(el).fontSize) || 16) * BLOCK_SLACK
+
 type Sides = { left: boolean; right: boolean }
 
 const edgeStops = (sides: Sides) =>
@@ -43,12 +48,14 @@ const edgeStops = (sides: Sides) =>
     sides.right ? `#000 calc(100% - ${EDGE_FADE}), transparent 100%` : '#000 100%',
   ].join(', ')
 
-const edgeMask = (sides: Sides, size: string, position: string) => {
+// Overscaled vertically on purpose: the band only ever cuts horizontally, so a
+// descender or a blurred glyph reaching past the box keeps its ink.
+const edgeMask = (sides: Sides) => {
   const stops = edgeStops(sides)
   const layer = (prefix: string) => `
     ${prefix}mask-image: linear-gradient(90deg, ${stops});
-    ${prefix}mask-size: ${size};
-    ${prefix}mask-position: ${position};
+    ${prefix}mask-size: 100% 400%;
+    ${prefix}mask-position: 0 50%;
     ${prefix}mask-repeat: no-repeat;`
   return layer('-webkit-') + layer('')
 }
@@ -67,9 +74,7 @@ const clipRules = () => {
   return cases
     .map(
       ([sel, sides]) => `
-  :host(${sel}) {${edgeMask(sides, '100% 100%', '0 0')}
-  }
-  :host(${sel}) .exits {${edgeMask(sides, '100% 400%', '0 50%')}
+  :host(${sel}), :host(${sel}) .exits {${edgeMask(sides)}
   }`,
     )
     .join('')
