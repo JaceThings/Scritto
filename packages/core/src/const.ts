@@ -75,6 +75,12 @@ const clipRules = () => {
     .map(
       ([sel, sides]) => `
   :host(${sel}), :host(${sel}) .exits {${edgeMask(sides)}
+  }
+  :host(${sel}) .exits {
+    /* !important, over the span reset below: the band's own box is the line, so
+       a ghost's descender needs the same room the host takes. */
+    padding-block: ${BLOCK_SLACK}em !important;
+    margin-block: -${BLOCK_SLACK}em !important;
   }`,
     )
     .join('')
