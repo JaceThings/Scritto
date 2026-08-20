@@ -132,6 +132,8 @@ class Scritto extends ServerSafeHTMLElement {
   /** How far each glyph's ink reaches, and while when it needs the box to cover it. */
   private _inkSpans: { end: number; from: number; ramp: number; until: number }[] = []
   private _widthTravel: number[] | null = null
+  /** When the last arriving glyph starts to read, which is the box's deadline. */
+  private _widthLead = 0
   private _blockified = false
   private _isRTL = false
   private _value = ''
@@ -277,6 +279,7 @@ class Scritto extends ServerSafeHTMLElement {
     for (let i = this._inkSpans.length - 1; i >= 0; i--) {
       if (this._inkSpans[i].until <= nowMs) this._inkSpans.splice(i, 1)
     }
+    let lastShows = 0
     for (let i = 0; i < enterGlyphs.length; i++) {
       const g = enterGlyphs[i]
       this._inkSpans.push({
@@ -285,7 +288,9 @@ class Scritto extends ServerSafeHTMLElement {
         ramp: Math.max(solidAt - showsAt, 1),
         until: nowMs + enterDelays[i] + duration,
       })
+      lastShows = Math.max(lastShows, enterDelays[i] + showsAt)
     }
+    this._widthLead = lastShows
     const total = this.transition.duration + this._exitTail
     // A flow re-flows the row under the host, so old ink is placed against the
     // row's start rather than the page.
@@ -395,9 +400,9 @@ class Scritto extends ServerSafeHTMLElement {
     const endMoves = Math.abs(endShift) >= 0.5
     this._anchor = Math.abs(startShift) / (Math.abs(startShift) + Math.abs(endShift) || 1)
     // The end side needs no neighbour to earn the fade: that is where old ink
-    // reaches past the width the box is heading for, and the slack there keeps
-    // live glyphs clear of the band. The start side has no such slack, so it
-    // fades only to keep the overhang off a neighbour.
+    // reaches past the width the box is heading for, and its slack keeps live
+    // glyphs clear of the band. The start side has no slack to fade across, so
+    // it earns one only to keep the overhang off a neighbour.
     const overhang = this._exitEnd > toW + 0.5
     const clipStart = overhang && startMoves && this._besideOnLine(box, Math.abs(toW - fromW) + 1).start
     const clipEnd = overhang && endMoves
@@ -433,12 +438,15 @@ class Scritto extends ServerSafeHTMLElement {
     const spans = this._inkSpans
     if (!spans.length) return null
     const now = performance.now()
-    let binds = false
+    // Widening, the box lands by the time its glyphs read, so none of them
+    // stands outside it. Narrowing keeps the roll's own pace.
+    const lead = toW > fromW ? Math.min(Math.max(this._widthLead / total, 0.4), 1) : 1
+    let binds = lead < 1
     let peak = Math.max(fromW, toW)
     const widths = Array.from<number>({ length: ENVELOPE_STEPS + 1 })
     for (let k = 0; k <= ENVELOPE_STEPS; k++) {
       const at = k / ENVELOPE_STEPS
-      const base = fromW + (toW - fromW) * shrinkEase(at)
+      const base = fromW + (toW - fromW) * shrinkEase(Math.min(at / lead, 1))
       let w = base
       const t = now + at * total
       for (const s of spans) {
