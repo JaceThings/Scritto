@@ -60,23 +60,35 @@ const edgeMask = (sides: Sides) => {
   return layer('-webkit-') + layer('')
 }
 
-/** `data-shrink-clip` names the logical sides that move: "" or "end", "start", "both". */
+/**
+ * `data-shrink-clip` names the logical sides that move: "" or "end", "start",
+ * "both". The end side carries the mask's slack, so its band falls outside the
+ * content and the host wears it; the start side has none, so only the ghosts
+ * wear it and live ink is never faded.
+ */
 const clipRules = () => {
-  const cases: [selector: string, sides: Sides][] = [
-    [`[data-shrink-clip='']`, { left: false, right: true }],
-    [`[data-shrink-clip='end']`, { left: false, right: true }],
-    [`[data-shrink-clip='start']`, { left: true, right: false }],
-    [`[data-shrink-clip='both']`, { left: true, right: true }],
-    [`[data-shrink-clip='']:dir(rtl)`, { left: true, right: false }],
-    [`[data-shrink-clip='end']:dir(rtl)`, { left: true, right: false }],
-    [`[data-shrink-clip='start']:dir(rtl)`, { left: false, right: true }],
+  const cases: [selector: string, start: boolean, end: boolean, rtl: boolean][] = [
+    [`[data-shrink-clip='']`, false, true, false],
+    [`[data-shrink-clip='end']`, false, true, false],
+    [`[data-shrink-clip='start']`, true, false, false],
+    [`[data-shrink-clip='both']`, true, true, false],
+    [`[data-shrink-clip='']:dir(rtl)`, false, true, true],
+    [`[data-shrink-clip='end']:dir(rtl)`, false, true, true],
+    [`[data-shrink-clip='start']:dir(rtl)`, true, false, true],
+    [`[data-shrink-clip='both']:dir(rtl)`, true, true, true],
   ]
+  const physical = (start: boolean, end: boolean, rtl: boolean): Sides =>
+    rtl ? { left: end, right: start } : { left: start, right: end }
   return cases
     .map(
-      ([sel, sides]) => `
-  :host(${sel}), :host(${sel}) .exits {${edgeMask(sides)}
-  }
-  :host(${sel}) .exits {
+      ([sel, start, end, rtl]) => `${
+        end
+          ? `
+  :host(${sel}) {${edgeMask(physical(false, true, rtl))}
+  }`
+          : ''
+      }
+  :host(${sel}) .exits {${edgeMask(physical(start, end, rtl))}
     /* !important, over the span reset below: the band's own box is the line, so
        a ghost's descender needs the same room the host takes. */
     padding-block: ${BLOCK_SLACK}em !important;
