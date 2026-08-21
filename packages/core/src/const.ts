@@ -63,8 +63,9 @@ const edgeMask = (sides: Sides) => {
 /**
  * `data-shrink-clip` names the logical sides that move: "" or "end", "start",
  * "both". The end side carries the mask's slack, so its band falls outside the
- * content and the host wears it; the start side has none, so only the ghosts
- * wear it and live ink is never faded.
+ * content and the host wears it, which covers the ghosts inside it too. The
+ * start side has none, so its band goes on the ghosts alone and live ink is
+ * never faded - and no ink ever wears both bands, which would square the ramp.
  */
 const clipRules = () => {
   const cases: [selector: string, start: boolean, end: boolean, rtl: boolean][] = [
@@ -77,24 +78,21 @@ const clipRules = () => {
     [`[data-shrink-clip='start']:dir(rtl)`, true, false, true],
     [`[data-shrink-clip='both']:dir(rtl)`, true, true, true],
   ]
-  const physical = (start: boolean, end: boolean, rtl: boolean): Sides =>
-    rtl ? { left: end, right: start } : { left: start, right: end }
+  const sides = (left: boolean, right: boolean): Sides => ({ left, right })
   return cases
-    .map(
-      ([sel, start, end, rtl]) => `${
-        end
-          ? `
-  :host(${sel}) {${edgeMask(physical(false, true, rtl))}
-  }`
-          : ''
-      }
-  :host(${sel}) .exits {${edgeMask(physical(start, end, rtl))}
+    .map(([sel, start, end, rtl]) => {
+      const host = end ? `
+  :host(${sel}) {${edgeMask(rtl ? sides(true, false) : sides(false, true))}
+  }` : ''
+      const exits = start ? `
+  :host(${sel}) .exits {${edgeMask(rtl ? sides(false, true) : sides(true, false))}
     /* !important, over the span reset below: the band's own box is the line, so
        a ghost's descender needs the same room the host takes. */
     padding-block: ${BLOCK_SLACK}em !important;
     margin-block: -${BLOCK_SLACK}em !important;
-  }`,
-    )
+  }` : ''
+      return host + exits
+    })
     .join('')
 }
 
