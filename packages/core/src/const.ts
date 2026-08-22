@@ -42,10 +42,13 @@ export const blockSlackPx = (el: HTMLElement) => (parseFloat(getComputedStyle(el
 
 type Sides = { left: boolean; right: boolean }
 
+/** Room the band keeps beyond the ink it fades, so no edge but that one cuts it. */
+const ROOM = 'var(--scritto-exit-room, 0px)'
+
 const edgeStops = (sides: Sides) =>
   [
-    sides.left ? `transparent 0, #000 ${EDGE_FADE}` : '#000 0',
-    sides.right ? `#000 calc(100% - ${EDGE_FADE}), transparent 100%` : '#000 100%',
+    sides.left ? `transparent ${ROOM}, #000 calc(${ROOM} + ${EDGE_FADE})` : '#000 0',
+    sides.right ? `#000 calc(100% - ${ROOM} - ${EDGE_FADE}), transparent calc(100% - ${ROOM})` : '#000 100%',
   ].join(', ')
 
 // Overscaled vertically on purpose: the band only ever cuts horizontally, so a
@@ -62,10 +65,11 @@ const edgeMask = (sides: Sides) => {
 
 /**
  * `data-shrink-clip` names the logical sides that move: "" or "end", "start",
- * "both". The end side carries the mask's slack, so its band falls outside the
- * content and the host wears it, which covers the ghosts inside it too. The
- * start side has none, so its band goes on the ghosts alone and live ink is
- * never faded - and no ink ever wears both bands, which would square the ramp.
+ * "both". Only the ghosts wear a band, never the live value, and only one band
+ * each - masking twice squares the ramp into a hard edge. The mask paints no
+ * further than the border box, so the band's box grows past the ink on every
+ * other side: `--scritto-exit-room` inline for held ghosts, `BLOCK_SLACK` for
+ * descenders and blur. Its children keep their place by starting at that room.
  */
 const clipRules = () => {
   const cases: [selector: string, start: boolean, end: boolean, rtl: boolean][] = [
@@ -78,21 +82,19 @@ const clipRules = () => {
     [`[data-shrink-clip='start']:dir(rtl)`, true, false, true],
     [`[data-shrink-clip='both']:dir(rtl)`, true, true, true],
   ]
-  const sides = (left: boolean, right: boolean): Sides => ({ left, right })
   return cases
-    .map(([sel, start, end, rtl]) => {
-      const host = end ? `
-  :host(${sel}) {${edgeMask(rtl ? sides(true, false) : sides(false, true))}
-  }` : ''
-      const exits = start ? `
-  :host(${sel}) .exits {${edgeMask(rtl ? sides(false, true) : sides(true, false))}
-    /* !important, over the span reset below: the band's own box is the line, so
-       a ghost's descender needs the same room the host takes. */
-    padding-block: ${BLOCK_SLACK}em !important;
+    .map(
+      ([sel, start, end, rtl]) => `
+  :host(${sel}) .exits {${edgeMask(rtl ? { left: end, right: start } : { left: start, right: end })}
+    /* !important, over the span reset below. */
+    padding: ${BLOCK_SLACK}em ${ROOM} !important;
     margin-block: -${BLOCK_SLACK}em !important;
-  }` : ''
-      return host + exits
-    })
+    inset-inline-start: calc(-1 * ${ROOM});
+  }
+  :host(${sel}) .exits > [inert] {
+    inset-inline-start: ${ROOM};
+  }`,
+    )
     .join('')
 }
 

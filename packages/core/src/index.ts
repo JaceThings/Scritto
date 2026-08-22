@@ -400,16 +400,18 @@ class Scritto extends ServerSafeHTMLElement {
     const startMoves = Math.abs(startShift) >= 0.5
     const endMoves = Math.abs(endShift) >= 0.5
     this._anchor = Math.abs(startShift) / (Math.abs(startShift) + Math.abs(endShift) || 1)
-    // The end side needs no neighbour to earn the fade: that is where old ink
-    // reaches past the width the box is heading for, and its slack keeps live
-    // glyphs clear of the band. The start side has no slack to fade across, so
-    // it earns one only to keep the overhang off a neighbour.
-    const overhang = this._exitEnd > toW + 0.5
-    const clipStart = overhang && startMoves && this._besideOnLine(box, Math.abs(toW - fromW) + 1).start
-    const clipEnd = overhang && endMoves
+    // Either edge earns its fade by travelling: whatever it leaves behind is a
+    // ghost sitting outside the box it is heading for. The end side also needs
+    // ink out there to fade in the first place; the start side always has some,
+    // since the run it left starts at that edge.
+    const clipStart = startMoves
+    const clipEnd = endMoves && this._exitEnd > toW + 0.5
     if (clipStart || clipEnd) {
       this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
-      if (this._blockified) this._openBlockRoom(css)
+      // A ghost holds its old place while the box leaves it behind, so it reaches
+      // as far past an edge as that edge travels, plus its blur.
+      const room = Math.max(Math.abs(startShift), Math.abs(endShift)) + blockSlackPx(this)
+      this.style.setProperty('--scritto-exit-room', `${Math.ceil(room)}px`)
     }
     const anims = [anim]
     const dx = rtl ? startShift : -startShift
@@ -515,45 +517,6 @@ class Scritto extends ServerSafeHTMLElement {
     return 0
   }
 
-  private _besideOnLine(box: DOMRect, reach: number) {
-    // The nearest ancestor owning a whole line: past inline wrappers, and past
-    // a cell, whose neighbours sit in the next cell rather than the row.
-    let block: HTMLElement | null = this.parentElement
-    while (block && /^(inline|table)/.test(getComputedStyle(block).display)) block = block.parentElement
-    const beside = { start: false, end: false }
-    if (!block) return beside
-    const range = document.createRange()
-    range.selectNodeContents(block)
-    const rects = range.getClientRects()
-    for (let i = 0; i < rects.length; i++) {
-      const r = rects[i]
-      if (r.width === 0) continue
-      const overlap = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top)
-      if (overlap <= Math.min(r.height, box.height) * 0.5) continue
-      if (r.left >= box.left - 0.5 && r.right <= box.right + 0.5) continue
-      const after = r.left >= box.right - 0.5 && r.left <= box.right + reach
-      const before = r.right <= box.left + 0.5 && r.right >= box.left - reach
-      if (after) beside[this._isRTL ? 'start' : 'end'] = true
-      if (before) beside[this._isRTL ? 'end' : 'start'] = true
-    }
-    range.detach()
-    return beside
-  }
-
-  /**
-   * The mask clips to the border box, which stops short of a descender or a
-   * blurred glyph. Padding gives the band that room; margins hand it back to
-   * the line, and baseline alignment keeps the content where it was.
-   */
-  private _openBlockRoom(css: CSSStyleDeclaration) {
-    const room = blockSlackPx(this)
-    const style = this.style
-    style.paddingTop = `${(parseFloat(css.paddingTop) || 0) + room}px`
-    style.paddingBottom = `${(parseFloat(css.paddingBottom) || 0) + room}px`
-    style.marginTop = `${(parseFloat(style.marginTop) || 0) - room}px`
-    style.marginBottom = `${(parseFloat(style.marginBottom) || 0) - room}px`
-  }
-
   private _clearWidth() {
     this._widthTo = null
     this._widthTiming = null
@@ -570,6 +533,7 @@ class Scritto extends ServerSafeHTMLElement {
     }
     this.style.textAlign = ''
     this.style.marginInlineEnd = ''
+    this.style.removeProperty('--scritto-exit-room')
     this.removeAttribute('data-shrink-clip')
   }
 

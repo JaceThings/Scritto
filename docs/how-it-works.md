@@ -161,15 +161,21 @@ When the box shrinks, the old row reaches past where the box is heading, and
 whatever sits after the host slides in over that ink. A gradient mask dissolves
 the moving edge so the two never overlap.
 
-It is only armed for a shrink, and only when there is a neighbour within reach.
-A growing value lays its new glyphs down at their final places and fades them in
-there while the box catches up, so there is nothing to hide, and masking it
-anyway costs the last glyph its edge.
+Each edge earns a band by travelling, since a travelling edge is what leaves
+ink behind. The band is worn by the layer holding the leaving glyphs, never by
+the host: the live value is never dimmed, and no ink wears two bands, which
+would square the ramp into the hard edge the mask exists to avoid.
 
 The band sits slightly past the content rather than inside it. The box converges
 on its final width asymptotically, so the last glyph spends the back half of the
 transition a pixel or two beyond the edge at full opacity — a band inside the box
 would dim it the whole way and then pop when the mask lifted.
+
+A mask paints no further than its element's border box, so that box is grown
+past the ink on every side that is not being faded: `--scritto-exit-room` inline,
+as far as the edge travels, and half an em above and below for descenders and
+blur. Without it the border box itself cuts, and a hard cut is the one thing
+this band exists to prevent.
 
 ## Leaving glyphs keep going
 

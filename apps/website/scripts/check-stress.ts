@@ -103,8 +103,7 @@ const install = () => {
       const neighbourOverlap = () => {
         if (spec.skipOverlap) return 0
         const hr = host.getBoundingClientRect()
-        const exits = host.shadowRoot?.querySelector<HTMLElement>('.exits')
-        if (!exits) return 0
+        if (!host.shadowRoot?.querySelector('.exits')) return 0
         const clipped = host.hasAttribute('data-shrink-clip')
         let glyphRight = -Infinity
         let glyphLeft = Infinity
@@ -115,8 +114,9 @@ const install = () => {
           glyphLeft = Math.min(glyphLeft, r.left)
         }
         if (glyphRight === -Infinity) return 0
-        const er = exits.getBoundingClientRect()
-        const drawnRight = clipped ? Math.min(glyphRight, er.right) : glyphRight
+        // The band's box reaches past the host to keep its own ink whole, but it
+        // fades to nothing at the host's edge, so that is where ink stops.
+        const drawnRight = clipped ? Math.min(glyphRight, hr.right) : glyphRight
         // nearest text to the right on the same line, outside the host
         let neighbourLeft = Infinity
         const walker = document.createTreeWalker(wrap, NodeFilter.SHOW_TEXT)
