@@ -17,5 +17,7 @@ Start with [how the roll works](how-it-works.md) if you want the algorithm, or
   and how far that travelled
 - [Timing](timing.md) — the spring, the stagger, and what a duration buys you
 - [Flow](flow.md) — the words beside the value, and how they move with it
+- [Edges](masking.md) — how leaving ink is dissolved at a moving edge, and the
+  rules that keep a fade from turning into a cut
 - [API](api.md) — elements, options, events, framework packages
 - [Testing](testing.md) — three harnesses and a studio

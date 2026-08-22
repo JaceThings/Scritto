@@ -137,7 +137,8 @@ Issues and PRs welcome.
 [`docs/`](docs/) has the long version: [how the roll works](docs/how-it-works.md),
 [what SwiftUI does](docs/what-apple-does.md) and the two places we differ,
 [sixty-five measured cases](docs/cases.md), [timing](docs/timing.md),
-[flow](docs/flow.md), the [API](docs/api.md) and [testing](docs/testing.md).
+[flow](docs/flow.md), [edges](docs/masking.md), the [API](docs/api.md) and
+[testing](docs/testing.md).
 
 Based on [numeric-text](https://github.com/shizukushq/numeric-text) by shizukushq (MIT).
 
