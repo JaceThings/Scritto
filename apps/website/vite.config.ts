@@ -13,7 +13,7 @@ const path = (relative: string) => fileURLToPath(new URL(relative, import.meta.u
  * look, `bench:suite` needs suite, `check:versus` needs versus — without being
  * built into the deployed site.
  */
-const PAGES = ['index', 'playground', 'docs', 'studio']
+const PAGES = ['index', 'playground', 'studio']
 
 /**
  * `<!-- @include footer.html i=14 -->` inlines `partials/footer.html`, filling
