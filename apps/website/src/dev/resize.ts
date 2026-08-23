@@ -3,7 +3,7 @@ import type { Scritto } from '@scritto/core'
 
 /**
  * Every element with `data-hug` claims: my content box is exactly my children,
- * on every frame of every roll. The audit measures that claim continuously —
+ * on every frame of every roll. The audit measures that claim continuously,
  * during a width transition the host's layout box is its border box plus the
  * negative end margin the mask slack rides on, so the sum uses margins too.
  */
@@ -66,7 +66,7 @@ const CASES: Case[] = [
   },
   {
     name: 'Overflow hidden, a gutter of padding',
-    note: 'Clipping is allowed to exist — it just must never reach the value. 16px keeps ghosts inside.',
+    note: 'Clipping is allowed to exist, it just must never reach the value. 16px keeps ghosts inside.',
     values: ['i', '﷽', 'W', '𒐫', 'l'],
     build: (host) => el('div', `w-fit overflow-hidden ${BOX}`, host),
     every: 3800,
@@ -83,7 +83,7 @@ const CASES: Case[] = [
     every: 4200,
   },
   {
-    name: 'Fixed width — the failure',
+    name: 'Fixed width, the failure',
     note: 'What going wrong looks like: a box that cannot follow, so the value clips at its edge.',
     values: CHEESE,
     build: (host) => el('div', `w-44 overflow-hidden ${BOX}`, host),
@@ -211,7 +211,7 @@ const blurOf = (glyph: Element) => {
 /**
  * The check the layout-box one cannot make: a container can hug its child on
  * every frame and still have the ghosts that child abandoned hanging outside
- * it. A side wearing the edge fade cannot leak — the mask clips to the host's
+ * it. A side wearing the edge fade cannot leak, since the mask clips to the host's
  * border box and fades to nothing inside it, which pixel-diffing confirms.
  */
 const auditInk = (entry: Live, box: HTMLElement) => {
@@ -274,7 +274,7 @@ const frame = (now: number) => {
         ? `${entry.faults}× ${entry.fault}`
         : entry.hugs.length
           ? `worst frame Δ ${entry.worst.toFixed(1)}px · ${entry.ticks} changes`
-          : `not measured — this one is meant to clip · ${entry.ticks} changes`
+          : `not measured, this one is meant to clip · ${entry.ticks} changes`
     }
   }
   requestAnimationFrame(frame)
