@@ -88,6 +88,21 @@ const results = await page.evaluate(async () => {
     ok: after.filter((c) => before.includes(c)).length >= before.length - 2,
   })
 
+  // An element scrolled out of view renders instantly rather than animating.
+  const parked = document.createElement('scritto-text') as Scritto
+  parked.style.cssText = 'position:fixed;top:-5000px;left:0'
+  document.body.append(parked)
+  parked.value = '1'
+  await settle(60)
+  parked.update('999')
+  await settle(120)
+  out.push({
+    page: 'API',
+    says: 'an offscreen element updates without animating',
+    ok: parked.shadowRoot!.getAnimations().length === 0 && parked.value === '999',
+  })
+  parked.remove()
+
   el.setOptions({ trend: 1, transition: { duration: 900 }, bounce: true })
   out.push({
     page: 'API, Recipes',
@@ -97,6 +112,35 @@ const results = await page.evaluate(async () => {
   reset()
 
   return out
+})
+
+// Reduced motion needs its own emulated context, so it gets its own page. The
+// stage on /playground opts out with respectMotionPreference: false, which is
+// why this builds a fresh element rather than reusing the one on the page.
+const reduced = await browser.newContext({ reducedMotion: 'reduce' })
+const reducedPage = await reduced.newPage()
+await reducedPage.goto(`${BASE}/playground`, { waitUntil: 'networkidle' })
+const respectsPreference = await reducedPage.evaluate(async () => {
+  const el = document.createElement('scritto-text') as Scritto
+  el.style.cssText = 'position:fixed;top:100px;left:100px;font-size:48px'
+  document.body.append(el)
+  el.value = '1'
+  await new Promise((r) => setTimeout(r, 60))
+  const animated: boolean[] = []
+  // SAFETY: scrittochange is dispatched as a CustomEvent carrying { animate }.
+  const listen = (e: Event) => animated.push((e as CustomEvent<{ animate: boolean }>).detail.animate)
+  el.addEventListener('scrittochange', listen)
+  el.update('999')
+  await new Promise((r) => setTimeout(r, 150))
+  // SAFETY: the constructor attaches an open shadow root, so it is never null.
+  const running = el.shadowRoot!.getAnimations().length
+  el.remove()
+  return running === 0 && animated.every((a) => !a) && el.value === '999'
+})
+results.push({
+  page: 'API, Recipes, README',
+  says: 'prefers-reduced-motion updates the value without animating',
+  ok: respectsPreference,
 })
 
 await browser.close()
