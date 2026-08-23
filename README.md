@@ -133,8 +133,9 @@ A wrapper is a thin binding over the element, so the core is what you are actual
 - Keeps a shared prefix, a shared suffix, and a run flush with neither end, the last of which SwiftUI does not do
 - `<scritto-flow>` slides and rewraps the words beside a value when it changes width
 - Per-glyph enter and exit with stagger, blur, scale and trend; `bounce` adds overshoot
+- Ghosts fade at an edge only where they would hit a neighbour or leave their container, so text with room around it keeps its shape (`edgeFade` overrides it)
 - Graphemes rather than code points, so emoji, ZWJ sequences, combining marks, CJK and RTL survive intact
-- SSR-safe, `prefers-reduced-motion` honoured by default, and the value kept readable by assistive tech: a plain text node in the light DOM carries it while every animated glyph in the shadow root is `aria-hidden`
+- SSR-safe, `prefers-reduced-motion` honoured by default, and the value kept readable by assistive tech: the element carries it as a plain text node in the light DOM with every animated glyph `aria-hidden`, and the React, Vue and Solid wrappers also set `role="img"` with an `aria-label`
 
 It needs `Intl.Segmenter`, the Web Animations API, CSS masks and `linear()` easing, and polyfills none of them.
 

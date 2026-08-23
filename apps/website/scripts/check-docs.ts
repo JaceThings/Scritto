@@ -103,6 +103,35 @@ const results = await page.evaluate(async () => {
   })
   parked.remove()
 
+  // edgeFade: auto leaves roomy text alone, always forces the band, never refuses it.
+  const fade = async (mode: 'auto' | 'always' | 'never') => {
+    const host = document.createElement('div')
+    host.style.cssText = 'position:fixed;inset:0;display:grid;place-items:center'
+    const wide = document.createElement('scritto-text') as Scritto
+    wide.style.fontSize = '48px'
+    host.append(wide)
+    document.body.append(host)
+    wide.setOptions({ edgeFade: mode, respectMotionPreference: false, transition: { duration: 700 } })
+    wide.value = 'Motion design'
+    await settle(80)
+    wide.update('Motion')
+    const seen = new Set<string>()
+    for (let i = 0; i < 25; i++) {
+      seen.add(wide.getAttribute('data-shrink-clip') ?? 'none')
+      await new Promise((r) => requestAnimationFrame(r))
+    }
+    host.remove()
+    return seen.has('both') || seen.has('start') || seen.has('end')
+  }
+  const autoFade = await fade('auto')
+  const alwaysFade = await fade('always')
+  const neverFade = await fade('never')
+  out.push({
+    page: 'API, README',
+    says: 'edgeFade auto leaves roomy text unfaded, always forces it, never refuses it',
+    ok: !autoFade && alwaysFade && !neverFade,
+  })
+
   el.setOptions({ trend: 1, transition: { duration: 900 }, bounce: true })
   out.push({
     page: 'API, Recipes',

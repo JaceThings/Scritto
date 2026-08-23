@@ -20,6 +20,7 @@ const applyOptions = () => {
     transition: props.transition,
     respectMotionPreference: props.respectMotionPreference,
     bounce: props.bounce,
+    edgeFade: props.edgeFade,
   });
 };
 

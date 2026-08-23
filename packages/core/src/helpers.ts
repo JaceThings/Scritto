@@ -26,6 +26,29 @@ export const visibleClip = (el: HTMLElement) => {
   return { top, left, bottom, right }
 }
 
+/**
+ * The box a ghost is expected to stay inside: the nearest ancestor that either
+ * clips or paints an edge of its own, since that is what a reader sees as the
+ * thing containing the value. Falls back to the viewport, which is why text
+ * with a page around it reports acres of room and needs no fade.
+ */
+export const boundsOf = (el: HTMLElement) => {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const style = getComputedStyle(node)
+    const clips =
+      CLIP_OVERFLOW.test(style.overflow) ||
+      CLIP_OVERFLOW.test(style.overflowX) ||
+      CLIP_OVERFLOW.test(style.overflowY)
+    const paints =
+      (style.backgroundImage !== 'none' ||
+        (style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent')) ??
+      false
+    const bordered = parseFloat(style.borderLeftWidth) > 0 || parseFloat(style.borderRightWidth) > 0
+    if (clips || paints || bordered) return node.getBoundingClientRect()
+  }
+  return new DOMRect(0, 0, window.innerWidth, window.innerHeight)
+}
+
 export const isOnscreen = (el: HTMLElement) => {
   const clip = visibleClip(el)
   if (clip.bottom <= clip.top || clip.right <= clip.left) return false

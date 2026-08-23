@@ -1,4 +1,4 @@
-import type { ScrittoOptions, Transition, Trend, Value } from './types'
+import type { EdgeFade, ScrittoOptions, Transition, Trend, Value } from './types'
 import {
   ServerSafeHTMLElement,
   createEl,
@@ -8,6 +8,7 @@ import {
   flip,
   isReducedMotion,
   isOnscreen,
+  boundsOf,
   diff,
   reconcileChildren,
   clearAnimStyle,
@@ -124,6 +125,7 @@ class Scritto extends ServerSafeHTMLElement {
   private _exitEnd = 0
   /** Where the box holds still as it resizes: 0 start, 1 end, 0.5 middle. */
   private _anchor: number | null = null
+  private _room = { start: Infinity, end: Infinity }
   private _exitTail = 0
   /** Held apart from `_anims`, which every commit cancels. */
   private _widthAnims: Animation[] = []
@@ -145,6 +147,7 @@ class Scritto extends ServerSafeHTMLElement {
 
   public transition: Transition = DEFAULT_TRANSITION
   public trend: Trend = 0
+  public edgeFade: EdgeFade = 'auto'
   public respectMotionPreference = true
   public bounce = false
 
@@ -199,12 +202,13 @@ class Scritto extends ServerSafeHTMLElement {
     this.dispatchEvent(new CustomEvent('scrittochange', { bubbles: true, detail: { phase, animate } }))
   }
 
-  setOptions({ bounce, transition, trend, respectMotionPreference }: ScrittoOptions) {
+  setOptions({ bounce, transition, trend, respectMotionPreference, edgeFade }: ScrittoOptions) {
     if (bounce === true || bounce === false) this.bounce = bounce
     if (transition || bounce === true || bounce === false) {
       this.transition = { ...(this.bounce ? BOUNCE_TRANSITION : DEFAULT_TRANSITION), ...transition }
     }
     if (trend === -1 || trend === 0 || trend === 1) this.trend = trend
+    if (edgeFade === 'auto' || edgeFade === 'always' || edgeFade === 'never') this.edgeFade = edgeFade
     if (respectMotionPreference === true || respectMotionPreference === false) {
       this.respectMotionPreference = respectMotionPreference
     }
@@ -220,7 +224,28 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   _prepareAnimated() {
+    this._room = this._roomAtRest()
     this._readyPlan = this._buildPlan()
+  }
+
+  /**
+   * Free space each side of the value inside the box a reader sees as holding
+   * it, plus whether anything sits beside it on the line. Read while the layout
+   * is still at rest: once the box starts moving, a container that hugs the
+   * value is moving with it and nothing measured against it means anything.
+   */
+  private _roomAtRest() {
+    const box = this.getBoundingClientRect()
+    const bounds = boundsOf(this)
+    const beside = this._besideOnLine(box, Math.max(box.width, bounds.width - box.width))
+    const before = box.left - bounds.left
+    const after = bounds.right - box.right
+    const rtl = this._isRTL
+    const room = {
+      start: beside.start ? 0 : rtl ? after : before,
+      end: beside.end ? 0 : rtl ? before : after,
+    }
+    return room
   }
 
   _commitAnimated() {
@@ -400,12 +425,15 @@ class Scritto extends ServerSafeHTMLElement {
     const startMoves = Math.abs(startShift) >= 0.5
     const endMoves = Math.abs(endShift) >= 0.5
     this._anchor = Math.abs(startShift) / (Math.abs(startShift) + Math.abs(endShift) || 1)
-    // Either edge earns its fade by travelling: whatever it leaves behind is a
-    // ghost sitting outside the box it is heading for. The end side also needs
-    // ink out there to fade in the first place; the start side always has some,
-    // since the run it left starts at that edge.
-    const clipStart = startMoves
-    const clipEnd = endMoves && this._exitEnd > toW + 0.5
+    // An edge earns its fade by travelling and by having something to protect.
+    // Ghosts hold the old box's place, so they only need covering where that
+    // reaches a neighbour on the line or the edge of whatever clips this
+    // element. Text with room around it fades on its own opacity instead: a
+    // band there would eat the ghosts for nothing.
+    const reach = Math.max(Math.abs(startShift), Math.abs(endShift)) + blockSlackPx(this)
+    const hemmed = (room: number) => this.edgeFade !== 'never' && (this.edgeFade === 'always' || reach > room)
+    const clipStart = startMoves && hemmed(this._room.start)
+    const clipEnd = endMoves && hemmed(this._room.end) && this._exitEnd > toW + 0.5
     if (clipStart || clipEnd) {
       this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
       // A ghost holds its old place while the box leaves it behind, so it reaches
@@ -515,6 +543,32 @@ class Scritto extends ServerSafeHTMLElement {
     if (align === 'right') return this._isRTL ? 0 : 1
     if (align === 'left') return this._isRTL ? 1 : 0
     return 0
+  }
+
+  /** Whether anything sits beside this on its own line, within `reach` px. */
+  private _besideOnLine(box: DOMRect, reach: number) {
+    // The nearest ancestor owning a whole line: past inline wrappers, and past
+    // a cell, whose neighbours sit in the next cell rather than the row.
+    let block: HTMLElement | null = this.parentElement
+    while (block && /^(inline|table)/.test(getComputedStyle(block).display)) block = block.parentElement
+    const beside = { start: false, end: false }
+    if (!block) return beside
+    const range = document.createRange()
+    range.selectNodeContents(block)
+    const rects = range.getClientRects()
+    for (let i = 0; i < rects.length; i++) {
+      const r = rects[i]
+      if (r.width === 0) continue
+      const overlap = Math.min(r.bottom, box.bottom) - Math.max(r.top, box.top)
+      if (overlap <= Math.min(r.height, box.height) * 0.5) continue
+      if (r.left >= box.left - 0.5 && r.right <= box.right + 0.5) continue
+      const after = r.left >= box.right - 0.5 && r.left <= box.right + reach
+      const before = r.right <= box.left + 0.5 && r.right >= box.left - reach
+      if (after) beside[this._isRTL ? 'start' : 'end'] = true
+      if (before) beside[this._isRTL ? 'end' : 'start'] = true
+    }
+    range.detach()
+    return beside
   }
 
   private _clearWidth() {
