@@ -42,7 +42,7 @@ Every one of those is a smooth ramp, not a jump. Unlimited travel is safe for Ap
 
 ## Where scritto agrees
 
-**Keeps are unbounded at either end.** An earlier version capped how far a kept suffix could travel, which meant `supercalifragilisticlight` → `light` re-rolled every glyph where SwiftUI slides them. The cap is gone. Measured here at 48px type, that same pair keeps `light` and slides it 422px.
+**Keeps are unbounded at either end.** A kept prefix or suffix travels however far layout moves it, with no cap — `supercalifragilisticlight` → `light` keeps `light` and slides it, same as SwiftUI.
 
 **Anything can roll.** Digits, words, emoji, CJK, Arabic-Indic digits. Nothing is gated on the value parsing as a number.
 

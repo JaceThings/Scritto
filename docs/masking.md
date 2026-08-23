@@ -1,6 +1,6 @@
 # Edges: how old ink leaves the box
 
-When a value shrinks, the row it used to be is still on screen. The box is already moving to its new width, the glyphs that are leaving hold the place they were drawn in, and for a few hundred milliseconds that ink sits outside the box — over the word after it, or outside the card that hugs it.
+When a value shrinks, the box moves to its new width while the glyphs that are leaving hold the place they were drawn in. For a few hundred milliseconds that ink sits outside the box — over the word after it, or outside the card that hugs it.
 
 A gradient band dissolves that ink at the edge it is escaping from. This page is what the band is, where it lives, and the rules that keep it from becoming the thing it exists to prevent: a hard, straight cut through a glyph.
 
@@ -19,7 +19,7 @@ mask-image: linear-gradient(90deg, #000 0, #000 calc(100% - var(--room) - 0.3em)
 
 Four decisions, in the order they matter.
 
-**Only leaving ink wears a band.** The live value is never dimmed. It sounds obvious and it is the rule that took the longest to hold: while the band lived on the host, it landed on whatever the host contained, and a value whose first glyph sat on the travelling edge — `€` in `€4,500.00 → €4.50` — got washed out for the whole shrink.
+**Only leaving ink wears a band.** The live value is never dimmed. The band lives on the layer that holds the leaving glyphs, never on the host — a band on the host would land on whatever the host contains, dimming the live value whenever its first glyph sits on the travelling edge (`€` in `€4,500.00 → €4.50`, for instance).
 
 **An edge earns its band by travelling.** A stationary edge leaves nothing behind, so masking it can only cost you ink. Both edges move in a centred container; only one moves in a left-aligned card.
 
@@ -54,9 +54,9 @@ Because the layer is absolutely positioned, that padding costs no layout at all.
 
 ## Best practices
 
-Each of these is a bug we shipped and then measured. They generalise to any gradient mask over moving text.
+They generalise to any gradient mask over moving text.
 
-**Grow the box before you fade.** *Why:* `mask-clip: border-box` makes the border box a hard clipper the moment a mask exists. *When:* always — the first time your ink is a descender, a blur, or anything held outside the box, you will see a flat edge. Measured before this rule: ghost ink removed as far as 22px left of the box, at up to 188/255 of its brightness, and 208/255 sliced off below the line.
+**Grow the box before you fade.** *Why:* `mask-clip: border-box` makes the border box a hard clipper the moment a mask exists. *When:* always — the first time your ink is a descender, a blur, or anything held outside the box, you will see a flat edge instead of a ramp.
 
 ```css
 /* not enough: the gradient is taller, the clip box is not */
@@ -67,13 +67,13 @@ padding-block: 0.5em; margin-block: -0.5em;
 
 **Never mask an element that contains live content.** *Why:* a mask applies to everything inside, so a band meant for a ghost will find your value. *When:* any time the faded thing and the permanent thing share an ancestor — put the band on a sibling overlay instead.
 
-**One band per pixel.** *Why:* two masks multiply, and 0.3 × 0.3 is not a ramp, it is a step. *When:* whenever a masked element sits inside another masked element. Measured with two: alpha fell 1.0 → 0 across 6px and died 9px short of the edge — which reads exactly like no fade at all. With one: linear 0.06 → 1.00 across the full 8px.
+**One band per pixel.** *Why:* two masks multiply, and 0.3 × 0.3 is not a ramp, it is a step that reads as a cut. *When:* whenever a masked element would otherwise sit inside another masked element.
 
 **End the ramp at an edge that has slack.** *Why:* a ramp ending at the content edge eats the last glyph; a ramp ending 0.4em past it eats nothing. *When:* on any edge where live text can reach the boundary.
 
 **Put the room in a custom property, set from measurement.** *Why:* a constant big enough for the worst transition is absurd for the common one, and a constant sized for the common one cuts the worst. *When:* the overflow depends on the change rather than the design. `--scritto-exit-room` runs 38–195px on the same card depending on how far the edge moves.
 
-**Reach for padding, not `mask-clip: no-clip`.** *Why:* it looks like the one-line version of this whole page and it is not. Measured: 26–103px of old ink leaked straight past the end edge, which is the thing the band exists to stop. *When:* never, until browsers agree on what it means outside a border box.
+**Reach for padding, not `mask-clip: no-clip`.** *Why:* `no-clip` removes the clip everywhere, not just past the ink — old ink leaks straight past the far edge instead, which is the thing the band exists to stop. *When:* never, until browsers agree on what it means outside a border box.
 
 **Check your own resets are not eating the room.** *Why:* a shadow-tree reset like `span { padding: 0 !important }` silently wins against the rule that gives the band its room, and the symptom is a cut you have already "fixed". *When:* anywhere a broad reset and a targeted layout rule touch the same element.
 
@@ -95,4 +95,4 @@ ghost survives, px from box RIGHT: -8:0.90 -7:0.77 -6:0.65 -5:0.54 -4:0.42 -3:0.
 
 That is what a fade looks like as numbers. A cut is `1.00` then `0.00`.
 
-Three checks keep it honest: `/resize` audits every card on every frame and reads 0.0px of escape (the shipped build before the fix read 77–116px), `check:stress` fails if a ghost draws over a neighbour, and `check:versus` holds the whole engine within 1.03× of upstream on ink. Note that `check:stress` models the clip line as the host's edge, not the band's box — the band's box is deliberately wider, and modelling it as the limit is how a check quietly stops catching anything.
+Three checks keep it honest: `/resize` audits every card on every frame and reads 0.0px of escape, `check:stress` fails if a ghost draws over a neighbour, and `check:versus` holds the whole engine within 1.03× of upstream on ink. `check:stress` models the clip line as the host's edge, not the band's box — the band's box is deliberately wider, so modelling it as the limit would let a real cut through unnoticed.
