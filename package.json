@@ -17,8 +17,7 @@
     "lint": "oxlint",
     "ci:version": "changeset version && bun update && git add --all",
     "ci:publish": "for dir in packages/*; do (cd \"$dir\" && bun publish || true); done && changeset tag",
-    "size": "bun run build && bun scripts/size.ts",
-    "wiki": "bun scripts/wiki.ts"
+    "size": "bun run build && bun scripts/size.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",

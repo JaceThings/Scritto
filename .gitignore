@@ -37,6 +37,3 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 
 # debug captures
 apps/website/scratch
-
-# wiki mirror (bun run wiki)
-.wiki

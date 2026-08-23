@@ -132,7 +132,7 @@ Issues and PRs welcome.
 
 ## Docs
 
-[`docs/`](docs/) has the long version: [how the roll works](docs/how-it-works.md), [what SwiftUI does](docs/what-apple-does.md) and the two places we differ, [sixty-five measured cases](docs/cases.md), [timing](docs/timing.md), [flow](docs/flow.md), [edges](docs/masking.md), the [API](docs/api.md) and [testing](docs/testing.md).
+The [wiki](https://github.com/JaceThings/Scritto/wiki) has the long version: [how the roll works](https://github.com/JaceThings/Scritto/wiki/How-the-Roll-Works), [what SwiftUI does](https://github.com/JaceThings/Scritto/wiki/What-SwiftUI-Does) and the two places we differ, [sixty-five measured cases](https://github.com/JaceThings/Scritto/wiki/Measured-Cases), [timing](https://github.com/JaceThings/Scritto/wiki/Timing), [flow](https://github.com/JaceThings/Scritto/wiki/Flow), [edges](https://github.com/JaceThings/Scritto/wiki/Edges), the [API](https://github.com/JaceThings/Scritto/wiki/API) and [testing](https://github.com/JaceThings/Scritto/wiki/Testing).
 
 Based on [numeric-text](https://github.com/shizukushq/numeric-text) by shizukushq (MIT).
 
