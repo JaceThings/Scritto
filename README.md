@@ -2,7 +2,7 @@
 
 <h1>Scritto</h1>
 
-SwiftUI-style rolling text for the web. Numbers and strings — the prefix stays, the middle rolls.
+Give it a new value and the text rolls to it. Whatever didn't change stays exactly where it was.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
 
