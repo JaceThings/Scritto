@@ -12,9 +12,9 @@ Give it a new value and the text rolls to it. Whatever didn't change stays exact
 
 ## What it is
 
-Most web number animations only handle digits. SwiftUI’s `.numericText` morphs any string — a status, a price, a label — and keeps the letters that stay put.
+Most web number animations only handle digits. SwiftUI's `.numericText` morphs any string — a status, a price, a label — and keeps the letters that stay put. Scritto does that on the web: it diffs the old value against the new one, holds the glyphs that survive, slides them to where they now belong, and rolls the rest out while their replacements roll in. Wrap the line in `<scritto-flow>` and the words beside the value move on the same clock instead of jumping when the browser reflows.
 
-Scritto does that on the web. It diffs the old value against the new one, holds the shared prefix and suffix, and rolls the middle. Nearby words can slide and rewrap as the value changes width.
+**Every glyph renders in its own span, which is the price of the whole effect.** Nothing can slide independently unless it is its own box, so ligatures and kerning do not apply to a value while Scritto owns it, and the value is one non-wrapping inline unit. If you need a paragraph of text to reflow, this is the wrong tool; if you need a number, a price, a status or a short label to change without the eye losing it, this is exactly the tool.
 
 ## Quick start
 
@@ -31,7 +31,7 @@ npm install @scritto/core
   import "@scritto/core";
 
   const text = document.querySelector("scritto-text");
-  text.value = "1,000";
+  text.update("1,000"); // rolls — assign .value instead to set it without motion
 </script>
 ```
 
@@ -101,26 +101,40 @@ Every framework package re-exports the core types and depends on `@scritto/core`
 
 ## Packages
 
-| Package | npm | Description |
-|---|---|---|
-| `@scritto/core` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fcore?label=)](https://www.npmjs.com/package/@scritto/core) | Framework-agnostic web component |
-| `@scritto/react` | [![npm](https://img.shields.io/npm/v/%40scritto%2Freact?label=)](https://www.npmjs.com/package/@scritto/react) | React component |
-| `@scritto/vue` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fvue?label=)](https://www.npmjs.com/package/@scritto/vue) | Vue component |
-| `@scritto/svelte` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fsvelte?label=)](https://www.npmjs.com/package/@scritto/svelte) | Svelte component |
-| `@scritto/solid` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fsolid?label=)](https://www.npmjs.com/package/@scritto/solid) | Solid component |
+Sizes are gzipped and measured by `bun run size` against the built output, not estimated.
 
-## Features
+| Package | npm | Size | Description |
+|---|---|---|---|
+| `@scritto/core` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fcore?label=)](https://www.npmjs.com/package/@scritto/core) | 9.92 KB | Framework-agnostic web component |
+| `@scritto/react` | [![npm](https://img.shields.io/npm/v/%40scritto%2Freact?label=)](https://www.npmjs.com/package/@scritto/react) | 0.57 KB | React component |
+| `@scritto/vue` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fvue?label=)](https://www.npmjs.com/package/@scritto/vue) | 0.67 KB | Vue component |
+| `@scritto/svelte` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fsvelte?label=)](https://www.npmjs.com/package/@scritto/svelte) | 0.49 KB | Svelte component |
+| `@scritto/solid` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fsolid?label=)](https://www.npmjs.com/package/@scritto/solid) | 0.64 KB | Solid component |
+
+A wrapper is a thin binding over the element, so the core is what you are actually paying for. Zero runtime dependencies.
+
+## What it does
 
 - Numbers and arbitrary strings, not just digits
-- LCP diffing: prefix and suffix stay put, the middle rolls
-- `<scritto-flow>` slides nearby words when the value changes width
-- Per-character enter/exit with stagger, blur, and trend
-- Optional `bounce` adds a little overshoot on each letter
-- RTL via `Intl.Segmenter`
-- `prefers-reduced-motion` respected by default
-- Zero runtime dependencies, SSR-safe, `role="img"` + `aria-label`
+- Keeps a shared prefix, a shared suffix, and a run flush with neither end — the last of which SwiftUI does not do
+- `<scritto-flow>` slides and rewraps the words beside a value when it changes width
+- Per-glyph enter and exit with stagger, blur, scale and trend; `bounce` adds overshoot
+- Graphemes rather than code points, so emoji, ZWJ sequences, combining marks, CJK and RTL survive intact
+- SSR-safe, `prefers-reduced-motion` honoured by default, and the value kept readable by assistive tech: a plain text node in the light DOM carries it while every animated glyph in the shadow root is `aria-hidden`
 
-The value stays one inline unit and does not wrap. Characters render in their own spans, so ligatures and kerning are not supported.
+It needs `Intl.Segmenter`, the Web Animations API, CSS masks and `linear()` easing, and polyfills none of them.
+
+## What it does not do
+
+**Ligatures and kerning are off inside a value.** Every glyph is its own span, which is what lets one slide while its neighbour stays. There is no version of this that keeps both.
+
+**A value never wraps.** The host is `white-space: nowrap` and ordinary spaces become non-breaking, so a long value runs past a narrow container rather than breaking across lines. That is deliberate — a value that rewraps mid-roll is unreadable — but it means you size the container, not the value.
+
+**Updating faster than the roll stacks ghosts.** An outgoing glyph is never cancelled by the next update, because a digit that pops out of existence halfway through reads worse than one that finishes leaving. Change a value several times inside one roll duration and you get several outgoing copies over each other. The fix is a duration shorter than the gap between your updates, not a shortcut that speeds the pile away.
+
+**Interrupting a `<scritto-flow>` word mid-wrap looks wrong for a few frames.** A word changing line is drawn by two ghosts while its real box sits hidden at the destination, measured 30–34px from where the reader sees it. Interrupt that and the slide restarts from a place nothing was drawn. It settles correctly and leaves nothing behind; it is a known rough edge, not a leak.
+
+**An embedded flow needs 16px of gutter.** The edge fade needs one rem to finish. A container that gives it less and hides its overflow cuts the fade off partway and leaves exactly the hard edge the mask exists to avoid.
 
 ## Contributing
 
