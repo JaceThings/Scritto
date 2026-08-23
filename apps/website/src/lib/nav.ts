@@ -15,7 +15,6 @@ export type PageInit = (root: ParentNode) => (() => void) | void
 const normalize = (pathname: string) => {
   const file = pathname.slice(pathname.lastIndexOf('/') + 1)
   if (file === 'playground.html') return '/playground'
-  if (file === 'docs.html') return '/docs'
   if (file === '' || file === 'index.html') return '/'
   return pathname
 }

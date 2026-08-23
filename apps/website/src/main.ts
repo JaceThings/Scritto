@@ -12,6 +12,4 @@ startSelectionHighlight()
 startRouter({
   '/': initHome,
   '/playground': initPlayground,
-  // Docs is static copy; it still needs a route so the router can mount it.
-  '/docs': () => {},
 })

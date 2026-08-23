@@ -1,39 +1,20 @@
 # Measured cases
 
-65 value changes, run through the real element at 48px and recorded off the
-DOM rather than described from memory. **Kept** is the glyphs that never
-re-rolled — still the same elements afterwards, with no animation on them.
-**Travel** is how far the furthest kept glyph slid once everything settled.
-**Width** is the host's box before and after, in pixels.
+65 value changes, run through the real element at 48px and recorded off the DOM rather than described from memory. **Kept** is the glyphs that never re-rolled — still the same elements afterwards, with no animation on them. **Travel** is how far the furthest kept glyph slid once everything settled. **Width** is the host's box before and after, in pixels.
 
-Re-run the sweep with `bun research/run-cases.ts` against a dev server; it
-rewrites `research/cases.json`, which this page is generated from.
+Re-run the sweep with `bun research/run-cases.ts` against a dev server; it rewrites `research/cases.json`, which this page is generated from.
 
 ## What to look for
 
-A counter that gains a digit keeps nothing, because every column shifts: `9` →
-`10` re-rolls both. Change one digit in place and everything else survives,
-which is why `1,204` → `1,205` keeps `1,20` and rolls a single glyph.
+A counter that gains a digit keeps nothing, because every column shifts: `9` → `10` re-rolls both. Change one digit in place and everything else survives, which is why `1,204` → `1,205` keeps `1,20` and rolls a single glyph.
 
-Anything with a unit attached keeps the unit for free. ` unread`, ` files`,
-`Battery 8%`, ` of 10` — the number is the only thing that moves and the
-sentence around it holds still. That is the case the library is really for.
+Anything with a unit attached keeps the unit for free. ` unread`, ` files`, `Battery 8%`, ` of 10` — the number is the only thing that moves and the sentence around it holds still. That is the case the library is really for.
 
-The long-travel rows are the interesting ones.
-`supercalifragilisticlight` → `light` keeps `light` and slides it 422px, which
-is SwiftUI's behaviour and copied on purpose. `11` → `1,001` keeps both digits
-and pays 74px for the separator that pushed them apart — the one case the
-floating-run allowance exists for.
+The long-travel rows are the interesting ones. `supercalifragilisticlight` → `light` keeps `light` and slides it 422px, which is SwiftUI's behaviour and copied on purpose. `11` → `1,001` keeps both digits and pays 74px for the separator that pushed them apart — the one case the floating-run allowance exists for.
 
-A few results are judgement calls rather than obvious wins. `nineteen` →
-`twenty` keeps the shared `en` and slides it 86px, and `Offline` → `Online`
-keeps `Oline` around the `ff` that leaves. Both are inside the travel budget and
-both read fine at speed, but they are the kind of thing to look at in
-[the studio](testing.md) before changing the matcher's constants.
+A few results are judgement calls rather than obvious wins. `nineteen` → `twenty` keeps the shared `en` and slides it 86px, and `Offline` → `Online` keeps `Oline` around the `ff` that leaves. Both are inside the travel budget and both read fine at speed, but they are the kind of thing to look at in [the studio](testing.md) before changing the matcher's constants.
 
-The `Shape` group is the only place the strings are deliberately nonsense. Those
-are the alignments the matcher has to get right, and real words would hide which
-rule fired.
+The `Shape` group is the only place the strings are deliberately nonsense. Those are the alignments the matcher has to get right, and real words would hide which rule fired.
 
 ### Counters
 

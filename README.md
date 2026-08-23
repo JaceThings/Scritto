@@ -2,11 +2,9 @@
 
 <h1>Scritto</h1>
 
-SwiftUI-style rolling text for the web.
-Numbers and strings — the prefix stays, the middle rolls.
+SwiftUI-style rolling text for the web. Numbers and strings — the prefix stays, the middle rolls.
 
-[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
-[![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
 
 **[scrit.to](https://scrit.to)**
 
@@ -134,11 +132,7 @@ Issues and PRs welcome.
 
 ## Docs
 
-[`docs/`](docs/) has the long version: [how the roll works](docs/how-it-works.md),
-[what SwiftUI does](docs/what-apple-does.md) and the two places we differ,
-[sixty-five measured cases](docs/cases.md), [timing](docs/timing.md),
-[flow](docs/flow.md), [edges](docs/masking.md), the [API](docs/api.md) and
-[testing](docs/testing.md).
+[`docs/`](docs/) has the long version: [how the roll works](docs/how-it-works.md), [what SwiftUI does](docs/what-apple-does.md) and the two places we differ, [sixty-five measured cases](docs/cases.md), [timing](docs/timing.md), [flow](docs/flow.md), [edges](docs/masking.md), the [API](docs/api.md) and [testing](docs/testing.md).
 
 Based on [numeric-text](https://github.com/shizukushq/numeric-text) by shizukushq (MIT).
 

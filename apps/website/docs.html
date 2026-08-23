@@ -1,71 +1,16 @@
 <!doctype html>
-<html lang="en" data-route="/docs">
+<html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
-    <meta name="theme-color" content="#1c1918" media="(prefers-color-scheme: dark)" />
     <title>scritto · docs</title>
-    <link rel="stylesheet" href="/src/styles/site.css" />
+    <meta name="robots" content="noindex" />
+    <meta http-equiv="refresh" content="0; url=https://github.com/JaceThings/Scritto/wiki" />
+    <link rel="canonical" href="https://github.com/JaceThings/Scritto/wiki" />
   </head>
   <body>
-    <main class="flex min-h-dvh w-full items-stretch justify-center bg-bg">
-      <article class="column gap-9">
-        <!-- @include header.html -->
-
-        <div id="page" class="flex w-full flex-col gap-12">
-          <section class="stagger flex w-full flex-col gap-4" style="--i: 5">
-            <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
-              <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Docs</h2>
-              <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                How to put a rolling value on the page. The playground is the easier way to feel
-                the motion; this is the short version of what you install and call.
-              </p>
-            </div>
-          </section>
-
-          <section class="stagger flex w-full flex-col gap-3 px-1 text-text-primary" style="--i: 6">
-            <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Install</h2>
-            <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-              <code class="font-[550]">npm install @scritto/core</code>
-              for the element itself. If you're on React, Vue, Svelte or Solid there's a package
-              for that too — <code class="font-[550]">@scritto/react</code> and so on — and each
-              one brings the core with it.
-            </p>
-          </section>
-
-          <section class="stagger flex w-full flex-col gap-3 px-1 text-text-primary" style="--i: 7">
-            <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">The element</h2>
-            <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-              Drop <code class="font-[550]">&lt;scritto-text&gt;</code> on the page, then set
-              <code class="font-[550]">.value</code> or call
-              <code class="font-[550]">update(next)</code>. Letters that stay, stay. The rest
-              roll.
-            </p>
-          </section>
-
-          <section class="stagger flex w-full flex-col gap-3 px-1 text-text-primary" style="--i: 8">
-            <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">In a sentence</h2>
-            <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-              Wrap the line in <code class="font-[550]">&lt;scritto-flow&gt;</code> so the words
-              beside the value slide and wrap when it changes width.
-            </p>
-          </section>
-
-          <section class="stagger flex w-full flex-col gap-3 px-1 text-text-primary" style="--i: 9">
-            <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Options</h2>
-            <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-              <code class="font-[550]">transition: { duration, easing }</code>,
-              <code class="font-[550]">trend</code>, <code class="font-[550]">bounce</code>, and
-              <code class="font-[550]">respectMotionPreference</code>. Try them on the playground
-              before wiring them up.
-            </p>
-          </section>
-        </div>
-
-        <!-- @include footer.html i=10 -->
-      </article>
-    </main>
-    <script type="module" src="/src/main.ts"></script>
+    <a href="https://github.com/JaceThings/Scritto/wiki">Documentation moved to the wiki.</a>
+    <script>
+      location.replace('https://github.com/JaceThings/Scritto/wiki')
+    </script>
   </body>
 </html>
