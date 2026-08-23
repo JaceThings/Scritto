@@ -10,6 +10,24 @@ Give it a new value and the text rolls to it. Whatever didn't change stays exact
 
 </div>
 
+```sh
+npm install @scritto/core
+```
+
+```html
+<scritto-text id="count">0</scritto-text>
+
+<script type="module">
+  import "@scritto/core";
+
+  const el = document.querySelector("#count");
+  let n = 0;
+  setInterval(() => el.update(String(++n)), 1000);
+</script>
+```
+
+That is the whole thing. `update()` rolls; assigning `.value` sets the text with no motion, which is what you want for the first value.
+
 ## What it is
 
 Most web number animations only handle digits. SwiftUI's `.numericText` morphs any string, a status or a price or a label, and keeps the letters that stay put. Scritto does that on the web: it diffs the old value against the new one, holds the glyphs that survive, slides them to where they now belong, and rolls the rest out while their replacements roll in. Wrap the line in `<scritto-flow>` and the words beside the value move on the same clock instead of jumping when the browser reflows.
@@ -19,10 +37,6 @@ Most web number animations only handle digits. SwiftUI's `.numericText` morphs a
 ## Quick start
 
 ### Vanilla
-
-```sh
-npm install @scritto/core
-```
 
 ```html
 <scritto-text></scritto-text>
@@ -146,7 +160,7 @@ Issues and PRs welcome.
 
 ## Docs
 
-The [wiki](https://github.com/JaceThings/Scritto/wiki) has the long version: [how the roll works](https://github.com/JaceThings/Scritto/wiki/How-the-Roll-Works), [what SwiftUI does](https://github.com/JaceThings/Scritto/wiki/What-SwiftUI-Does) and the two places we differ, [sixty-five measured cases](https://github.com/JaceThings/Scritto/wiki/Measured-Cases), [timing](https://github.com/JaceThings/Scritto/wiki/Timing), [flow](https://github.com/JaceThings/Scritto/wiki/Flow), [edges](https://github.com/JaceThings/Scritto/wiki/Edges), the [API](https://github.com/JaceThings/Scritto/wiki/API) and [testing](https://github.com/JaceThings/Scritto/wiki/Testing).
+The [wiki](https://github.com/JaceThings/Scritto/wiki) has the rest. Start with [recipes](https://github.com/JaceThings/Scritto/wiki/Recipes) for working code by task, or the [glossary](https://github.com/JaceThings/Scritto/wiki/Glossary) if a page uses a word you do not recognise. Then: [how the roll works](https://github.com/JaceThings/Scritto/wiki/How-the-Roll-Works), [what SwiftUI does](https://github.com/JaceThings/Scritto/wiki/What-SwiftUI-Does) and the two places we differ, [sixty-five measured cases](https://github.com/JaceThings/Scritto/wiki/Measured-Cases), [timing](https://github.com/JaceThings/Scritto/wiki/Timing), [flow](https://github.com/JaceThings/Scritto/wiki/Flow), [edges](https://github.com/JaceThings/Scritto/wiki/Edges), the [API](https://github.com/JaceThings/Scritto/wiki/API) and [testing](https://github.com/JaceThings/Scritto/wiki/Testing).
 
 Based on [numeric-text](https://github.com/shizukushq/numeric-text) by shizukushq (MIT).
 
