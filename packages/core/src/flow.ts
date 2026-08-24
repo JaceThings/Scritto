@@ -8,6 +8,7 @@ type FlowHost = HTMLElement & {
   transition: Transition
   _exitTailMs?: () => number
   _exitEndPx?: () => number
+  _holdWrap?: (held: boolean) => void
 }
 type Box = { left: number; top: number; width: number; height: number }
 
@@ -223,6 +224,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
 
   private _clearHost(host: FlowHost | null) {
     if (!host) return
+    host._holdWrap?.(false)
     for (const anim of host.getAnimations()) if (anim.id === WIDTH_ANIM) anim.cancel()
     host.style.width = ''
     host.style.marginInlineEnd = ''
@@ -327,7 +329,12 @@ class ScrittoFlow extends ServerSafeHTMLElement {
           })
         }
       }
-      if (Math.abs(toW - fromW) < 0.5) continue
+      // A value spanning lines has no single width to pin, and pinning one to
+      // the width of a single line would reflow the paragraph under it.
+      if (Math.abs(toW - fromW) < 0.5 || host.getClientRects().length > 1) continue
+      // Held for the pin below: ink free to wrap takes a second line inside a
+      // box held narrower than itself, and the block grows for the whole roll.
+      host._holdWrap?.(true)
       host.style.display = 'inline-block'
       // The end margin takes the mask's slack back out of the layout.
       const slack = edgeSlackPx(host)

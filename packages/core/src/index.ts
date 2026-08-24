@@ -375,6 +375,22 @@ class Scritto extends ServerSafeHTMLElement {
     this.toggleAttribute('data-wrap', /\s/.test(this._value))
   }
 
+  /**
+   * Whoever pins this box narrower than its ink, here or in a flow, holds the
+   * wrapping off for as long as the pin lasts: ink free to wrap would take a
+   * second line inside the pin and grow the paragraph under it.
+   */
+  _holdWrap(held: boolean) {
+    if (held) {
+      this._wrapHeld = this.hasAttribute('data-wrap')
+      this.removeAttribute('data-wrap')
+      return
+    }
+    if (!this._wrapHeld) return
+    this._wrapHeld = false
+    this._setWrap()
+  }
+
   private _glyphsOf(nodes: HTMLElement[], from: number): Glyph[] {
     return nodes.map((el) => {
       const rect = el.getBoundingClientRect()
@@ -427,10 +443,7 @@ class Scritto extends ServerSafeHTMLElement {
       this._blockified = true
     }
     this.style.textAlign = 'start'
-    // The box is held narrower than its ink for the length of the roll, and ink
-    // free to wrap would take a second line rather than overflow it.
-    this._wrapHeld = this.hasAttribute('data-wrap')
-    this.removeAttribute('data-wrap')
+    this._holdWrap(true)
     const total = this.transition.duration + this._exitTail
     const envelope = this._inkEnvelope(fromW, toW, total)
     const timing = { duration: total, easing: envelope ? 'linear' : SHRINK_EASING, fill: 'forwards' as const }
@@ -619,10 +632,7 @@ class Scritto extends ServerSafeHTMLElement {
       this._blockified = false
     }
     this.style.textAlign = ''
-    if (this._wrapHeld) {
-      this._wrapHeld = false
-      this._setWrap()
-    }
+    this._holdWrap(false)
     this.style.marginInlineEnd = ''
     this.style.removeProperty('--scritto-exit-room')
     this.removeAttribute('data-shrink-clip')

@@ -846,6 +846,89 @@ await scenario('playground wrapped card keeps its height', async () => {
   }
 })
 
+// A text value wraps by word, so a narrow card is where the paragraph under it
+// is most easily disturbed: the block must hold still for the whole roll and
+// land at whatever height the new value needs, never bulge on the way there.
+await scenario('wrapping value never bulges the paragraph', async () => {
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await visit('/playground')
+  const VALUES = [
+    'I love you',
+    'you are the daylight',
+    'the light you seek is within you',
+    'you are not separate from every other thing',
+    'the light you seek is within you',
+    'I love you',
+  ]
+  const runs = await page.evaluate(async (values) => {
+    const host = document.querySelector('#flow-b') as (HTMLElement & { update(v: string, a?: boolean): void }) | null
+    const flow = document.querySelector<HTMLElement>('#flow-wrap')
+    if (!host || !flow) return null
+    const raf = () => new Promise((r) => requestAnimationFrame(r))
+    const height = () => Math.round(flow.getBoundingClientRect().height * 10) / 10
+    // Offscreen, the core updates without animating and there is nothing to see.
+    flow.scrollIntoView({ block: 'center' })
+    host.update(values[0], false)
+    await new Promise((r) => setTimeout(r, 250))
+    const out: { to: string; from: number; to_: number; low: number; high: number; overlaps: number }[] = []
+    for (let i = 1; i < values.length; i++) {
+      const from = height()
+      host.update(values[i])
+      let low = Infinity
+      let high = 0
+      let overlaps = 0
+      for (let frame = 0; frame < 50; frame++) {
+        await raf()
+        low = Math.min(low, height())
+        high = Math.max(high, height())
+        // Ghost pairs cross-fade in place; two opaque boxes on top of each other
+        // are two copies of the paragraph, which is what a disturbed re-flow
+        // looks like.
+        const boxes = [...flow.querySelectorAll<HTMLElement>('[data-word], [data-wrap-ghost]')]
+          .filter((el) => el.style.visibility !== 'hidden' && parseFloat(getComputedStyle(el).opacity) > 0.35)
+          .map((el) => el.getBoundingClientRect())
+        let hits = 0
+        for (let a = 0; a < boxes.length; a++) {
+          for (let c = a + 1; c < boxes.length; c++) {
+            const ox = Math.min(boxes[a].right, boxes[c].right) - Math.max(boxes[a].left, boxes[c].left)
+            const oy = Math.min(boxes[a].bottom, boxes[c].bottom) - Math.max(boxes[a].top, boxes[c].top)
+            if (ox > Math.min(boxes[a].width, boxes[c].width) * 0.5 && oy > Math.min(boxes[a].height, boxes[c].height) * 0.5) hits++
+          }
+        }
+        overlaps = Math.max(overlaps, hits)
+      }
+      await new Promise((r) => setTimeout(r, 600))
+      out.push({ to: values[i], from, to_: height(), low, high, overlaps })
+    }
+    return out
+  }, VALUES)
+  await page.setViewportSize({ width: 900, height: 780 })
+  if (!runs) {
+    report.violations.push({ flow: '#flow-wrap', rule: 'wrap-bulge', detail: 'could not drive the wrap card' })
+    return
+  }
+  for (const run of runs) {
+    const floor = Math.min(run.from, run.to_) - 1
+    const ceiling = Math.max(run.from, run.to_) + 1
+    if (run.low < floor || run.high > ceiling) {
+      report.violations.push({
+        flow: '#flow-wrap',
+        rule: 'wrap-bulge',
+        detail: `→ ${JSON.stringify(run.to)} left ${run.from}px…${run.to_}px mid-roll (${run.low}px…${run.high}px)`,
+      })
+    }
+    // Six is what a clean re-flow costs at this width: a handful of ghost pairs
+    // cross-fading in place. The disturbed re-flow this guards against drew 13.
+    if (run.overlaps > 8) {
+      report.violations.push({
+        flow: '#flow-wrap',
+        rule: 'wrap-overlap',
+        detail: `→ ${JSON.stringify(run.to)} drew ${run.overlaps} words on top of each other`,
+      })
+    }
+  }
+})
+
 await scenario('playground hammered', async () => {
   await visit('/playground')
   const values = ['1', '1,234,567', '12', '999,999', '1,204', '88', '7,654,321', '3', '456,789', '21', '1,000,000', '9']
