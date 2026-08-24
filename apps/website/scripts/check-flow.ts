@@ -668,6 +668,21 @@ const checkTransition = async (
   }
 
     const ghostShots = shots.filter((shot) => shot.ghosts.length)
+    // Past a sixth of the words the core re-breaks the block in one frame rather
+    // than hand off, so the same value pair proves opposite things on a narrow
+    // card and on a wide page.
+    const words = shots[0]?.words ?? 0
+    if (words && (result.movedLines ?? 0) * 6 > words) {
+      if (ghostShots.length) {
+        out.violations.push({
+          flow: label,
+          rule: 'rebreak-handoff',
+          detail: `${result.movedLines} of ${words} words changed line going ${from} → ${to}, yet ${ghostShots.length} frame(s) carried ghosts — a re-break must settle in one frame, not draw the block twice`,
+        })
+      }
+      return
+    }
+
     // A wrap lasting a frame or two is the clip being dropped on first finish.
     if (expectWrap && (sawGhosts || (result.movedLines ?? 0) > 0) && ghostShots.length < 6) {
       out.violations.push({

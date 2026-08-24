@@ -18,6 +18,14 @@ type Play = (el: HTMLElement, frames: Keyframe[], done?: () => void) => Animatio
 /** Roughly a word space, so a ghost never fades on top of its old neighbour. */
 const GAP = 6
 
+/**
+ * Share of the visible words changing line past which the paragraph has re-broken
+ * rather than moved. Measured: a value pushing a phrase along moves under a tenth
+ * of them, a re-break a quarter and up, and handing that many off at once draws
+ * the whole block twice.
+ */
+const REBREAK = 1 / 6
+
 /** So the teardown backstop lands after the last frame, not on it. */
 const SETTLE_SLACK = 50
 
@@ -358,11 +366,15 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   /**
    * A word keeping its line slides along it. One changing line hands off between
    * two ghosts, since flying it diagonally drags the eye through unrelated text.
+   * Neither is worth doing once the paragraph has re-broken rather than moved.
    */
   private _playWords(play: Play) {
     const { _first: first, _last: last, _wordEls: words, _lo: lo } = this
     const lineH = first[0]?.height || 1
     const wrapped = first.map((a, i) => !!last[i] && Math.abs(last[i].top - a.top) >= lineH * 0.5)
+    // Choreographing a re-break doubles the block for the whole roll. It re-breaks
+    // in one frame instead, under the value's own roll.
+    if (wrapped.reduce((n, on) => n + (on ? 1 : 0), 0) > first.length * REBREAK) return
 
     // One shift per line, the width of everything leaving or joining it: by its
     // own width alone a word would still be on the line when it faded.
@@ -376,6 +388,11 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       enterShift.set(Math.round(b.top), (enterShift.get(Math.round(b.top)) ?? 0) + (down ? -1 : 1) * (b.width + GAP))
       leaveShift.set(Math.round(a.top), (leaveShift.get(Math.round(a.top)) ?? 0) + (down ? 1 : -1) * (a.width + GAP))
     }
+
+    // Several words joining one line sum to most of a column, which throws their
+    // ghosts clear of it. The direction is what reads; further than a word's own
+    // width is just ink outside the text.
+    const nudge = (shift: number, width: number) => Math.sign(shift) * Math.min(Math.abs(shift), width + GAP)
 
     const gutterPx = this.getBoundingClientRect().left - this._clip.getBoundingClientRect().left
     const pin = (word: HTMLElement, at: Box) => {
@@ -407,8 +424,8 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       }
 
       const down = b.top > a.top
-      const enterX = enterShift.get(Math.round(b.top)) ?? (down ? -b.width : b.width)
-      const leaveX = leaveShift.get(Math.round(a.top)) ?? (down ? GAP * 4 : -GAP * 4)
+      const enterX = nudge(enterShift.get(Math.round(b.top)) ?? (down ? -b.width : b.width), b.width)
+      const leaveX = nudge(leaveShift.get(Math.round(a.top)) ?? (down ? GAP * 4 : -GAP * 4), a.width)
       word.style.visibility = 'hidden'
       this._touched.push(word)
 
