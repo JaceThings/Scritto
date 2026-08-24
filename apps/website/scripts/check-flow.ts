@@ -668,11 +668,11 @@ const checkTransition = async (
   }
 
     const ghostShots = shots.filter((shot) => shot.ghosts.length)
-    // Past a sixth of the words the core re-breaks the block in one frame rather
+    // Past a third of the words the core re-breaks the block in one frame rather
     // than hand off, so the same value pair proves opposite things on a narrow
     // card and on a wide page.
     const words = shots[0]?.words ?? 0
-    if (words && (result.movedLines ?? 0) * 6 > words) {
+    if (words && (result.movedLines ?? 0) * 3 > words) {
       if (ghostShots.length) {
         out.violations.push({
           flow: label,
@@ -932,9 +932,11 @@ await scenario('wrapping value never bulges the paragraph', async () => {
         detail: `→ ${JSON.stringify(run.to)} left ${run.from}px…${run.to_}px mid-roll (${run.low}px…${run.high}px)`,
       })
     }
-    // Six is what a clean re-flow costs at this width: a handful of ghost pairs
-    // cross-fading in place. The disturbed re-flow this guards against drew 13.
-    if (run.overlaps > 8) {
+    // A handoff at this width costs 9 to 11: each word changing line is drawn
+    // where it left and where it lands, over the words that stayed. Past that is
+    // the disturbed re-flow this guards against, which drew 13 with the block
+    // bulging under it.
+    if (run.overlaps > 12) {
       report.violations.push({
         flow: '#flow-wrap',
         rule: 'wrap-overlap',
@@ -942,6 +944,18 @@ await scenario('wrapping value never bulges the paragraph', async () => {
       })
     }
   }
+})
+
+// Past a third of the words changing line the paragraph has re-broken, and drawing
+// each of them twice draws the whole block twice. Phone width is where a value can
+// move that many.
+await scenario('a re-broken paragraph settles instead of doubling', async () => {
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await visit('/playground')
+  const [from, to] = ['you are not separate from every other thing', 'I love you']
+  await checkTransition(page, '#flow-wrap re-break', '#flow-wrap', from, to, report, true)
+  await checkSettled(page, '#flow-wrap re-break', '#flow-wrap', report)
+  await page.setViewportSize({ width: 900, height: 780 })
 })
 
 await scenario('playground hammered', async () => {

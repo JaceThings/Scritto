@@ -20,11 +20,11 @@ const GAP = 6
 
 /**
  * Share of the visible words changing line past which the paragraph has re-broken
- * rather than moved. Measured: a value pushing a phrase along moves under a tenth
- * of them, a re-break a quarter and up, and handing that many off at once draws
- * the whole block twice.
+ * rather than moved. Measured on the same card at phone and desktop width: a value
+ * pushing the words along it moves a quarter of them at most, a re-break moves half,
+ * and handing that many off at once draws the whole block twice.
  */
-const REBREAK = 1 / 6
+const REBREAK = 1 / 3
 
 /** So the teardown backstop lands after the last frame, not on it. */
 const SETTLE_SLACK = 50
