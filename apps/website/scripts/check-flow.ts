@@ -932,11 +932,10 @@ await scenario('wrapping value never bulges the paragraph', async () => {
         detail: `→ ${JSON.stringify(run.to)} left ${run.from}px…${run.to_}px mid-roll (${run.low}px…${run.high}px)`,
       })
     }
-    // A handoff at this width costs 9 to 11: each word changing line is drawn
-    // where it left and where it lands, over the words that stayed. Past that is
-    // the disturbed re-flow this guards against, which drew 13 with the block
-    // bulging under it.
-    if (run.overlaps > 12) {
+    // Zero is what it costs now that a ghost travels with its line: a handoff
+    // leaves a gap for itself rather than landing on a standing word. Four is
+    // slack for a sample caught mid-frame; the re-flow this guards against drew 15.
+    if (run.overlaps > 4) {
       report.violations.push({
         flow: '#flow-wrap',
         rule: 'wrap-overlap',

@@ -376,23 +376,25 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     // in one frame instead, under the value's own roll.
     if (wrapped.reduce((n, on) => n + (on ? 1 : 0), 0) > first.length * REBREAK) return
 
-    // One shift per line, the width of everything leaving or joining it: by its
-    // own width alone a word would still be on the line when it faded.
-    const enterShift = new Map<number, number>()
-    const leaveShift = new Map<number, number>()
+    // How far the words keeping each line travel, by the line they leave and the
+    // line they land on. A ghost held at a fixed offset instead reads as a piece of
+    // another paragraph laid over this one, so it travels with the line it joins or
+    // leaves and the line moves as a body.
+    const arriving = new Map<number, number[]>()
+    const departing = new Map<number, number[]>()
     for (let i = 0; i < first.length; i++) {
-      if (!wrapped[i]) continue
-      const a = first[i]
-      const b = last[i]
-      const down = b.top > a.top
-      enterShift.set(Math.round(b.top), (enterShift.get(Math.round(b.top)) ?? 0) + (down ? -1 : 1) * (b.width + GAP))
-      leaveShift.set(Math.round(a.top), (leaveShift.get(Math.round(a.top)) ?? 0) + (down ? 1 : -1) * (a.width + GAP))
+      if (wrapped[i]) continue
+      const dx = first[i].left - last[i].left
+      const to = Math.round(last[i].top)
+      const from = Math.round(first[i].top)
+      const joined = arriving.get(to) ?? []
+      const left = departing.get(from) ?? []
+      joined.push(dx)
+      left.push(dx)
+      arriving.set(to, joined)
+      departing.set(from, left)
     }
-
-    // Several words joining one line sum to most of a column, which throws their
-    // ghosts clear of it. The direction is what reads; further than a word's own
-    // width is just ink outside the text.
-    const nudge = (shift: number, width: number) => Math.sign(shift) * Math.min(Math.abs(shift), width + GAP)
+    const median = (xs: number[]) => [...xs].sort((x, y) => x - y)[xs.length >> 1]
 
     const gutterPx = this.getBoundingClientRect().left - this._clip.getBoundingClientRect().left
     const pin = (word: HTMLElement, at: Box) => {
@@ -424,17 +426,24 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       }
 
       const down = b.top > a.top
-      const enterX = nudge(enterShift.get(Math.round(b.top)) ?? (down ? -b.width : b.width), b.width)
-      const leaveX = nudge(leaveShift.get(Math.round(a.top)) ?? (down ? GAP * 4 : -GAP * 4), a.width)
+      const joins = arriving.get(Math.round(b.top))
+      const leaves = departing.get(Math.round(a.top))
+      // Nothing kept either line, so there is no group to travel with: it goes by
+      // its own width, which still reads as leaving the line rather than the page.
+      const enterX = joins?.length ? median(joins) : down ? -b.width : b.width
+      const leaveX = leaves?.length ? -median(leaves) : down ? GAP * 4 : -GAP * 4
       word.style.visibility = 'hidden'
       this._touched.push(word)
 
+      // A relay, not a dissolve: the old copy is gone by halfway and the new one
+      // only starts after, so the word is never two solid copies at once.
       const leaving = pin(word, a)
       play(
         leaving,
         [
-          { opacity: 1, transform: 'none' },
-          { opacity: 0, transform: `translateX(${leaveX}px)` },
+          { opacity: 1, transform: 'none', offset: 0 },
+          { opacity: 0, offset: 0.5 },
+          { opacity: 0, transform: `translateX(${leaveX}px)`, offset: 1 },
         ],
         () => leaving.remove(),
       )
@@ -442,8 +451,9 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       play(
         entering,
         [
-          { opacity: 0, transform: `translateX(${enterX}px)` },
-          { opacity: 1, transform: 'none' },
+          { opacity: 0, transform: `translateX(${enterX}px)`, offset: 0 },
+          { opacity: 0, offset: 0.45 },
+          { opacity: 1, transform: 'none', offset: 1 },
         ],
         () => {
           entering.remove()
