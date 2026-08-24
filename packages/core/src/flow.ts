@@ -19,14 +19,6 @@ type Play = (el: HTMLElement, frames: Keyframe[], done?: () => void) => Animatio
 /** Roughly a word space, so a ghost never fades on top of its old neighbour. */
 const GAP = 6
 
-/**
- * Share of the visible words changing line past which the paragraph has re-broken
- * rather than moved. Measured on the same card at phone and desktop width: a value
- * pushing the words along it moves a quarter of them at most, a re-break moves half,
- * and handing that many off at once draws the whole block twice.
- */
-const REBREAK = 1 / 3
-
 /** So the teardown backstop lands after the last frame, not on it. */
 const SETTLE_SLACK = 50
 
@@ -372,16 +364,11 @@ class ScrittoFlow extends ServerSafeHTMLElement {
   /**
    * A word keeping its line slides along it. One changing line hands off between
    * two ghosts, since flying it diagonally drags the eye through unrelated text.
-   * Neither is worth doing once the paragraph has re-broken rather than moved.
    */
   private _playWords(play: Play) {
     const { _first: first, _last: last, _wordEls: words, _lo: lo } = this
     const lineH = first[0]?.height || 1
     const wrapped = first.map((a, i) => !!last[i] && Math.abs(last[i].top - a.top) >= lineH * 0.5)
-    // Choreographing a re-break doubles the block for the whole roll. It re-breaks
-    // in one frame instead, under the value's own roll.
-    if (wrapped.reduce((n, on) => n + (on ? 1 : 0), 0) > first.length * REBREAK) return
-
     // How far the words keeping each line travel, by the line they leave and the
     // line they land on. A ghost held at a fixed offset instead reads as a piece of
     // another paragraph laid over this one, so it travels with the line it joins or

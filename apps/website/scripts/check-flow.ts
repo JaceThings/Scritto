@@ -668,21 +668,6 @@ const checkTransition = async (
   }
 
     const ghostShots = shots.filter((shot) => shot.ghosts.length)
-    // Past a third of the words the core re-breaks the block in one frame rather
-    // than hand off, so the same value pair proves opposite things on a narrow
-    // card and on a wide page.
-    const words = shots[0]?.words ?? 0
-    if (words && (result.movedLines ?? 0) * 3 > words) {
-      if (ghostShots.length) {
-        out.violations.push({
-          flow: label,
-          rule: 'rebreak-handoff',
-          detail: `${result.movedLines} of ${words} words changed line going ${from} → ${to}, yet ${ghostShots.length} frame(s) carried ghosts — a re-break must settle in one frame, not draw the block twice`,
-        })
-      }
-      return
-    }
-
     // A wrap lasting a frame or two is the clip being dropped on first finish.
     if (expectWrap && (sawGhosts || (result.movedLines ?? 0) > 0) && ghostShots.length < 6) {
       out.violations.push({
@@ -1027,18 +1012,6 @@ await scenario("a wrapped value's old ink leaves from where it stood", async () 
       })
     }
   }
-})
-
-// Past a third of the words changing line the paragraph has re-broken, and drawing
-// each of them twice draws the whole block twice. Phone width is where a value can
-// move that many.
-await scenario('a re-broken paragraph settles instead of doubling', async () => {
-  await page.setViewportSize({ width: 390, height: 1000 })
-  await visit('/playground')
-  const [from, to] = ['you are not separate from every other thing', 'I love you']
-  await checkTransition(page, '#flow-wrap re-break', '#flow-wrap', from, to, report, true)
-  await checkSettled(page, '#flow-wrap re-break', '#flow-wrap', report)
-  await page.setViewportSize({ width: 900, height: 780 })
 })
 
 await scenario('playground hammered', async () => {
