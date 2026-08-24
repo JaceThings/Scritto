@@ -67,8 +67,10 @@ type Plan = Layout & {
   tailGlyphs: Glyph[]
 }
 
-type Glyph = { offset: number; width: number }
-type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; entry: [HTMLElement, number] }
+type Glyph = { offset: number; width: number; left: number; top: number; height: number }
+type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; entry: ExitEntry }
+/** The group, where its line started, and how far down that line sat. */
+type ExitEntry = [el: HTMLElement, left: number, top: number]
 
 const centerX = (rect: DOMRect) => (rect.left + rect.right) * 0.5
 
@@ -124,7 +126,9 @@ class Scritto extends ServerSafeHTMLElement {
   private _tail = createEl('span', 'section')
   private _exits = createEl('span', 'exits')
   private _chars: HTMLElement[] = []
-  private _exitingChars: [el: HTMLElement, left: number][] = []
+  private _exitingChars: ExitEntry[] = []
+  /** Whether the ink now leaving sat on more than one line. */
+  private _exitWrapped = false
   private _exitQueue: QueuedExit[] = []
   /** Held across commits: rapid updates leave earlier exit groups standing. */
   private _exitEnd = 0
@@ -266,6 +270,7 @@ class Scritto extends ServerSafeHTMLElement {
     }
     this._cancelTracked()
     this._exitTail = 0
+    this._exitWrapped = false
     this._queueExit(this._chars.slice(plan.prefixCount, plan.oldSuffix), plan.exitingX, plan.exitGlyphs)
     this._queueExit(plan.exitingTail, plan.tailX, plan.tailGlyphs)
     this._commit(plan.next, plan.prefixCount, plan.midEnd, plan.suffixCount)
@@ -333,8 +338,8 @@ class Scritto extends ServerSafeHTMLElement {
     const inFlow = !!this.closest('scritto-flow')
     const carried = inFlow ? plan.fromEdge - edge : 0
     for (let i = 0; i < this._exitingChars.length; i++) {
-      const [el, x] = this._exitingChars[i]
-      el.style.transform = `translateX(${x - edge - carried}px)`
+      const [el, x, y] = this._exitingChars[i]
+      el.style.transform = `translate(${x - edge - carried}px, ${y}px)`
     }
     const line = newPrefix.height || 1
     const prefixDx =
@@ -394,7 +399,8 @@ class Scritto extends ServerSafeHTMLElement {
   private _glyphsOf(nodes: HTMLElement[], from: number): Glyph[] {
     return nodes.map((el) => {
       const rect = el.getBoundingClientRect()
-      return { offset: Math.abs(startOf(rect, this._isRTL) - from), width: rect.width }
+      const start = startOf(rect, this._isRTL)
+      return { offset: Math.abs(start - from), width: rect.width, left: start, top: rect.top, height: rect.height }
     })
   }
 
@@ -423,10 +429,10 @@ class Scritto extends ServerSafeHTMLElement {
     // at the phase the run has reached.
     if (this._widthAnims.length && this._widthTiming) {
       const elapsed = Number(this._widthAnims[0].currentTime ?? 0)
-      for (const [group, x] of this._exitingChars) {
+      for (const [group, x, y] of this._exitingChars) {
         if (group.getAnimations().length) continue
         this._widthAnims.push(
-          group.animate(this._rideFrames(x - edge, this._widthDx), { ...this._widthTiming, delay: -elapsed }),
+          group.animate(this._rideFrames(x - edge, this._widthDx, y), { ...this._widthTiming, delay: -elapsed }),
         )
       }
       return
@@ -480,7 +486,9 @@ class Scritto extends ServerSafeHTMLElement {
     const hemmed = (room: number) => this.edgeFade !== 'never' && (this.edgeFade === 'always' || reach > room)
     const clipStart = startMoves && hemmed(this._room.start)
     const clipEnd = endMoves && hemmed(this._room.end) && this._exitEnd > toW + 0.5
-    if (clipStart || clipEnd) {
+    // Ink that wrapped has no single edge to fade against, and a ramp measured on
+    // one line's box masks the other line away entirely.
+    if ((clipStart || clipEnd) && !this._exitWrapped) {
       this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
       // A ghost holds its old place while the box leaves it behind, so it reaches
       // as far past an edge as that edge travels, plus its blur.
@@ -492,8 +500,8 @@ class Scritto extends ServerSafeHTMLElement {
     this._widthDx = startMoves ? dx : 0
     if (startMoves) {
       anims.push(this.animate(this._indentFrames(startShift), timing))
-      for (const [group, x] of this._exitingChars) {
-        anims.push(group.animate(this._rideFrames(x - edge, dx), timing))
+      for (const [group, x, y] of this._exitingChars) {
+        anims.push(group.animate(this._rideFrames(x - edge, dx, y), timing))
       }
     }
     const effect = anim.effect
@@ -560,10 +568,10 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   /** A ghost rides the box's travel, so it holds still while the box moves. */
-  private _rideFrames(base: number, dx: number): Keyframe[] | PropertyIndexedKeyframes {
+  private _rideFrames(base: number, dx: number, y: number): Keyframe[] | PropertyIndexedKeyframes {
     const travel = this._widthTravel
-    if (!travel) return { transform: [`translateX(${base + dx}px)`, `translateX(${base}px)`] }
-    return travel.map((r, k) => ({ transform: `translateX(${base + dx * r}px)`, offset: k / ENVELOPE_STEPS }))
+    if (!travel) return { transform: [`translate(${base + dx}px, ${y}px)`, `translate(${base}px, ${y}px)`] }
+    return travel.map((r, k) => ({ transform: `translate(${base + dx * r}px, ${y}px)`, offset: k / ENVELOPE_STEPS }))
   }
 
   /** What the box would measure if a transition were not pinning it. */
@@ -672,10 +680,14 @@ class Scritto extends ServerSafeHTMLElement {
     let trend = this.trend
     if (!trend) trend = trendOf(this._prevValue, this._value)
 
-    const oldPrefix = this._prefix.getBoundingClientRect()
-    const oldSuffixRect = this._suffix.getBoundingClientRect()
-    const midRect = this._middle.getBoundingClientRect()
-    const oldTail = this._tail.getBoundingClientRect()
+    // The first fragment, not the union of them: a section that wrapped spans the
+    // whole column, while offsetLeft below is measured from where its first line
+    // starts. Pairing the two would place old ink a line's indent off.
+    const boxOf = (el: HTMLElement) => el.getClientRects()[0] ?? el.getBoundingClientRect()
+    const oldPrefix = boxOf(this._prefix)
+    const oldSuffixRect = boxOf(this._suffix)
+    const midRect = boxOf(this._middle)
+    const oldTail = boxOf(this._tail)
     const sectionRect = (el: HTMLElement | null) =>
       el === this._prefix ? oldPrefix : el === this._suffix ? oldSuffixRect : el === this._tail ? oldTail : midRect
     const sectionOf = (char: HTMLElement) => char.closest<HTMLElement>('.section')
@@ -750,15 +762,42 @@ class Scritto extends ServerSafeHTMLElement {
     return this._exitEnd
   }
 
+  /** Ink that wrapped has no single edge to fade against. */
+  _exitsWrapped() {
+    return this._exitWrapped
+  }
+
+  /**
+   * One group per line the old ink sat on. A wrapped value leaves ink on two, and
+   * a single row would pull the second up onto the first the moment it committed,
+   * which reads as the old value jumping rather than dissolving.
+   */
   private _queueExit(nodes: HTMLElement[], x: number, glyphs: Glyph[]) {
     if (!nodes.length) return
+    const line = glyphs[0].top
+    // Half a line, not a pixel: a glyph still mid-roll carries a transform, and its
+    // box wobbles a fraction without having changed line at all.
+    const step = (glyphs[0].height || 1) * 0.5
+    let start = 0
+    for (let end = 1; end <= nodes.length; end++) {
+      if (end < nodes.length && Math.abs(glyphs[end].top - glyphs[start].top) < step) continue
+      // Relative to the caller's x, which carries the row's own travel: an
+      // absolute one would drop the line wherever the paragraph used to sit.
+      const runX = x + glyphs[start].left - glyphs[0].left
+      if (start) this._exitWrapped = true
+      this._queueRun(nodes.slice(start, end), runX, glyphs[start].top - line, glyphs.slice(start, end))
+      start = end
+    }
+  }
+
+  private _queueRun(nodes: HTMLElement[], x: number, y: number, glyphs: Glyph[]) {
     const group = createEl('span')
     group.toggleAttribute('inert', true)
     for (let i = 0; i < nodes.length; i++) {
       clearAnimStyle(nodes[i])
       group.appendChild(nodes[i])
     }
-    const entry: [HTMLElement, number] = [group, x]
+    const entry: ExitEntry = [group, x, y]
     this._exitingChars.push(entry)
     this._exits.appendChild(group)
     this._exitQueue.push({ group, nodes, glyphs, entry })

@@ -945,6 +945,90 @@ await scenario('wrapping value never bulges the paragraph', async () => {
   }
 })
 
+// A value that wrapped leaves ink on two lines, and the old ink has to dissolve
+// from both of them: pulled onto one line, or masked away by a ramp measured on
+// the box it shrank to, the value reads as swapping rather than rolling.
+await scenario("a wrapped value's old ink leaves from where it stood", async () => {
+  await page.setViewportSize({ width: 390, height: 1000 })
+  await visit('/playground')
+  const run = await page.evaluate(async () => {
+    type Host = HTMLElement & { update(value: string): void; setOptions(options: object): void }
+    const host = document.querySelector<Host>('#flow-b')
+    const flow = document.querySelector<HTMLElement>('#flow-wrap')
+    if (!host || !flow) return null
+    flow.scrollIntoView({ block: 'center' })
+    host.setOptions({ respectMotionPreference: false })
+    const frame = () => new Promise((done) => requestAnimationFrame(done))
+    host.update('you are not separate from every other thing')
+    await new Promise((done) => setTimeout(done, 2000))
+    // Where the old ink stands, one entry per line it wrapped onto.
+    const lines = new Map<number, number>()
+    for (const glyph of host.shadowRoot?.querySelectorAll<HTMLElement>('.section span') ?? []) {
+      if (glyph.children.length) continue
+      const rect = glyph.getBoundingClientRect()
+      if (!rect.width) continue
+      const key = Math.round(rect.top)
+      lines.set(key, Math.min(lines.get(key) ?? Infinity, rect.left))
+    }
+    host.update('I love you')
+    await frame()
+    await frame()
+    const groups = [...(host.shadowRoot?.querySelectorAll<HTMLElement>('.exits > [inert]') ?? [])].map((group) => {
+      const rect = group.getBoundingClientRect()
+      const glyph = group.firstElementChild as HTMLElement | null
+      return {
+        top: Math.round(rect.top),
+        left: Math.round(rect.left),
+        opacity: glyph ? Number(getComputedStyle(glyph).opacity) : 0,
+      }
+    })
+    const layer = host.shadowRoot?.querySelector<HTMLElement>('.exits')
+    const mask = layer ? getComputedStyle(layer).maskImage : 'none'
+    return { stood: [...lines].map(([top, left]) => ({ top, left: Math.round(left) })), groups, mask }
+  })
+  await page.setViewportSize({ width: 900, height: 780 })
+  if (!run) {
+    report.violations.push({ flow: '#flow-b', rule: 'wrapped-exit', detail: 'could not drive the wrap card' })
+    return
+  }
+  const { stood, groups, mask } = run
+  if (stood.length < 2) {
+    report.violations.push({
+      flow: '#flow-b',
+      rule: 'wrapped-exit',
+      detail: `the long value stood on ${stood.length} line(s) at this width, so the case it guards never ran`,
+    })
+    return
+  }
+  // The ramp is measured on the box the value shrank to, so any other line of old
+  // ink falls outside it and is masked away rather than dissolved.
+  if (stood.length > 1 && mask !== 'none') {
+    report.violations.push({
+      flow: '#flow-b',
+      rule: 'wrapped-exit',
+      detail: `ink leaving ${stood.length} lines is under an edge mask (${mask.slice(0, 60)}) — a wrapped value's old ink gets no ramp`,
+    })
+  }
+  for (const line of stood) {
+    const at = groups.find((group) => Math.abs(group.top - line.top) <= 2 && Math.abs(group.left - line.left) <= 2)
+    if (!at) {
+      report.violations.push({
+        flow: '#flow-b',
+        rule: 'wrapped-exit',
+        detail: `no leaving ink at ${line.left},${line.top} where the old value's line stood; groups at ${groups.map((g) => `${g.left},${g.top}`).join(' ') || 'none'}`,
+      })
+      continue
+    }
+    if (at.opacity < 0.5) {
+      report.violations.push({
+        flow: '#flow-b',
+        rule: 'wrapped-exit',
+        detail: `leaving ink at ${line.left},${line.top} starts at opacity ${at.opacity.toFixed(2)} — it must dissolve, not be masked away`,
+      })
+    }
+  }
+})
+
 // Past a third of the words changing line the paragraph has re-broken, and drawing
 // each of them twice draws the whole block twice. Phone width is where a value can
 // move that many.

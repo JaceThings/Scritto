@@ -8,6 +8,7 @@ type FlowHost = HTMLElement & {
   transition: Transition
   _exitTailMs?: () => number
   _exitEndPx?: () => number
+  _exitsWrapped?: () => boolean
   _holdWrap?: (held: boolean) => void
 }
 type Box = { left: number; top: number; width: number; height: number }
@@ -35,7 +36,10 @@ const CLIP_STYLE = `position:absolute;top:0;bottom:0;left:-${GUTTER};right:-${GU
 
 /** Flow-relative, since ghosts are positioned inside the clip. */
 const boxOf = (el: HTMLElement, origin: DOMRect, insetX: number, insetY: number): Box => {
-  const rect = el.getBoundingClientRect()
+  // The first fragment, not the union: a value that wrapped spans the whole column,
+  // and comparing that against the single line it becomes reads as the host jumping
+  // a line's indent sideways.
+  const rect = el.getClientRects()[0] ?? el.getBoundingClientRect()
   return {
     left: rect.left - origin.left - insetX,
     top: rect.top - origin.top - insetY,
@@ -320,7 +324,9 @@ class ScrittoFlow extends ServerSafeHTMLElement {
       const to = this._toBox.get(host)
       const fromW = from?.width ?? 0
       const toW = to?.width ?? 0
-      const overhang = (host._exitEndPx?.() ?? 0) > toW + 0.5
+      // Ink that wrapped has no single edge to fade against, and a ramp measured on
+      // one line's box masks the other line away entirely.
+      const overhang = (host._exitEndPx?.() ?? 0) > toW + 0.5 && !host._exitsWrapped?.()
       if (overhang && (disturbed || followed(first, from) || followed(last, to))) {
         host.setAttribute('data-shrink-clip', '')
         clipped = true
