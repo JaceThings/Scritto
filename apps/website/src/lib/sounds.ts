@@ -18,7 +18,7 @@ const playFile = (src: string, volume: number) => {
 export const playClick = () => playFile('/click.webm', 0.6)
 export const playCopySuccess = () => playFile('/copy-success.webm', 0.5)
 export const playPillSelect = () => playFile('/pill-select.webm', 0.6)
-export const playRollSwitch = () => playFile('/roll-switch.webm', 0.6)
+export const playRollSwitch = () => playFile('/roll-switch.webm', 0.15)
 
 const TICK_VOLUME = 0.075
 const TICK_FREQ = 5500
