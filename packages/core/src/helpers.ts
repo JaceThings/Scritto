@@ -121,6 +121,35 @@ export const flip = (el: HTMLElement, dx: number, duration: number, easing: stri
   return anim
 }
 
+/**
+ * Chars grouped into words, so a value that outgrows its line breaks where the
+ * text has a space and never inside a word. A word keeps the spaces that follow
+ * it, so the only break opportunity is the gap between two words.
+ */
+export const reconcileWords = (parent: HTMLElement, nodes: HTMLElement[], start: number, end: number) => {
+  const words: [HTMLElement, HTMLElement[]][] = []
+  const spare = [...parent.children].filter((el): el is HTMLElement => el.className === 'word')
+  let current: HTMLElement[] | null = null
+  let broke = false
+  for (let i = start; i < end; i++) {
+    const node = nodes[i]
+    const space = node.textContent === SPACE
+    if (!current || (broke && !space)) {
+      current = []
+      words.push([spare.shift() ?? createEl('span', 'word'), current])
+    }
+    current.push(node)
+    broke = space
+  }
+  for (const [word, chars] of words) reconcileChildren(word, chars, 0, chars.length)
+  reconcileChildren(
+    parent,
+    words.map(([word]) => word),
+    0,
+    words.length,
+  )
+}
+
 export const reconcileChildren = (parent: HTMLElement, nodes: HTMLElement[], start: number, end: number) => {
   let current = parent.firstChild
   for (let i = start; i < end; i++) {

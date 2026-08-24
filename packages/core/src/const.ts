@@ -107,6 +107,11 @@ export const STYLES = `
     isolation: isolate;
     vertical-align: baseline;
   }
+  /* Only a value with a space in it has anywhere to break, and only then can
+     the line breaks below reach a word boundary rather than split a number. */
+  :host([data-wrap]) {
+    white-space: normal !important;
+  }
   /* Sits on a section's baseline, not the host's box, which the taller section
      boxes stick a couple of pixels above. */
   .exits {
@@ -133,14 +138,26 @@ ${clipRules()}
     display: inline-flex !important;
     inset-inline-start: 0;
   }
+  /* Inline, not inline-flex: a section that cannot break internally makes the
+     whole value one unbreakable box, and a long one then overhangs its column. */
   .section {
     position: relative !important;
-    display: inline-flex !important;
-    flex: none;
+    display: inline !important;
     transform: none;
     z-index: 1;
   }
-  .section::before {
+  /* A word is the unbreakable unit, and the box a kept run's slide moves: the
+     line breaks between two of these and nowhere else. */
+  .word {
+    display: inline-block !important;
+    white-space: nowrap !important;
+  }
+  /* Inline-block, so the anchor below stays inside the section: loose in the
+     line, its zero-width space swallows the real space after the host. */
+  .section:empty {
+    display: inline-block !important;
+  }
+  .section:empty::before {
     content: "\\200B"; /* baseline when the section is empty */
   }
   .char {

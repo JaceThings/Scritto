@@ -10,7 +10,7 @@ import {
   isOnscreen,
   boundsOf,
   diff,
-  reconcileChildren,
+  reconcileWords,
   clearAnimStyle,
   crossingFraction,
   cubicBezierEase,
@@ -71,6 +71,11 @@ type Glyph = { offset: number; width: number }
 type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; entry: [HTMLElement, number] }
 
 const centerX = (rect: DOMRect) => (rect.left + rect.right) * 0.5
+
+/** Words carry the run's travel, so they carry the styles it leaves behind. */
+const clearRun = (section: HTMLElement) => {
+  for (let i = 0; i < section.children.length; i++) clearAnimStyle(section.children[i] as HTMLElement)
+}
 
 const startOf = (rect: DOMRect, rtl: boolean) => (rtl ? rect.right : rect.left)
 const pending = new Set<Scritto>()
@@ -138,6 +143,8 @@ class Scritto extends ServerSafeHTMLElement {
   /** When the last arriving glyph starts to read, which is the box's deadline. */
   private _widthLead = 0
   private _blockified = false
+  /** Wrapping this value is on hold while the box is pinned mid-transition. */
+  private _wrapHeld = false
   private _isRTL = false
   private _value = ''
   private _prevValue = ''
@@ -156,7 +163,10 @@ class Scritto extends ServerSafeHTMLElement {
     const shadow = this.attachShadow({ mode: 'open' })
     if (styleSheet) shadow.adoptedStyleSheets = [styleSheet]
     this._exits.toggleAttribute('inert', true)
-    shadow.append(this._prefix, this._middle, this._suffix, this._tail, this._exits)
+    // Exits first: its static position is what puts ghosts on the value's line,
+    // and last in the shadow that position falls to a second line whenever the
+    // value wraps.
+    shadow.append(this._exits, this._prefix, this._middle, this._suffix, this._tail)
   }
 
   connectedCallback() {
@@ -260,8 +270,8 @@ class Scritto extends ServerSafeHTMLElement {
     this._queueExit(plan.exitingTail, plan.tailX, plan.tailGlyphs)
     this._commit(plan.next, plan.prefixCount, plan.midEnd, plan.suffixCount)
     for (let i = 0; i < plan.enters.length; i++) if (plan.enters[i].textContent !== SPACE) plan.enters[i].style.opacity = '0'
-    clearAnimStyle(this._prefix)
-    clearAnimStyle(this._suffix)
+    clearRun(this._prefix)
+    clearRun(this._suffix)
   }
 
   _finishAnimated() {
@@ -336,14 +346,33 @@ class Scritto extends ServerSafeHTMLElement {
         ? 0
         : plan.oldRunX - centerX(suffixAnchor) - carried
     // Not the roll's own spring: a kept run would outrun the shrink.
-    for (const anim of [
-      flip(this._prefix, prefixDx, total, SHRINK_EASING, true),
-      flip(this._suffix, suffixDx, total, SHRINK_EASING, true),
-    ]) {
+    this._flipRun(this._prefix, prefixDx, total)
+    this._flipRun(this._suffix, suffixDx, total)
+    this._armEnters(plan.enters, plan.trend, enterDelays)
+    // A wrapped host has a box per line, so it has no single width to animate:
+    // the lines it fills are the layout, and the roll rides them as they are.
+    if (!inFlow && this.getClientRects().length < 2) this._transitionWidth(reached ?? plan.fromW, toW, edge)
+  }
+
+  /**
+   * A kept run slides by its words, not by the section holding them: a section
+   * is inline so the value can break across lines, and an inline box takes no
+   * transform. Every word in the run travels the same distance either way.
+   */
+  private _flipRun(section: HTMLElement, dx: number, total: number) {
+    for (let i = 0; i < section.children.length; i++) {
+      const anim = flip(section.children[i] as HTMLElement, dx, total, SHRINK_EASING, true)
       if (anim) this._anims.push(anim)
     }
-    this._armEnters(plan.enters, plan.trend, enterDelays)
-    if (!inFlow) this._transitionWidth(reached ?? plan.fromW, toW, edge)
+  }
+
+  /**
+   * A value with a space in it reads as text and wraps like text. One without
+   * has nowhere to break anyway, and letting it try would break a number
+   * between two of its own sections.
+   */
+  private _setWrap() {
+    this.toggleAttribute('data-wrap', /\s/.test(this._value))
   }
 
   private _glyphsOf(nodes: HTMLElement[], from: number): Glyph[] {
@@ -398,6 +427,10 @@ class Scritto extends ServerSafeHTMLElement {
       this._blockified = true
     }
     this.style.textAlign = 'start'
+    // The box is held narrower than its ink for the length of the roll, and ink
+    // free to wrap would take a second line rather than overflow it.
+    this._wrapHeld = this.hasAttribute('data-wrap')
+    this.removeAttribute('data-wrap')
     const total = this.transition.duration + this._exitTail
     const envelope = this._inkEnvelope(fromW, toW, total)
     const timing = { duration: total, easing: envelope ? 'linear' : SHRINK_EASING, fill: 'forwards' as const }
@@ -586,6 +619,10 @@ class Scritto extends ServerSafeHTMLElement {
       this._blockified = false
     }
     this.style.textAlign = ''
+    if (this._wrapHeld) {
+      this._wrapHeld = false
+      this._setWrap()
+    }
     this.style.marginInlineEnd = ''
     this.style.removeProperty('--scritto-exit-room')
     this.removeAttribute('data-shrink-clip')
@@ -629,12 +666,12 @@ class Scritto extends ServerSafeHTMLElement {
     const oldSuffixRect = this._suffix.getBoundingClientRect()
     const midRect = this._middle.getBoundingClientRect()
     const oldTail = this._tail.getBoundingClientRect()
-    const sectionRect = (el: HTMLElement) =>
+    const sectionRect = (el: HTMLElement | null) =>
       el === this._prefix ? oldPrefix : el === this._suffix ? oldSuffixRect : el === this._tail ? oldTail : midRect
+    const sectionOf = (char: HTMLElement) => char.closest<HTMLElement>('.section')
 
     const exitX = (anchor: HTMLElement) => {
-      const parent = anchor.parentElement
-      const rect = parent ? sectionRect(parent) : midRect
+      const rect = sectionRect(sectionOf(anchor))
       const left = rect.left + anchor.offsetLeft
       return this._isRTL ? left + anchor.offsetWidth : left
     }
@@ -653,9 +690,9 @@ class Scritto extends ServerSafeHTMLElement {
       enters: next.slice(prefixCount, midEnd).concat(next.slice(midEnd + suffixCount)),
       trend,
       oldPrefixX: prefixAnchorRect ? centerX(prefixAnchorRect) : 0,
-      oldPrefixTop: prefixAnchor ? sectionRect(prefixAnchor.parentElement!).top : oldPrefix.top,
+      oldPrefixTop: prefixAnchor ? sectionRect(sectionOf(prefixAnchor)).top : oldPrefix.top,
       oldRunX: runAnchorRect ? centerX(runAnchorRect) : 0,
-      oldRunTop: runAnchor ? sectionRect(runAnchor.parentElement!).top : oldSuffixRect.top,
+      oldRunTop: runAnchor ? sectionRect(sectionOf(runAnchor)).top : oldSuffixRect.top,
       exitingX: prefixCount < oldSuffix ? exitX(this._chars[prefixCount]) : 0,
       tailX: exitingTail.length ? exitX(exitingTail[0]) : 0,
       exitGlyphs: this._glyphsOf(this._chars.slice(prefixCount, oldSuffix), fromEdge),
@@ -679,10 +716,11 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   private _commit(chars: HTMLElement[], prefixCount: number, midEnd: number, suffixCount: number) {
-    reconcileChildren(this._prefix, chars, 0, prefixCount)
-    reconcileChildren(this._middle, chars, prefixCount, midEnd)
-    reconcileChildren(this._suffix, chars, midEnd, midEnd + suffixCount)
-    reconcileChildren(this._tail, chars, midEnd + suffixCount, chars.length)
+    this._setWrap()
+    reconcileWords(this._prefix, chars, 0, prefixCount)
+    reconcileWords(this._middle, chars, prefixCount, midEnd)
+    reconcileWords(this._suffix, chars, midEnd, midEnd + suffixCount)
+    reconcileWords(this._tail, chars, midEnd + suffixCount, chars.length)
     // A survivor owns its roll; cancelling here cut it short. Clearing the
     // inline style is safe, since an effect outranks it.
     const kept = new Set(this._chars)
@@ -758,10 +796,10 @@ class Scritto extends ServerSafeHTMLElement {
     for (let i = 0; i < this._widthAnims.length; i++) this._widthAnims[i].cancel()
     this._widthAnims.length = 0
     this._cancelTracked()
-    clearAnimStyle(this._prefix)
-    clearAnimStyle(this._middle)
-    clearAnimStyle(this._suffix)
-    clearAnimStyle(this._tail)
+    clearRun(this._prefix)
+    clearRun(this._middle)
+    clearRun(this._suffix)
+    clearRun(this._tail)
     for (let i = 0; i < this._chars.length; i++) resetAnim(this._chars[i])
 
     this._exitQueue = []

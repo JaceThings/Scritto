@@ -132,6 +132,30 @@ const results = await page.evaluate(async () => {
     ok: !autoFade && alwaysFade && !neverFade,
   })
 
+  // A value with spaces wraps like the text around it; one without never breaks.
+  const column = async (text: string, width: number) => {
+    const box = document.createElement('div')
+    box.style.cssText = `position:fixed;top:200px;left:0;width:${width}px;font-size:16px`
+    const inside = document.createElement('scritto-text') as Scritto
+    box.append(inside)
+    document.body.append(box)
+    inside.value = text
+    await settle(80)
+    const rect = inside.getBoundingClientRect()
+    const lines = inside.getClientRects().length
+    const overflow = rect.right - box.getBoundingClientRect().right
+    box.remove()
+    return { lines, overflow }
+  }
+  const tooWide = await column('every word of this sentence has to go somewhere', 160)
+  const fits = await column('four short words here', 400)
+  const unbreakable = await column('123,456,789,012,345', 160)
+  out.push({
+    page: 'API',
+    says: 'a value breaks between its words when the line runs out, never inside one',
+    ok: tooWide.lines > 1 && tooWide.overflow < 0.5 && fits.lines === 1 && unbreakable.lines === 1,
+  })
+
   el.setOptions({ trend: 1, transition: { duration: 900 }, bounce: true })
   out.push({
     page: 'API, Recipes',
