@@ -1,10 +1,20 @@
-@import 'tailwindcss';
+/* Auto-scan would also pull src/dev and the five check pages, so every
+   production stylesheet would ship their utilities. Pin sources to the
+   shipped HTML: JS comments in lib/components (`collapse`, `invisible`)
+   are not class names, and the pages do not construct utilities at runtime. */
+@import 'tailwindcss' source(none);
+@source '../../index.html';
+@source '../../playground.html';
+@source '../../studio.html';
+/* Dev pages, so their utilities exist under `bun run play`. Costs the shipped
+   sheet ~190 bytes gzipped; a second Tailwind pass for them cannot see the
+   theme's spacing scale, so this is the cheap way that actually works. */
+@source '../../versus.html';
+@source '../../resize.html';
+@source '../../partials';
 @import '@scritto/core/ssr.css';
-
 @import './tokens.css';
 @import './base.css';
-@import './install.css';
-@import './playground.css';
 
 /* Fontsource's barrel pulls every script into dist. Only latin is used; the
    roman face keeps that full latin range so playground/studio user text still

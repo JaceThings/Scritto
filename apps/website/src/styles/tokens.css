@@ -5,7 +5,7 @@
    white ring, rather than a tinted card behind a warm one. Its heading and
    body layers still carry the light fills, so those two keep ja.mt's dark
    pair, which is what they read as on that site. */
-@theme inline {
+@theme static inline {
   --color-bg: var(--bg);
   --color-surface: var(--surface);
   --color-figure: var(--figure);
@@ -95,7 +95,7 @@
   --shadow-install: 0 0 0 1px rgba(255, 255, 255, 0.1);
 }
 
-@theme {
+@theme static {
   --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
     monospace;
