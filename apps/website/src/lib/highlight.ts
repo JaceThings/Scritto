@@ -1,4 +1,4 @@
-import { highlightSelection } from '@highlighters/core'
+import type { MarkHandle } from '@highlighters/core'
 
 const STYLE_ID = 'selection-highlight-styles'
 const TOUCH = '(hover: none) and (pointer: coarse)'
@@ -19,32 +19,70 @@ const isDark = () =>
   document.documentElement.dataset.theme === 'dark' ||
   (document.documentElement.dataset.theme !== 'light' && matchMedia(DARK).matches)
 
+const ink = () => (isDark() ? DARK_INK : LIGHT)
+
 /**
- * `::selection` is only suppressed once this is running, so the browser's own
- * paint stands in if the script never does.
+ * `::selection` is only suppressed once the overlay is actually painting, so
+ * the browser's own highlight stands in for the first selection (and if the
+ * script never loads).
  */
 export const startSelectionHighlight = () => {
   if (matchMedia(TOUCH).matches) return () => {}
 
-  if (!document.getElementById(STYLE_ID)) {
-    const style = document.createElement('style')
-    style.id = STYLE_ID
-    style.textContent = 'html.selection-highlight-ready ::selection { background-color: transparent; color: inherit }'
-    document.head.append(style)
-  }
-  document.documentElement.classList.add('selection-highlight-ready')
+  let stopped = false
+  let mark: MarkHandle | undefined
+  let scheme: MediaQueryList | undefined
+  let themed: MutationObserver | undefined
+  let restyle: (() => void) | undefined
 
-  const mark = highlightSelection(isDark() ? DARK_INK : LIGHT)
-  const scheme = matchMedia(DARK)
-  const restyle = () => mark.update(isDark() ? DARK_INK : LIGHT)
-  scheme.addEventListener('change', restyle)
-  const themed = new MutationObserver(restyle)
-  themed.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  const install = ({ highlightSelection }: typeof import('@highlighters/core')) => {
+    if (stopped || mark) return
+
+    if (!document.getElementById(STYLE_ID)) {
+      const style = document.createElement('style')
+      style.id = STYLE_ID
+      style.textContent = 'html.selection-highlight-ready ::selection { background-color: transparent; color: inherit }'
+      document.head.append(style)
+    }
+    document.documentElement.classList.add('selection-highlight-ready')
+
+    mark = highlightSelection(ink())
+    scheme = matchMedia(DARK)
+    restyle = () => mark?.update(ink())
+    scheme.addEventListener('change', restyle)
+    themed = new MutationObserver(restyle)
+    themed.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] })
+  }
+
+  const drop = () => {
+    document.removeEventListener('selectstart', onSelectStart)
+    document.removeEventListener('selectionchange', onSelectionChange)
+  }
+
+  const load = () => {
+    drop()
+    void import('@highlighters/core').then(install)
+  }
+
+  // The DOM event is `selectstart` (not `selectionstart`). It covers drag-select
+  // and Chromium Ctrl/Cmd+A; Firefox Select All never fires it (bug 1742153), so
+  // `selectionchange` is the keyboard fallback. `pointerdown` would fetch on
+  // clicks that never select.
+  const onSelectStart = () => load()
+  const onSelectionChange = () => {
+    if (getSelection()?.isCollapsed !== false) return
+    load()
+  }
+
+  document.addEventListener('selectstart', onSelectStart, { once: true })
+  document.addEventListener('selectionchange', onSelectionChange)
 
   return () => {
-    scheme.removeEventListener('change', restyle)
-    themed.disconnect()
-    mark.remove()
+    stopped = true
+    drop()
+    if (scheme && restyle) scheme.removeEventListener('change', restyle)
+    themed?.disconnect()
+    mark?.remove()
     document.documentElement.classList.remove('selection-highlight-ready')
   }
 }
