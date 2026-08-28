@@ -44,8 +44,29 @@ const partials = (): Plugin => {
   }
 }
 
+/**
+ * Roman Inter is discovered only after the render-blocking stylesheet parses.
+ * Injected before Vite rewrites HTML URLs so the href is hashed to the same
+ * woff2 the `@font-face` in site.css emits, rather than a path that 404s.
+ */
+const ROMAN_FONT = './node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2'
+
+const romanPreload = (): Plugin => ({
+  name: 'roman-font-preload',
+  transformIndexHtml: {
+    order: 'pre',
+    handler: (html, ctx) => {
+      if (!PAGES.some((page) => ctx.filename.endsWith(`${page}.html`))) return html
+      return html.replace(
+        '</title>',
+        `</title>\n    <link rel="preload" as="font" type="font/woff2" crossorigin href="${ROMAN_FONT}" />`,
+      )
+    },
+  },
+})
+
 export default defineConfig({
-  plugins: [tailwindcss(), partials()],
+  plugins: [tailwindcss(), partials(), romanPreload()],
   resolve: {
     alias: [
       { find: /^@scritto\/core$/, replacement: path('../../packages/core/src/index.ts') },
