@@ -6,6 +6,11 @@ type Redis = {
   set(key: string, value: string, ...args: (string | number)[]): Promise<string | null>
   incr(key: string): Promise<number>
   send(command: string, args: string[]): Promise<RedisReply>
+  publish(channel: string, message: string): Promise<number>
+  duplicate(): Promise<Redis>
+  subscribe(channel: string, listener: (message: string, channel: string) => void): Promise<number>
+  close(): void
+  onclose: ((error: Error | null) => void) | null
 }
 
 type Env = {
@@ -22,7 +27,7 @@ type Env = {
 }
 
 type Ctx = {
-  upgrade(req: Request): boolean
+  upgrade(req: Request, options?: { data: SocketData }): boolean
   waitUntil(task: Promise<unknown>): void
 }
 
@@ -35,6 +40,8 @@ type Stats = {
   npm: number
 }
 
+type Totals = Pick<Stats, 'views' | 'uniques' | 'clicks' | 'npm'>
+
 /** A request body, already validated: every field is either usable or absent. */
 type Body = {
   vid: string | null
@@ -45,6 +52,28 @@ type Body = {
 
 /** Anything this server answers with. */
 type JsonBody = { [key: string]: string | number | boolean | null | JsonBody }
+
+type Runtime = {
+  env: Env
+  instance: string
+  sockets: Set<WebSocket>
+  sidSockets: Map<string, Set<WebSocket>>
+  totals: Totals
+  here: number
+  ready: Promise<void>
+  presence: Promise<void>
+  subscriber: Redis | null
+  subscribing: boolean
+  subscriberRetry: ReturnType<typeof setTimeout> | null
+}
+
+type SocketData = {
+  runtime: Runtime
+  sid: string
+  ipHash: string
+}
+
+type LiveSocket = WebSocket & { data?: SocketData }
 
 const ID_PATTERN = /^[a-z0-9-]{8,64}$/i
 
@@ -61,7 +90,24 @@ const countAt = (raw: unknown, key: string) => {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null
 }
 
-const sockets = new Set<WebSocket>()
+const statsAt = (raw: unknown): Stats | null => {
+  const valueAt = (name: keyof Stats) => {
+    const value = fieldOf(raw, name)
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
+  }
+  const views = valueAt('views')
+  const uniques = valueAt('uniques')
+  const you = valueAt('you')
+  const here = valueAt('here')
+  const clicks = valueAt('clicks')
+  const npm = valueAt('npm')
+  if (views === null || uniques === null || you === null || here === null || clicks === null || npm === null) {
+    return null
+  }
+  return { views, uniques, you, here, clicks, npm }
+}
+
+const runtimes = new WeakMap<Env, Runtime>()
 const NPM_PKGS = [
   '@scritto/core',
   '@scritto/react',
@@ -70,6 +116,9 @@ const NPM_PKGS = [
   '@scritto/solid',
 ]
 const PRESENCE_MS = 45_000
+const PRESENCE_REFRESH_MS = 15_000
+const COUNTER_REFRESH_MS = 30_000
+const PUBSUB_RETRY_MS = 1000
 const VIEW_GATE_S = 15
 const NPM_TTL_MS = 10 * 60 * 1000
 const NPM_RETRY_MS = 60 * 1000
@@ -208,24 +257,147 @@ const counters = async (env: Env) => {
   return { views, uniques, clicks, npm }
 }
 
-const snapshot = async (env: Env, you: number, here: number): Promise<Stats> => ({
-  ...(await counters(env)),
+const mergeTotals = (runtime: Runtime, totals: Partial<Totals>) => {
+  runtime.totals = {
+    views: Math.max(runtime.totals.views, totals.views ?? 0),
+    uniques: Math.max(runtime.totals.uniques, totals.uniques ?? 0),
+    clicks: Math.max(runtime.totals.clicks, totals.clicks ?? 0),
+    npm: totals.npm ?? runtime.totals.npm,
+  }
+}
+
+const snapshot = (runtime: Runtime, you = 0, here = runtime.here): Stats => ({
+  ...runtime.totals,
   you,
   here,
 })
 
-const broadcast = (stats: Stats) => {
-  const payload = JSON.stringify(stats)
-  for (const socket of sockets) {
+const sameTotals = (left: Totals, right: Totals) =>
+  left.views === right.views && left.uniques === right.uniques && left.clicks === right.clicks && left.npm === right.npm
+
+const closeSocket = (ws: WebSocket) => {
+  const data = (ws as LiveSocket).data
+  // The registry is the record of an open socket, so a second close is a no-op.
+  if (!data || !data.runtime.sockets.delete(ws)) return
+  const peers = data.runtime.sidSockets.get(data.sid)
+  if (!peers) return
+  peers.delete(ws)
+  if (peers.size) return
+  data.runtime.sidSockets.delete(data.sid)
+  data.runtime.presence = data.runtime.presence.then(async () => {
+    await data.runtime.ready
+    const here = await setSocketPresence(data.runtime, data.sid, false)
+    data.runtime.here = here
+    broadcast(data.runtime, snapshot(data.runtime))
+  }).catch(() => {})
+}
+
+const fanOut = (runtime: Runtime, payload: string) => {
+  for (const socket of runtime.sockets) {
     try {
       socket.send(payload)
     } catch {
-      sockets.delete(socket)
+      closeSocket(socket)
     }
   }
 }
 
-const refreshNpm = async (env: Env) => {
+const receiveBroadcast = (runtime: Runtime, message: string) => {
+  try {
+    const raw = JSON.parse(message)
+    if (fieldOf(raw, 'source') === runtime.instance) return
+    const stats = statsAt(fieldOf(raw, 'stats'))
+    if (!stats) return
+    mergeTotals(runtime, stats)
+    runtime.here = stats.here
+    fanOut(runtime, JSON.stringify({ ...stats, you: 0 }))
+  } catch {
+    // ignore messages not written by this service
+  }
+}
+
+const retrySubscriber = (runtime: Runtime) => {
+  if (runtime.subscriberRetry) return
+  runtime.subscriberRetry = setTimeout(() => {
+    runtime.subscriberRetry = null
+    void startSubscriber(runtime)
+  }, PUBSUB_RETRY_MS)
+}
+
+const startSubscriber = async (runtime: Runtime) => {
+  if (runtime.subscriber || runtime.subscribing) return
+  runtime.subscribing = true
+  try {
+    // A subscribed connection cannot serve the counter and presence commands.
+    const subscriber = await runtime.env.redis.duplicate()
+    runtime.subscriber = subscriber
+    subscriber.onclose = () => {
+      if (runtime.subscriber !== subscriber) return
+      runtime.subscriber = null
+      runtime.subscribing = false
+      retrySubscriber(runtime)
+    }
+    await subscriber.subscribe(key(runtime.env, 'live'), (message) => receiveBroadcast(runtime, message))
+    runtime.subscribing = false
+  } catch {
+    runtime.subscriber?.close()
+    runtime.subscriber = null
+    runtime.subscribing = false
+    retrySubscriber(runtime)
+  }
+}
+
+const broadcast = (runtime: Runtime, stats: Stats) => {
+  const publicStats = { ...stats, you: 0 }
+  fanOut(runtime, JSON.stringify(publicStats))
+  const message = JSON.stringify({ source: runtime.instance, stats: publicStats })
+  runtime.env.redis.publish(key(runtime.env, 'live'), message).catch(() => retrySubscriber(runtime))
+}
+
+const initializeRuntime = async (runtime: Runtime) => {
+  const now = Date.now()
+  const [totals] = await Promise.all([
+    counters(runtime.env),
+    zremrange(runtime.env, 'here', now - PRESENCE_MS),
+  ])
+  mergeTotals(runtime, totals)
+  runtime.here = await zcard(runtime.env, 'here')
+}
+
+const refreshCounters = async (runtime: Runtime) => {
+  await runtime.ready
+  const previous = runtime.totals
+  const fresh = await counters(runtime.env)
+  runtime.totals = fresh
+  if (!sameTotals(previous, fresh)) broadcast(runtime, snapshot(runtime))
+}
+
+const getRuntime = (env: Env) => {
+  const existing = runtimes.get(env)
+  if (existing) return existing
+  const runtime: Runtime = {
+    env,
+    instance: crypto.randomUUID(),
+    sockets: new Set(),
+    sidSockets: new Map(),
+    totals: { views: 0, uniques: 0, clicks: 0, npm: 0 },
+    here: 0,
+    ready: Promise.resolve(),
+    presence: Promise.resolve(),
+    subscriber: null,
+    subscribing: false,
+    subscriberRetry: null,
+  }
+  runtime.ready = initializeRuntime(runtime)
+  runtimes.set(env, runtime)
+  void startSubscriber(runtime)
+  setInterval(() => void refreshCounters(runtime).catch(() => {}), COUNTER_REFRESH_MS)
+  setInterval(() => void refreshSocketPresence(runtime).catch(() => {}), PRESENCE_REFRESH_MS)
+  return runtime
+}
+
+const refreshNpm = async (runtime: Runtime) => {
+  const env = runtime.env
   const stamped = Number(await env.redis.get(key(env, 'npmAt'))) || 0
   if (Date.now() - stamped < NPM_TTL_MS) return
   // Claimed before the work so concurrent requests do not all fetch, but only
@@ -251,6 +423,9 @@ const refreshNpm = async (env: Env) => {
   if (!answered) return
   await env.redis.set(key(env, 'npm'), String(total))
   await env.redis.set(key(env, 'npmAt'), String(Date.now()))
+  if (runtime.totals.npm === total) return
+  mergeTotals(runtime, { npm: total })
+  broadcast(runtime, snapshot(runtime))
 }
 
 // Read-then-increment let two tabs opening together take the same ordinal.
@@ -280,12 +455,12 @@ const identify = async (env: Env, vid: string, ipHash: string) => {
 const gatedIncr = async (env: Env, gate: string, counter: string, ttl: number) => {
   const gateKey = key(env, gate)
   const n = Number(await env.redis.send('INCR', [gateKey]))
-  if (n !== 1) return false
-  await Promise.all([
+  if (n !== 1) return null
+  const [, total] = await Promise.all([
     env.redis.send('EXPIRE', [gateKey, String(ttl)]),
     env.redis.incr(key(env, counter)),
-  ])
-  return true
+  ] as const)
+  return total
 }
 
 const readBody = async (req: Request): Promise<Body> => {
@@ -294,28 +469,35 @@ const readBody = async (req: Request): Promise<Body> => {
 }
 
 const hello = async (req: Request, env: Env, ctx: Ctx) => {
+  const runtime = getRuntime(env)
+  await runtime.ready
   const body = await readBody(req)
   const vid = body.vid ?? crypto.randomUUID()
   const sid = body.sid ?? crypto.randomUUID()
   const ipHash = await digest(`${env.IP_SALT ?? 'scritto'}:${clientIp(req, env)}`)
-  const [you, here] = await Promise.all([
+  const [you, here, view] = await Promise.all([
     identify(env, vid, ipHash),
     touchPresence(env, sid),
-    counts(req, env) ? gatedIncr(env, `vgate:${ipHash}`, 'views', VIEW_GATE_S) : false,
+    counts(req, env) ? gatedIncr(env, `vgate:${ipHash}`, 'views', VIEW_GATE_S) : null,
   ])
-  ctx.waitUntil(refreshNpm(env))
-  const stats = await snapshot(env, you, here)
-  broadcast({ ...stats, you: 0 })
+  runtime.here = here
+  mergeTotals(runtime, { views: view ?? runtime.totals.views, uniques: you })
+  ctx.waitUntil(refreshNpm(runtime))
+  const stats = snapshot(runtime, you, here)
+  broadcast(runtime, stats)
   return json({ ...stats, vid, sid })
 }
 
 const beat = async (req: Request, env: Env) => {
+  const runtime = getRuntime(env)
+  await runtime.ready
   const body = await readBody(req)
   if (!body.sid) return json({ error: 'sid required' }, 400)
   const here = await touchPresence(env, body.sid)
-  const stats = await snapshot(env, 0, here)
-  broadcast(stats)
-  return json(stats)
+  runtime.here = here
+  const current = snapshot(runtime, 0, here)
+  broadcast(runtime, current)
+  return json(current)
 }
 
 // Reading the run total, charging the budget and advancing the counters is one
@@ -326,26 +508,29 @@ const beat = async (req: Request, env: Env) => {
 // was granted — the rest stays unbanked for the client's next write.
 const BANK_LUA = `
 local banked = tonumber(redis.call('GET', KEYS[1]) or '0')
+local clicks = tonumber(redis.call('GET', KEYS[2]) or '0')
 local want = tonumber(ARGV[1]) - banked
 local cap = tonumber(ARGV[2])
 if want > cap then want = cap end
 if want <= 0 then
   if banked > 0 then redis.call('EXPIRE', KEYS[1], ARGV[5]) end
-  return banked
+  return { banked, clicks }
 end
 local used = redis.call('INCRBY', KEYS[3], want)
 if used == want then redis.call('EXPIRE', KEYS[3], ARGV[4]) end
 local granted = tonumber(ARGV[3]) - (used - want)
 if granted > want then granted = want end
 if granted < 0 then granted = 0 end
-if granted > 0 then redis.call('INCRBY', KEYS[2], granted) end
+if granted > 0 then clicks = redis.call('INCRBY', KEYS[2], granted) end
 local total = banked + granted
 if total > 0 then redis.call('SET', KEYS[1], total, 'EX', ARGV[5]) end
-return total
+return { total, clicks }
 `
 
-const bank = async (env: Env, ipHash: string, run: string, seq: number) => {
-  const total = await env.redis.send('EVAL', [
+type Banked = { acked: number; clicks: number }
+
+const bank = async (env: Env, ipHash: string, run: string, seq: number): Promise<Banked> => {
+  const result = await env.redis.send('EVAL', [
     BANK_LUA,
     '3',
     key(env, `run:${run}`),
@@ -357,28 +542,163 @@ const bank = async (env: Env, ipHash: string, run: string, seq: number) => {
     String(CLICK_WINDOW_S),
     String(CLICK_RUN_TTL_S),
   ])
-  return Number(total) || 0
+  if (!Array.isArray(result)) return { acked: 0, clicks: 0 }
+  return { acked: Number(result[0]) || 0, clicks: Number(result[1]) || 0 }
 }
 
 const click = async (req: Request, env: Env) => {
+  const runtime = getRuntime(env)
+  await runtime.ready
   const { run, seq, sid } = await readBody(req)
   const ipHash = await digest(`${env.IP_SALT ?? 'scritto'}:${clientIp(req, env)}`)
-  const [acked, here] = await Promise.all([
-    run && seq !== null
-      ? bank(env, ipHash, run, seq)
-      // A bundle cached before this endpoint counted still posts a bare poke.
-      : gatedIncr(env, `legacygate:${ipHash}`, 'clicks', CLICK_GATE_S).then(() => 0),
+  const banking: Promise<Banked> = run && seq !== null
+    ? bank(env, ipHash, run, seq)
+    // A bundle cached before this endpoint counted still posts a bare poke.
+    : gatedIncr(env, `legacygate:${ipHash}`, 'clicks', CLICK_GATE_S)
+        .then((clicks) => ({ acked: 0, clicks: clicks ?? runtime.totals.clicks }))
+  const [result, here] = await Promise.all([
+    banking,
     sid ? touchPresence(env, sid) : zcard(env, 'here'),
   ])
-  const stats = await snapshot(env, 0, here)
-  broadcast(stats)
-  return json({ ...stats, acked })
+  mergeTotals(runtime, { clicks: result.clicks })
+  runtime.here = here
+  const current = snapshot(runtime, 0, here)
+  broadcast(runtime, current)
+  return json({ ...current, acked: result.acked })
 }
 
 const stats = async (env: Env) => {
+  const runtime = getRuntime(env)
+  await runtime.ready
   await zremrange(env, 'here', Date.now() - PRESENCE_MS)
-  const [here, totals] = await Promise.all([zcard(env, 'here'), counters(env)])
-  return json({ ...totals, you: 0, here })
+  runtime.here = await zcard(env, 'here')
+  return json(snapshot(runtime))
+}
+
+// A process ref keeps a second tab, or a tab on another replica, from being
+// removed when the first socket closes. Scores still expire after a dead
+// process because no close handler can be promised in that case.
+const SOCKET_PRESENCE_LUA = `
+local now = tonumber(ARGV[2])
+local cutoff = tonumber(ARGV[3])
+if ARGV[1] == '1' then
+  redis.call('ZADD', KEYS[2], now, ARGV[5])
+  redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', cutoff)
+  redis.call('PEXPIRE', KEYS[2], ARGV[6])
+  redis.call('ZADD', KEYS[1], now, ARGV[4])
+else
+  redis.call('ZREM', KEYS[2], ARGV[5])
+  redis.call('ZREMRANGEBYSCORE', KEYS[2], '-inf', cutoff)
+  if redis.call('ZCARD', KEYS[2]) == 0 then
+    redis.call('DEL', KEYS[2])
+    redis.call('ZREM', KEYS[1], ARGV[4])
+  end
+end
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', cutoff)
+return redis.call('ZCARD', KEYS[1])
+`
+
+const setSocketPresence = async (runtime: Runtime, sid: string, present: boolean) => {
+  const now = Date.now()
+  const here = await runtime.env.redis.send('EVAL', [
+    SOCKET_PRESENCE_LUA,
+    '2',
+    key(runtime.env, 'here'),
+    key(runtime.env, `hereRefs:${sid}`),
+    present ? '1' : '0',
+    String(now),
+    String(now - PRESENCE_MS),
+    sid,
+    runtime.instance,
+    String(PRESENCE_MS * 2),
+  ])
+  return Number(here) || 0
+}
+
+const REFRESH_PRESENCE_LUA = `
+local now = tonumber(ARGV[1])
+local cutoff = tonumber(ARGV[2])
+for i = 2, #KEYS do
+  redis.call('ZADD', KEYS[i], now, ARGV[3])
+  redis.call('ZREMRANGEBYSCORE', KEYS[i], '-inf', cutoff)
+  redis.call('PEXPIRE', KEYS[i], ARGV[4])
+  redis.call('ZADD', KEYS[1], now, ARGV[i + 3])
+end
+redis.call('ZREMRANGEBYSCORE', KEYS[1], '-inf', cutoff)
+return redis.call('ZCARD', KEYS[1])
+`
+
+const refreshSocketPresence = async (runtime: Runtime) => {
+  await runtime.ready
+  const sids = [...runtime.sidSockets.keys()]
+  const now = Date.now()
+  const here = await runtime.env.redis.send('EVAL', [
+    REFRESH_PRESENCE_LUA,
+    String(sids.length + 1),
+    key(runtime.env, 'here'),
+    ...sids.map((sid) => key(runtime.env, `hereRefs:${sid}`)),
+    String(now),
+    String(now - PRESENCE_MS),
+    runtime.instance,
+    String(PRESENCE_MS * 2),
+    ...sids,
+  ])
+  const count = Number(here) || 0
+  if (count === runtime.here) return
+  runtime.here = count
+  broadcast(runtime, snapshot(runtime))
+}
+
+const openSocket = (ws: WebSocket) => {
+  const data = (ws as LiveSocket).data
+  if (!data) {
+    ws.close(1008, 'missing identity')
+    return
+  }
+  data.runtime.sockets.add(ws)
+  const peers = data.runtime.sidSockets.get(data.sid) ?? new Set<WebSocket>()
+  const first = peers.size === 0
+  peers.add(ws)
+  data.runtime.sidSockets.set(data.sid, peers)
+  if (!first) return
+  data.runtime.presence = data.runtime.presence.then(async () => {
+    await data.runtime.ready
+    const here = await setSocketPresence(data.runtime, data.sid, true)
+    data.runtime.here = here
+    broadcast(data.runtime, snapshot(data.runtime))
+  }).catch(() => {})
+}
+
+const socketMessage = async (ws: WebSocket, message: string | ArrayBuffer | Uint8Array) => {
+  const data = (ws as LiveSocket).data
+  if (!data) return
+  const text = typeof message === 'string'
+    ? message
+    : new TextDecoder().decode(message instanceof ArrayBuffer ? new Uint8Array(message) : message)
+  if (text.length > 512) {
+    ws.close(1009, 'message too large')
+    return
+  }
+  const parsed = (() => {
+    try {
+      return JSON.parse(text)
+    } catch {
+      return null
+    }
+  })()
+  const run = idAt(parsed, 'run')
+  const seq = countAt(parsed, 'seq')
+  if (!run || seq === null) return
+  await data.runtime.ready
+  const result = await bank(data.runtime.env, data.ipHash, run, seq)
+  mergeTotals(data.runtime, { clicks: result.clicks })
+  const current = snapshot(data.runtime)
+  broadcast(data.runtime, current)
+  try {
+    ws.send(JSON.stringify({ ...current, acked: result.acked }))
+  } catch {
+    closeSocket(ws)
+  }
 }
 
 // Which header carries the real client IP depends on what Cloudflare and
@@ -403,8 +723,18 @@ export default {
     if (url.pathname === '/debug/headers' && req.method === 'GET') return headerEcho(req, env, url)
     if (url.pathname === '/live' && req.headers.get('upgrade') === 'websocket') {
       if (!mayConnect(req, env)) return json({ error: 'origin not allowed' }, 403)
-      if (sockets.size >= SOCKET_MAX) return json({ error: 'too many listeners' }, 503)
-      if (ctx.upgrade(req)) return
+      const runtime = getRuntime(env)
+      if (runtime.sockets.size >= SOCKET_MAX) return json({ error: 'too many listeners' }, 503)
+      const identity = { sid: url.searchParams.get('sid'), vid: url.searchParams.get('vid') }
+      const sid = idAt(identity, 'sid')
+      // The vid is validated but not carried: nothing past the handshake reads
+      // it, and only /hello mints an ordinal from one.
+      if (!sid || !idAt(identity, 'vid')) return json({ error: 'identity required' }, 400)
+      const ipHash = await digest(`${env.IP_SALT ?? 'scritto'}:${clientIp(req, env)}`)
+      const data = { runtime, sid, ipHash }
+      // Identity (sid, vid, client IP) is pinned on the socket at upgrade so a
+      // later handshake cannot inherit another connection's budget key.
+      if (ctx.upgrade(req, { data })) return
     }
     if (url.pathname === '/hello' && req.method === 'POST') return hello(req, env, ctx)
     if (url.pathname === '/beat' && req.method === 'POST') return beat(req, env)
@@ -415,10 +745,13 @@ export default {
   },
   websocket: {
     open(ws: WebSocket) {
-      sockets.add(ws)
+      openSocket(ws)
     },
     close(ws: WebSocket) {
-      sockets.delete(ws)
+      closeSocket(ws)
+    },
+    message(ws: WebSocket, message: string | ArrayBuffer | Uint8Array) {
+      void socketMessage(ws, message).catch(() => {})
     },
   },
 }

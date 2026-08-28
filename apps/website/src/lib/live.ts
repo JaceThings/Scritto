@@ -25,7 +25,7 @@ const id = (key: string) => {
 const body = (extra: Record<string, string | number>) =>
   JSON.stringify({ vid: id(VID), sid: id(SID), ...extra })
 
-type Reply = Stats & { acked: number }
+type Reply = Stats & { acked: number; hasAck: boolean }
 
 // Error bodies are valid JSON too, and one undefined reaching the arithmetic
 // sticks "NaN" on screen.
@@ -44,14 +44,20 @@ const parseReply = (raw: unknown): Reply | null => {
   if (views === null || uniques === null || you === null || here === null || clicks === null || npm === null) {
     return null
   }
-  return { views, uniques, you, here, clicks, npm, acked: at('acked') ?? 0 }
+  const acked = at('acked')
+  return { views, uniques, you, here, clicks, npm, acked: acked ?? 0, hasAck: acked !== null }
 }
 
-const post = async (path: string, extra: Record<string, string | number> = {}) => {
+const post = async (
+  path: string,
+  extra: Record<string, string | number> = {},
+  signal?: AbortSignal,
+) => {
   const res = await fetch(`${LIVE_URL}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'text/plain;charset=UTF-8' },
     body: body(extra),
+    signal,
   })
   if (!res.ok) throw new Error(`${path} ${res.status}`)
   const reply = parseReply(await res.json())
@@ -60,6 +66,7 @@ const post = async (path: string, extra: Record<string, string | number> = {}) =
 }
 
 const CLICK_WRITE_MS = 2000
+const SOCKET_ACK_MS = 4000
 
 const SOCKET_BASE_MS = 400
 const SOCKET_MAX_MS = 30_000
@@ -76,84 +83,80 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
   let acked = 0
   let wrote = 0
   let queued = 0
+  let frame = 0
+  let writeTimeout = 0
   let sending = false
+  let inflight = 0
+  let transport: 'http' | 'socket' | null = null
+  let blockedUntil = 0
+  let socket: WebSocket | null = null
+  let reconnect = 0
+  let retries = 0
+  let stopped = false
+  const requests = new AbortController()
+  const send = (path: string, extra: Record<string, string | number> = {}) =>
+    post(path, extra, requests.signal)
 
   // Clamping to our own count would hide everyone else's while we are ahead.
   let server = 0
   const shown = () => server + Math.max(0, seq - acked)
 
   const emit = (stats: Stats) => {
-    latest = stats
-    onStats(stats)
+    if (stopped) return
+    const next = latest
+      ? {
+          ...stats,
+          views: Math.max(latest.views, stats.views),
+          uniques: Math.max(latest.uniques, stats.uniques),
+        }
+      : stats
+    latest = next
+    onStats(next)
   }
 
   const apply = (stats: Stats, from: 'hello' | 'write' | 'feed' = 'feed') => {
     if (from === 'hello' && stats.you) you = stats.you
     // A frame overlapping one of our writes may already count what it banks.
     if (from === 'write' || !sending) server = Math.max(server, stats.clicks)
-    emit({ ...stats, you, clicks: shown() })
+    emit({
+      views: stats.views,
+      uniques: stats.uniques,
+      you,
+      here: stats.here,
+      clicks: shown(),
+      npm: stats.npm,
+    })
   }
 
-  const hello = () => post('/hello').then((stats) => apply(stats, 'hello')).catch(() => {})
+  const hello = () => send('/hello').then((stats) => apply(stats, 'hello')).catch(() => {})
   hello()
 
   const beat = window.setInterval(() => {
-    post('/beat').then((stats) => apply(stats)).catch(() => {})
+    if (socket?.readyState === WebSocket.OPEN) return
+    send('/beat').then((stats) => apply(stats)).catch(() => {})
   }, 15_000)
 
   const poll = window.setInterval(() => {
-    fetch(`${LIVE_URL}/stats`)
+    if (socket?.readyState === WebSocket.OPEN) return
+    fetch(`${LIVE_URL}/stats`, { signal: requests.signal })
       .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`stats ${res.status}`))))
-      .then((stats: Stats) => apply(stats))
+      .then((raw) => {
+        const stats = parseReply(raw)
+        if (stats) apply(stats)
+      })
       .catch(() => {})
   }, 4000)
 
-  let socket: WebSocket | null = null
-  let reconnect = 0
-  let retries = 0
-  let stopped = false
-  const listen = () => {
+  const finish = (stats: Reply, total: number) => {
+    window.clearTimeout(writeTimeout)
+    writeTimeout = 0
     if (stopped) return
-    const url = LIVE_URL.replace(/^http/, 'ws') + '/live'
-    socket = new WebSocket(url)
-    let openedAt = 0
-    socket.onmessage = (event) => {
-      try {
-        const frame = parseReply(JSON.parse(String(event.data)))
-        if (frame) apply(frame)
-      } catch {
-        // ignore unparseable frames
-      }
-    }
-    socket.onopen = () => {
-      openedAt = Date.now()
-    }
-    socket.onclose = () => {
-      socket = null
-      // A close we started must not reconnect: the timer would outlive the page.
-      if (stopped) return
-      // Or a server that accepts and drops is retried at 400ms forever.
-      if (openedAt && Date.now() - openedAt >= SOCKET_HEALTHY_MS) retries = 0
-      const wait = Math.min(SOCKET_MAX_MS, SOCKET_BASE_MS * 2 ** retries++)
-      reconnect = window.setTimeout(listen, wait / 2 + Math.random() * (wait / 2))
-    }
-  }
-  listen()
-
-  const write = async () => {
-    queued = 0
-    if (sending || acked >= seq) return
-    sending = true
-    wrote = Date.now()
-    const total = seq
-    try {
-      const stats = await post('/click', { run, seq: total })
-      acked = Math.max(acked, stats.acked || total)
-      apply(stats, 'write')
-    } catch {
-      // Leave acked alone; the next write re-sends the same total.
-    }
+    acked = Math.max(acked, stats.hasAck ? stats.acked : total)
+    apply(stats, 'write')
     sending = false
+    transport = null
+    // A refusal is retried at the old HTTP cadence rather than once a frame.
+    if (acked < total) blockedUntil = Date.now() + CLICK_WRITE_MS
     // Whatever the per-IP budget declined stays pending for the next write.
     if (acked < seq) {
       schedule()
@@ -165,12 +168,100 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
     acked = 0
   }
 
+  const write = async () => {
+    queued = 0
+    frame = 0
+    if (stopped || sending || acked >= seq) return
+    sending = true
+    const total = seq
+    inflight = total
+    if (socket?.readyState === WebSocket.OPEN) {
+      transport = 'socket'
+      try {
+        socket.send(JSON.stringify({ run, seq: total }))
+        writeTimeout = window.setTimeout(() => socket?.close(), SOCKET_ACK_MS)
+      } catch {
+        sending = false
+        transport = null
+        schedule()
+      }
+      return
+    }
+    transport = 'http'
+    wrote = Date.now()
+    try {
+      const stats = await send('/click', { run, seq: total })
+      finish(stats, total)
+    } catch {
+      // Leave acked alone; the next write re-sends the same total.
+      sending = false
+      transport = null
+      schedule()
+    }
+  }
+
   const schedule = () => {
-    if (queued || sending) return
+    if (stopped || queued || frame || sending || acked >= seq) return
+    const blocked = blockedUntil - Date.now()
+    if (blocked > 0) {
+      queued = window.setTimeout(write, blocked)
+      return
+    }
+    if (socket?.readyState === WebSocket.OPEN) {
+      frame = window.requestAnimationFrame(() => void write())
+      return
+    }
     const wait = CLICK_WRITE_MS - (Date.now() - wrote)
     if (wait <= 0) void write()
     else queued = window.setTimeout(write, wait)
   }
+
+  const listen = () => {
+    if (stopped) return
+    const url = new URL(LIVE_URL.replace(/^http/, 'ws') + '/live')
+    url.searchParams.set('sid', id(SID))
+    url.searchParams.set('vid', id(VID))
+    socket = new WebSocket(url)
+    let openedAt = 0
+    socket.onmessage = (event) => {
+      try {
+        const frame = parseReply(JSON.parse(String(event.data)))
+        if (!frame) return
+        if (frame.hasAck && transport === 'socket') {
+          finish(frame, inflight)
+          return
+        }
+        apply(frame)
+      } catch {
+        // ignore unparseable frames
+      }
+    }
+    socket.onopen = () => {
+      openedAt = Date.now()
+      window.clearTimeout(queued)
+      queued = 0
+      schedule()
+    }
+    socket.onclose = () => {
+      socket = null
+      const retryWrite = transport === 'socket'
+      if (retryWrite) {
+        window.clearTimeout(writeTimeout)
+        writeTimeout = 0
+        sending = false
+        transport = null
+      }
+      // A close we started must not reconnect: the timer would outlive the page.
+      if (stopped) return
+      if (retryWrite) schedule()
+      send('/beat').then((stats) => apply(stats)).catch(() => {})
+      // Or a server that accepts and drops is retried at 400ms forever.
+      if (openedAt && Date.now() - openedAt >= SOCKET_HEALTHY_MS) retries = 0
+      const wait = Math.min(SOCKET_MAX_MS, SOCKET_BASE_MS * 2 ** retries++)
+      reconnect = window.setTimeout(listen, wait / 2 + Math.random() * (wait / 2))
+    }
+  }
+  listen()
 
   const onClick = () => {
     seq += 1
@@ -181,9 +272,10 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
 
   const flush = () => {
     if (acked >= seq) return
+    // A late beacon carrying sid could restore presence after the socket closes.
     navigator.sendBeacon(
       `${LIVE_URL}/click`,
-      new Blob([body({ run, seq })], { type: 'text/plain' }),
+      new Blob([JSON.stringify({ run, seq })], { type: 'text/plain' }),
     )
   }
   window.addEventListener('pagehide', flush)
@@ -191,9 +283,12 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
   return () => {
     flush()
     stopped = true
+    requests.abort()
     window.clearInterval(beat)
     window.clearInterval(poll)
     window.clearTimeout(queued)
+    window.cancelAnimationFrame(frame)
+    window.clearTimeout(writeTimeout)
     window.clearTimeout(reconnect)
     document.removeEventListener('click', onClick)
     window.removeEventListener('pagehide', flush)
