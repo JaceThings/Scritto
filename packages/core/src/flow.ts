@@ -27,11 +27,10 @@ const SETTLE_SLACK = 50
 const GUTTER = '1rem'
 const CLIP_STYLE = `position:absolute;top:0;bottom:0;left:-${GUTTER};right:-${GUTTER};overflow:hidden;pointer-events:none;mask-image:linear-gradient(90deg,transparent,#000 ${GUTTER},#000 calc(100% - ${GUTTER}),transparent)`
 
-/** Flow-relative, since ghosts are positioned inside the clip. */
+// The first fragment, not the union: a value that wrapped spans the whole column,
+// and comparing that against the single line it becomes reads as the host jumping
+// a line's indent sideways.
 const boxOf = (el: HTMLElement, origin: DOMRect, insetX: number, insetY: number): Box => {
-  // The first fragment, not the union: a value that wrapped spans the whole column,
-  // and comparing that against the single line it becomes reads as the host jumping
-  // a line's indent sideways.
   const rect = el.getClientRects()[0] ?? el.getBoundingClientRect()
   return {
     left: rect.left - origin.left - insetX,
@@ -235,8 +234,8 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     host.style.marginInlineEnd = ''
     host.style.display = ''
     host.style.textAlign = ''
-    // Not removed outright: ghosts outlive the box's own transition, and the band
-    // is theirs. The host lifts it when the last of them has gone.
+    // Ghosts outlive the box's transition and the band is theirs, so the host
+    // lifts it when the last of them has gone.
     host._clearBand?.()
   }
 
@@ -269,8 +268,7 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     const gen = this._gen
     const hosts = [...this._pending]
     this._pending.clear()
-    // A roll fades a staggered tail past its own duration, and anything paced
-    // here has to outlast it.
+    // A roll fades a staggered tail past its own duration, so this has to outlast it.
     let duration = 0
     for (const host of hosts) {
       duration = Math.max(duration, host.transition.duration + (host._exitTailMs?.() ?? 0))
@@ -290,12 +288,22 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     this._settleTimer = setTimeout(this._settle, duration + SETTLE_SLACK, gen)
   }
 
-  /**
-   * Only a shrink earns the mask: old ink reaches past where the box is heading
-   * and the neighbour slides in over it. Tested by reach, so an interrupted grow
-   * counts too.
-   */
   private _playHosts(hosts: FlowHost[], play: Play) {
+    let clipped = false
+    for (const host of hosts) {
+      if (this._armBand(host)) clipped = true
+      this._slideHost(host, play)
+      this._pinWidth(host, play)
+    }
+    return clipped
+  }
+
+  /** Only a shrink earns the mask, tested by reach so an interrupted grow counts too. */
+  private _armBand(host: FlowHost) {
+    const toW = this._toBox.get(host)?.width ?? 0
+    // Ink that wrapped has no single edge to fade against, and a ramp measured on
+    // one line's box masks the other line away entirely.
+    if ((host._exitEndPx?.() ?? 0) <= toW + 0.5 || host._exitsWrapped?.()) return false
     const { _first: first, _last: last } = this
     const lineH = first[0]?.height || 1
     const disturbed =
@@ -305,63 +313,61 @@ class ScrittoFlow extends ServerSafeHTMLElement {
         return !!b && (Math.abs(b.left - a.left) >= 0.5 || Math.abs(b.top - a.top) >= lineH * 0.5)
       })
     // Overlap, not equal tops: a word box is the line box, a host's only its glyphs.
-    const followed = (boxes: Box[], host: Box | undefined) =>
-      !!host &&
+    const followed = (boxes: Box[], box: Box | undefined) =>
+      !!box &&
       boxes.some(
         (b) =>
-          Math.min(b.top + b.height, host.top + host.height) - Math.max(b.top, host.top) >
-            Math.min(b.height, host.height) * 0.5 && b.left >= host.left + host.width - 0.5,
+          Math.min(b.top + b.height, box.top + box.height) - Math.max(b.top, box.top) >
+            Math.min(b.height, box.height) * 0.5 && b.left >= box.left + box.width - 0.5,
       )
-
-    let clipped = false
-    for (const host of hosts) {
-      const from = this._fromBox.get(host)
-      const to = this._toBox.get(host)
-      const fromW = from?.width ?? 0
-      const toW = to?.width ?? 0
-      // Ink that wrapped has no single edge to fade against, and a ramp measured on
-      // one line's box masks the other line away entirely.
-      const overhang = (host._exitEndPx?.() ?? 0) > toW + 0.5 && !host._exitsWrapped?.()
-      if (overhang && (disturbed || followed(first, from) || followed(last, to))) {
-        host.setAttribute('data-shrink-clip', '')
-        clipped = true
-      }
-      // The box already sits where it ends up, but a line that re-centred slides
-      // it in from where it was. One that changed line does not fly there.
-      if (from && to && Math.abs(from.top - to.top) < Math.min(from.height, to.height) * 0.5) {
-        const shift = this._rtl ? from.left + from.width - (to.left + to.width) : from.left - to.left
-        if (Math.abs(shift) >= 0.5) {
-          host.style.transform = `translateX(${shift}px)`
-          this._touched.push(host)
-          play(host, [{ transform: `translateX(${shift}px)` }, { transform: 'none' }], () => {
-            host.style.transform = ''
-          })
-        }
-      }
-      // A value spanning lines has no single width to pin, and pinning one to
-      // the width of a single line would reflow the paragraph under it.
-      if (Math.abs(toW - fromW) < 0.5 || host.getClientRects().length > 1) continue
-      // Held for the pin below: ink free to wrap takes a second line inside a
-      // box held narrower than itself, and the block grows for the whole roll.
-      host._holdWrap?.(true)
-      host.style.display = 'inline-block'
-      // The end margin takes the mask's slack back out of the layout.
-      const slack = edgeSlackPx(host)
-      host.style.width = `${fromW + slack}px`
-      host.style.marginInlineEnd = `${toW - fromW - slack}px`
-      // The glyphs were placed against the final layout, so hold them there.
-      host.style.textAlign = 'start'
-      const anim = play(
-        host,
-        [
-          { width: `${fromW + slack}px`, marginInlineEnd: `${toW - fromW - slack}px` },
-          { width: `${toW + slack}px`, marginInlineEnd: `${-slack}px` },
-        ],
-        () => this._clearHost(host),
-      )
-      anim.id = WIDTH_ANIM
+    if (!disturbed && !followed(first, this._fromBox.get(host)) && !followed(last, this._toBox.get(host))) {
+      return false
     }
-    return clipped
+    host.setAttribute('data-shrink-clip', '')
+    return true
+  }
+
+  /** The box already sits where it ends up, but a line that re-centred slides in from where it was. */
+  private _slideHost(host: FlowHost, play: Play) {
+    const from = this._fromBox.get(host)
+    const to = this._toBox.get(host)
+    if (!from || !to) return
+    // A host that changed line does not fly there.
+    if (Math.abs(from.top - to.top) >= Math.min(from.height, to.height) * 0.5) return
+    const shift = this._rtl ? from.left + from.width - (to.left + to.width) : from.left - to.left
+    if (Math.abs(shift) < 0.5) return
+    host.style.transform = `translateX(${shift}px)`
+    this._touched.push(host)
+    play(host, [{ transform: `translateX(${shift}px)` }, { transform: 'none' }], () => {
+      host.style.transform = ''
+    })
+  }
+
+  private _pinWidth(host: FlowHost, play: Play) {
+    const fromW = this._fromBox.get(host)?.width ?? 0
+    const toW = this._toBox.get(host)?.width ?? 0
+    // A value spanning lines has no single width to pin, and pinning one to the
+    // width of a single line would reflow the paragraph under it.
+    if (Math.abs(toW - fromW) < 0.5 || host.getClientRects().length > 1) return
+    // Ink free to wrap takes a second line inside a box held narrower than
+    // itself, and the block grows for the whole roll.
+    host._holdWrap?.(true)
+    host.style.display = 'inline-block'
+    // The end margin takes the mask's slack back out of the layout.
+    const slack = edgeSlackPx(host)
+    host.style.width = `${fromW + slack}px`
+    host.style.marginInlineEnd = `${toW - fromW - slack}px`
+    // The glyphs were placed against the final layout, so hold them there.
+    host.style.textAlign = 'start'
+    const anim = play(
+      host,
+      [
+        { width: `${fromW + slack}px`, marginInlineEnd: `${toW - fromW - slack}px` },
+        { width: `${toW + slack}px`, marginInlineEnd: `${-slack}px` },
+      ],
+      () => this._clearHost(host),
+    )
+    anim.id = WIDTH_ANIM
   }
 
   /**
@@ -372,29 +378,25 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     const { _first: first, _last: last, _wordEls: words, _lo: lo } = this
     const lineH = first[0]?.height || 1
     const wrapped = first.map((a, i) => !!last[i] && Math.abs(last[i].top - a.top) >= lineH * 0.5)
-    // How far the words keeping each line travel, by the line they leave and the
-    // line they land on. A ghost held at a fixed offset instead reads as a piece of
-    // another paragraph laid over this one, so it travels with the line it joins or
-    // leaves and the line moves as a body.
+    // How far the words keeping each line travel. A ghost held at a fixed offset
+    // sits still while its line moves under it, so it travels with the line instead.
     const arriving = new Map<number, number[]>()
     const departing = new Map<number, number[]>()
+    const note = (by: Map<number, number[]>, line: number, dx: number) => {
+      const seen = by.get(line)
+      if (seen) seen.push(dx)
+      else by.set(line, [dx])
+    }
     for (let i = 0; i < first.length; i++) {
       if (wrapped[i]) continue
       const dx = first[i].left - last[i].left
-      const to = Math.round(last[i].top)
-      const from = Math.round(first[i].top)
-      const joined = arriving.get(to) ?? []
-      const left = departing.get(from) ?? []
-      joined.push(dx)
-      left.push(dx)
-      arriving.set(to, joined)
-      departing.set(from, left)
+      note(arriving, Math.round(last[i].top), dx)
+      note(departing, Math.round(first[i].top), dx)
     }
     const median = (xs: number[]) => [...xs].sort((x, y) => x - y)[xs.length >> 1]
 
     const gutterPx = this.getBoundingClientRect().left - this._clip.getBoundingClientRect().left
     const pin = (word: HTMLElement, at: Box) => {
-      // SAFETY: cloning an HTMLElement yields one; `cloneNode` is typed as Node.
       const ghost = word.cloneNode(true) as HTMLElement
       ghost.dataset.wrapGhost = ''
       ghost.removeAttribute('data-word')

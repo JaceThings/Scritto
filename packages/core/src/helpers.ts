@@ -9,14 +9,16 @@ export const isReducedMotion = () =>
 
 const CLIP_OVERFLOW = /auto|scroll|hidden|clip/
 
+const clips = (style: CSSStyleDeclaration) =>
+  CLIP_OVERFLOW.test(style.overflow) || CLIP_OVERFLOW.test(style.overflowX) || CLIP_OVERFLOW.test(style.overflowY)
+
 export const visibleClip = (el: HTMLElement) => {
   let top = 0
   let left = 0
   let bottom = window.innerHeight
   let right = window.innerWidth
   for (let node = el.parentElement; node; node = node.parentElement) {
-    const { overflow, overflowX, overflowY } = getComputedStyle(node)
-    if (!CLIP_OVERFLOW.test(overflow) && !CLIP_OVERFLOW.test(overflowX) && !CLIP_OVERFLOW.test(overflowY)) continue
+    if (!clips(getComputedStyle(node))) continue
     const rect = node.getBoundingClientRect()
     top = Math.max(top, rect.top)
     left = Math.max(left, rect.left)
@@ -26,25 +28,15 @@ export const visibleClip = (el: HTMLElement) => {
   return { top, left, bottom, right }
 }
 
-/**
- * The box a ghost is expected to stay inside: the nearest ancestor that either
- * clips or paints an edge of its own, since that is what a reader sees as the
- * thing containing the value. Falls back to the viewport, which is why text
- * with a page around it reports acres of room and needs no fade.
- */
+/** What a reader sees as holding the value: the nearest ancestor that clips or paints an edge. */
 export const boundsOf = (el: HTMLElement) => {
   for (let node = el.parentElement; node; node = node.parentElement) {
     const style = getComputedStyle(node)
-    const clips =
-      CLIP_OVERFLOW.test(style.overflow) ||
-      CLIP_OVERFLOW.test(style.overflowX) ||
-      CLIP_OVERFLOW.test(style.overflowY)
     const paints =
-      (style.backgroundImage !== 'none' ||
-        (style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent')) ??
-      false
+      style.backgroundImage !== 'none' ||
+      (style.backgroundColor !== 'rgba(0, 0, 0, 0)' && style.backgroundColor !== 'transparent')
     const bordered = parseFloat(style.borderLeftWidth) > 0 || parseFloat(style.borderRightWidth) > 0
-    if (clips || paints || bordered) return node.getBoundingClientRect()
+    if (clips(style) || paints || bordered) return node.getBoundingClientRect()
   }
   return new DOMRect(0, 0, window.innerWidth, window.innerHeight)
 }
@@ -56,10 +48,7 @@ export const isOnscreen = (el: HTMLElement) => {
   return rect.bottom > clip.top && rect.top < clip.bottom && rect.right > clip.left && rect.left < clip.right
 }
 
-/** A pooled glyph; `pooled` is the pool's claim on it. */
-export type Char = HTMLElement & {
-  pooled?: boolean
-}
+export type Char = HTMLElement & { pooled?: boolean }
 
 const CHAR_POOL: Char[] = []
 const CHAR_POOL_MAX = 1024
@@ -82,7 +71,6 @@ export const createChar = (text: string): Char => {
 }
 
 export const releaseChar = (el: Char) => {
-  // Teardown and the char's own exit callback both hand it back, in either order.
   if (el.pooled) return
   el.pooled = true
   resetAnim(el)
@@ -121,11 +109,7 @@ export const flip = (el: HTMLElement, dx: number, duration: number, easing: stri
   return anim
 }
 
-/**
- * Chars grouped into words, so a value that outgrows its line breaks where the
- * text has a space and never inside a word. A word keeps the spaces that follow
- * it, so the only break opportunity is the gap between two words.
- */
+/** Chars grouped into words, each keeping the spaces after it, so a line can only break between words. */
 export const reconcileWords = (parent: HTMLElement, nodes: HTMLElement[], start: number, end: number) => {
   const words: [HTMLElement, HTMLElement[]][] = []
   const spare = [...parent.children].filter((el): el is HTMLElement => el.className === 'word')

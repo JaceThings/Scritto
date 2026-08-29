@@ -39,7 +39,7 @@ if (BROWSER) {
   styleSheet.replaceSync(STYLES)
 }
 
-/** SHRINK_EASING in JS. Keep the two in step. */
+/** SHRINK_EASING in JS; keep the two in step. */
 const shrinkEase = cubicBezierEase(0.22, 1, 0.36, 1)
 
 const ENVELOPE_STEPS = 32
@@ -70,7 +70,6 @@ type Plan = Layout & {
 
 type Glyph = { offset: number; width: number; left: number; top: number; height: number }
 type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; entry: ExitEntry }
-/** The group, where its line started, how far down that line sat, and how wide its ink is. */
 type ExitEntry = [el: HTMLElement, left: number, top: number, width: number]
 
 /** The wipe is a length the mask reads, so it only interpolates once registered. */
@@ -142,7 +141,6 @@ class Scritto extends ServerSafeHTMLElement {
   private _exits = createEl('span', 'exits')
   private _chars: HTMLElement[] = []
   private _exitingChars: ExitEntry[] = []
-  /** Whether the ink now leaving sat on more than one line. */
   private _exitWrapped = false
   private _exitQueue: QueuedExit[] = []
   /** Held across commits: rapid updates leave earlier exit groups standing. */
@@ -156,13 +154,12 @@ class Scritto extends ServerSafeHTMLElement {
   private _widthTo: number | null = null
   private _widthTiming: { duration: number; easing: string; fill: 'forwards' } | null = null
   private _widthDx = 0
-  /** How far each glyph's ink reaches, and while when it needs the box to cover it. */
+  /** How far each arriving glyph's ink reaches, and the window it needs the box to cover it for. */
   private _inkSpans: { end: number; from: number; ramp: number; until: number }[] = []
   private _widthTravel: number[] | null = null
   /** When the last arriving glyph starts to read, which is the box's deadline. */
   private _widthLead = 0
   private _blockified = false
-  /** Wrapping this value is on hold while the box is pinned mid-transition. */
   private _wrapHeld = false
   private _isRTL = false
   private _value = ''
@@ -182,9 +179,8 @@ class Scritto extends ServerSafeHTMLElement {
     const shadow = this.attachShadow({ mode: 'open' })
     if (styleSheet) shadow.adoptedStyleSheets = [styleSheet]
     this._exits.toggleAttribute('inert', true)
-    // Exits first: its static position is what puts ghosts on the value's line,
-    // and last in the shadow that position falls to a second line whenever the
-    // value wraps.
+    // Exits first: its static position puts ghosts on the value's line, and last
+    // in the shadow that position falls to a second line whenever the value wraps.
     shadow.append(this._exits, this._prefix, this._middle, this._suffix, this._tail)
   }
 
@@ -258,10 +254,9 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   /**
-   * Free space each side of the value inside the box a reader sees as holding
-   * it, plus whether anything sits beside it on the line. Read while the layout
-   * is still at rest: once the box starts moving, a container that hugs the
-   * value is moving with it and nothing measured against it means anything.
+   * Free space each side of the value, and whether anything shares its line.
+   * Read at rest: once the box moves, a container hugging the value moves with
+   * it and nothing measured against it means anything.
    */
   private _roomAtRest() {
     const box = this.getBoundingClientRect()
@@ -269,12 +264,10 @@ class Scritto extends ServerSafeHTMLElement {
     const beside = this._besideOnLine(box, Math.max(box.width, bounds.width - box.width))
     const before = box.left - bounds.left
     const after = bounds.right - box.right
-    const rtl = this._isRTL
-    const room = {
-      start: beside.start ? 0 : rtl ? after : before,
-      end: beside.end ? 0 : rtl ? before : after,
+    return {
+      start: beside.start ? 0 : this._isRTL ? after : before,
+      end: beside.end ? 0 : this._isRTL ? before : after,
     }
-    return room
   }
 
   _commitAnimated() {
@@ -289,7 +282,7 @@ class Scritto extends ServerSafeHTMLElement {
     this._queueExit(this._chars.slice(plan.prefixCount, plan.oldSuffix), plan.exitingX, plan.exitGlyphs)
     this._queueExit(plan.exitingTail, plan.tailX, plan.tailGlyphs)
     this._commit(plan.next, plan.prefixCount, plan.midEnd, plan.suffixCount)
-    for (let i = 0; i < plan.enters.length; i++) if (plan.enters[i].textContent !== SPACE) plan.enters[i].style.opacity = '0'
+    for (const el of plan.enters) if (el.textContent !== SPACE) el.style.opacity = '0'
     clearRun(this._prefix)
     clearRun(this._suffix)
   }
@@ -324,9 +317,8 @@ class Scritto extends ServerSafeHTMLElement {
     this._startExits(plan.trend, exitDelayAt)
     this._exitEnd = exits.reduce((end, g) => Math.max(end, g.offset + g.width), this._exitEnd)
     // Arriving ink is laid out at its final position while the box is still
-    // widening, so the box tracks it as it fades in rather than letting it
-    // stand outside. Ink leaving keeps the box it already has: the edge fade
-    // covers its overhang, and holding the box out for it would stall the roll.
+    // widening, so the box tracks it in. Leaving ink keeps the box it has: the
+    // band covers its overhang, and holding the box out for it stalls the roll.
     const nowMs = performance.now()
     const duration = this.transition.duration
     const showsAt = crossingFraction(this.transition.easing, 0.15) * duration
@@ -375,11 +367,7 @@ class Scritto extends ServerSafeHTMLElement {
     if (!inFlow && this.getClientRects().length < 2) this._transitionWidth(reached ?? plan.fromW, toW, edge)
   }
 
-  /**
-   * A kept run slides by its words, not by the section holding them: a section
-   * is inline so the value can break across lines, and an inline box takes no
-   * transform. Every word in the run travels the same distance either way.
-   */
+  /** By words, not by the section: a section is inline so the value can break, and inline takes no transform. */
   private _flipRun(section: HTMLElement, dx: number, total: number) {
     for (let i = 0; i < section.children.length; i++) {
       const anim = flip(section.children[i] as HTMLElement, dx, total, SHRINK_EASING, true)
@@ -388,18 +376,16 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   /**
-   * A value with a space in it reads as text and wraps like text. One without
-   * has nowhere to break anyway, and letting it try would break a number
-   * between two of its own sections.
+   * Only a value with a space wraps: without one the sections are the sole break
+   * opportunities, and a number split between two of its own is worse than an overhang.
    */
   private _setWrap() {
     this.toggleAttribute('data-wrap', /\s/.test(this._value))
   }
 
   /**
-   * Whoever pins this box narrower than its ink, here or in a flow, holds the
-   * wrapping off for as long as the pin lasts: ink free to wrap would take a
-   * second line inside the pin and grow the paragraph under it.
+   * Whoever pins this box narrower than its ink holds wrapping off while the pin
+   * lasts, or the ink takes a second line inside it and grows the paragraph.
    */
   _holdWrap(held: boolean) {
     if (held) {
@@ -435,11 +421,7 @@ class Scritto extends ServerSafeHTMLElement {
     return (offset: number) => (step * Math.min(Math.max(offset - lo, 0), reach)) / reach
   }
 
-  /**
-   * An inline host turns inline-block for the duration, its vertical padding and
-   * border cancelled by margins so the line's height holds, and its content
-   * indented back by however far the start edge travels.
-   */
+  /** The box animates its width; the content is indented back by whatever the start edge travels. */
   private _transitionWidth(fromW: number, toW: number, edge: number) {
     // Already on its way there. A ghost born now still joins the compensation,
     // at the phase the run has reached.
@@ -490,15 +472,15 @@ class Scritto extends ServerSafeHTMLElement {
     const endEdge = rtl ? start.left + slack : start.right - slack
     const startShift = (rtl ? box.right - startEdge : startEdge - box.left) || 0
     const endShift = (rtl ? box.left - endEdge : endEdge - box.right) || 0
-    const startMoves = Math.abs(startShift) >= 0.5
-    const endMoves = Math.abs(endShift) >= 0.5
-    this._anchor = Math.abs(startShift) / (Math.abs(startShift) + Math.abs(endShift) || 1)
-    // An edge earns its fade by travelling and by having something to protect.
-    // Ghosts hold the old box's place, so they only need covering where that
-    // reaches a neighbour on the line or the edge of whatever clips this
-    // element. Text with room around it fades on its own opacity instead: a
-    // band there would eat the ghosts for nothing.
-    const reach = Math.max(Math.abs(startShift), Math.abs(endShift)) + blockSlackPx(this)
+    const startTravel = Math.abs(startShift)
+    const endTravel = Math.abs(endShift)
+    const startMoves = startTravel >= 0.5
+    const endMoves = endTravel >= 0.5
+    this._anchor = startTravel / (startTravel + endTravel || 1)
+    // An edge earns its fade by travelling and by having something to protect:
+    // text with room around it fades on its own opacity, and a band there would
+    // eat the ghosts for nothing.
+    const reach = Math.max(startTravel, endTravel) + blockSlackPx(this)
     const hemmed = (room: number) => this.edgeFade !== 'never' && (this.edgeFade === 'always' || reach > room)
     const clipStart = startMoves && hemmed(this._room.start)
     const clipEnd = endMoves && hemmed(this._room.end) && this._exitEnd > toW + 0.5
@@ -506,10 +488,9 @@ class Scritto extends ServerSafeHTMLElement {
     // one line's box masks the other line away entirely.
     if ((clipStart || clipEnd) && !this._exitWrapped) {
       this.setAttribute('data-shrink-clip', clipStart && clipEnd ? 'both' : clipStart ? 'start' : 'end')
-      // A ghost holds its old place while the box leaves it behind, so it reaches
-      // as far past an edge as that edge travels, plus its blur.
-      const room = Math.max(Math.abs(startShift), Math.abs(endShift)) + blockSlackPx(this)
-      this.style.setProperty('--scritto-exit-room', `${Math.ceil(room)}px`)
+      // A ghost holds its place while the box leaves it, so it reaches as far
+      // past the edge as that edge travels, plus its blur.
+      this.style.setProperty('--scritto-exit-room', `${Math.ceil(reach)}px`)
     }
     const anims = [anim]
     const dx = rtl ? startShift : -startShift
@@ -784,15 +765,13 @@ class Scritto extends ServerSafeHTMLElement {
     return this._exitEnd
   }
 
-  /** Ink that wrapped has no single edge to fade against. */
   _exitsWrapped() {
     return this._exitWrapped
   }
 
   /**
-   * One group per line the old ink sat on. A wrapped value leaves ink on two, and
-   * a single row would pull the second up onto the first the moment it committed,
-   * which reads as the old value jumping rather than dissolving.
+   * One group per line the old ink sat on: a single row would pull the second
+   * line up onto the first, which reads as the value jumping, not dissolving.
    */
   private _queueExit(nodes: HTMLElement[], x: number, glyphs: Glyph[]) {
     if (!nodes.length) return
@@ -829,11 +808,9 @@ class Scritto extends ServerSafeHTMLElement {
   }
 
   /**
-   * Ink that wrapped has no single edge to fade against: it lies over text that
-   * has already re-flowed, and a band on the box would cut every line but the
-   * first away whole. Each line's group gets its own band instead, swept across
-   * the ink it has to clear over the life of the ghosts, so the old value
-   * dissolves in place rather than sitting solid over the words underneath.
+   * Ink that wrapped lies over text that has already re-flowed, and one band on
+   * the box would cut every line but the first away whole. Each line's group
+   * gets its own instead, swept across the ink it has to clear.
    */
   private _armWipes(edge: number, carried: number, toW: number, total: number) {
     if (!WIPE_READY || this.edgeFade === 'never') return
