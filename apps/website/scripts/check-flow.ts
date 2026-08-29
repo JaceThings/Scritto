@@ -959,11 +959,25 @@ await scenario("a wrapped value's old ink leaves from where it stood", async () 
     await frame()
     await frame()
     const groups = [...(host.shadowRoot?.querySelectorAll<HTMLElement>('.exits > [inert]') ?? [])].map((group) => {
-      const rect = group.getBoundingClientRect()
       const glyph = group.firstElementChild as HTMLElement | null
+      const last = group.lastElementChild as HTMLElement | null
+      // The ink's own box: the group's grows by the room its band sweeps across.
+      const rect = (glyph ?? group).getBoundingClientRect()
+      const ink = last ? last.getBoundingClientRect().right - rect.left : rect.width
+      const wipe = group
+        .getAnimations()
+        .map((animation) => {
+          const frames = (animation.effect as KeyframeEffect | null)?.getKeyframes() ?? []
+          const end = frames[frames.length - 1] as Record<string, string> | undefined
+          return parseFloat(end?.['--scritto-exit-wipe'] ?? '') || 0
+        })
+        .reduce((most, px) => Math.max(most, px), 0)
       return {
         top: Math.round(rect.top),
         left: Math.round(rect.left),
+        ink: Math.round(ink),
+        wiped: group.hasAttribute('data-wipe'),
+        wipe: Math.round(wipe),
         opacity: glyph ? Number(getComputedStyle(glyph).opacity) : 0,
       }
     })
@@ -1011,6 +1025,79 @@ await scenario("a wrapped value's old ink leaves from where it stood", async () 
         detail: `leaving ink at ${line.left},${line.top} starts at opacity ${at.opacity.toFixed(2)} — it must dissolve, not be masked away`,
       })
     }
+    if (!at.wiped) {
+      report.violations.push({
+        flow: '#flow-b',
+        rule: 'wrapped-exit',
+        detail: `ink at ${line.left},${line.top} wears no band — a wrapped value's ink lies over text that has re-flowed`,
+      })
+      continue
+    }
+    // A line the value has left behind has nowhere to keep any of its ink, so the
+    // band has to sweep the whole of it, not stop at the box's edge.
+    const trailing = line.top > stood[0].top + 2
+    if (trailing && at.wipe < at.ink) {
+      report.violations.push({
+        flow: '#flow-b',
+        rule: 'wrapped-exit',
+        detail: `the band over ${line.left},${line.top} sweeps ${at.wipe}px of ${at.ink}px of ink, so it stops partway`,
+      })
+    }
+  }
+})
+
+// The band is worn for the ghosts, so lifting it while any of them are still on
+// screen pops the ink it was dissolving back to full strength.
+await scenario('the band lifts with the last ghost, not before', async () => {
+  await page.setViewportSize({ width: 900, height: 780 })
+  await visit('/playground')
+  const run = await page.evaluate(async () => {
+    type Host = HTMLElement & { update(value: string): void; setOptions(options: object): void }
+    const host = document.querySelector<Host>('#flow-b')
+    const flow = document.querySelector<HTMLElement>('#flow-wrap')
+    if (!host || !flow) return null
+    flow.scrollIntoView({ block: 'center' })
+    host.setOptions({ respectMotionPreference: false })
+    host.update('you are not separate from every other thing')
+    await new Promise((done) => setTimeout(done, 1600))
+    const frames: { t: number; band: boolean; ghosts: number }[] = []
+    const start = performance.now()
+    host.update('I love you')
+    await new Promise<void>((done) => {
+      const tick = () => {
+        const layer = host.shadowRoot?.querySelector('.exits')
+        frames.push({
+          t: Math.round(performance.now() - start),
+          band: host.hasAttribute('data-shrink-clip'),
+          ghosts: layer?.children.length ?? 0,
+        })
+        if (performance.now() - start < 1100) requestAnimationFrame(tick)
+        else done()
+      }
+      requestAnimationFrame(tick)
+    })
+    return frames
+  })
+  if (!run) {
+    report.violations.push({ flow: '#flow-b', rule: 'band-life', detail: 'could not drive the wrap card' })
+    return
+  }
+  const armed = run.findIndex((frame) => frame.band)
+  if (armed === -1) {
+    report.violations.push({
+      flow: '#flow-b',
+      rule: 'band-life',
+      detail: 'the shrink wore no band at all at this width, so the case it guards never ran',
+    })
+    return
+  }
+  const bare = run.find((frame, i) => i > armed && !frame.band && frame.ghosts > 0)
+  if (bare) {
+    report.violations.push({
+      flow: '#flow-b',
+      rule: 'band-life',
+      detail: `the band lifted at ${bare.t}ms with ${bare.ghosts} ghost group(s) still on screen`,
+    })
   }
 })
 

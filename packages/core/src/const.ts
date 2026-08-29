@@ -45,6 +45,10 @@ type Sides = { left: boolean; right: boolean }
 /** Room the band keeps beyond the ink it fades, so no edge but that one cuts it. */
 const ROOM = 'var(--scritto-exit-room, 0px)'
 
+/** How far the wipe below has swept across a line's ink, animated per group. */
+export const WIPE_VAR = '--scritto-exit-wipe'
+const WIPE = `var(${WIPE_VAR}, 0px)`
+
 const edgeStops = (sides: Sides) =>
   [
     sides.left ? `transparent ${ROOM}, #000 calc(${ROOM} + ${EDGE_FADE})` : '#000 0',
@@ -98,6 +102,32 @@ const clipRules = () => {
     .join('')
 }
 
+
+/**
+ * A wrapped value's old ink lies over text that has already re-flowed, so there
+ * is no single edge to fade it against: a band on the box would erase every line
+ * but the first. Each line's group wears its own instead, swept across that line
+ * by `--scritto-exit-wipe` while the ghosts fade, so the ink is gone by the time
+ * the box has settled and never sits solid over the words underneath.
+ */
+const wipeRules = () => {
+  const stops = (rtl: boolean) =>
+    rtl
+      ? `transparent ${WIPE}, #000 calc(${WIPE} + ${EDGE_FADE}), #000 100%`
+      : `#000 0, #000 calc(100% - ${WIPE} - ${EDGE_FADE}), transparent calc(100% - ${WIPE})`
+  const layer = (prefix: string, rtl: boolean) => `
+    ${prefix}mask-image: linear-gradient(90deg, ${stops(rtl)});
+    ${prefix}mask-repeat: no-repeat;`
+  const rule = (sel: string, rtl: boolean) => `
+  .exits > [inert]${sel} {
+    /* Room for a descender and the blur, over the span reset below. The margin
+       takes it back, so the group keeps the place its transform put it. */
+    padding: ${BLOCK_SLACK}em !important;
+    margin: -${BLOCK_SLACK}em !important;${layer('-webkit-', rtl)}${layer('', rtl)}
+  }`
+  return rule('[data-wipe]', false) + rule('[data-wipe]:dir(rtl)', true)
+}
+
 export const STYLES = `
   :host {
     position: relative;
@@ -125,7 +155,7 @@ export const STYLES = `
   .exits::before {
     content: "\\200B"; /* baseline anchor, as on an empty section */
   }
-${clipRules()}
+${clipRules()}${wipeRules()}
   span {
     margin: 0 !important;
     padding: 0 !important;

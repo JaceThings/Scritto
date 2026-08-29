@@ -9,6 +9,7 @@ type FlowHost = HTMLElement & {
   _exitTailMs?: () => number
   _exitEndPx?: () => number
   _exitsWrapped?: () => boolean
+  _clearBand?: () => void
   _holdWrap?: (held: boolean) => void
 }
 type Box = { left: number; top: number; width: number; height: number }
@@ -234,7 +235,9 @@ class ScrittoFlow extends ServerSafeHTMLElement {
     host.style.marginInlineEnd = ''
     host.style.display = ''
     host.style.textAlign = ''
-    host.removeAttribute('data-shrink-clip')
+    // Not removed outright: ghosts outlive the box's own transition, and the band
+    // is theirs. The host lifts it when the last of them has gone.
+    host._clearBand?.()
   }
 
   private _drop() {

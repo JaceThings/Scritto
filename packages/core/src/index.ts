@@ -27,6 +27,7 @@ import {
   SPACE,
   STYLES,
   WIDTH_ANIM,
+  WIPE_VAR,
   blockSlackPx,
   edgeSlackPx,
 } from './const'
@@ -69,8 +70,22 @@ type Plan = Layout & {
 
 type Glyph = { offset: number; width: number; left: number; top: number; height: number }
 type QueuedExit = { group: HTMLElement; nodes: HTMLElement[]; glyphs: Glyph[]; entry: ExitEntry }
-/** The group, where its line started, and how far down that line sat. */
-type ExitEntry = [el: HTMLElement, left: number, top: number]
+/** The group, where its line started, how far down that line sat, and how wide its ink is. */
+type ExitEntry = [el: HTMLElement, left: number, top: number, width: number]
+
+/** The wipe is a length the mask reads, so it only interpolates once registered. */
+const WIPE_READY =
+  BROWSER &&
+  (() => {
+    try {
+      CSS.registerProperty({ name: WIPE_VAR, syntax: '<length>', inherits: false, initialValue: '0px' })
+      return true
+    } catch (error) {
+      // A second copy of this module registered it first; anything else is a
+      // browser that cannot, and the ink is left to fade on its own opacity.
+      return (error as DOMException).name === 'InvalidModificationError'
+    }
+  })()
 
 const centerX = (rect: DOMRect) => (rect.left + rect.right) * 0.5
 
@@ -341,6 +356,7 @@ class Scritto extends ServerSafeHTMLElement {
       const [el, x, y] = this._exitingChars[i]
       el.style.transform = `translate(${x - edge - carried}px, ${y}px)`
     }
+    if (this._exitWrapped) this._armWipes(edge, carried, toW, total)
     const line = newPrefix.height || 1
     const prefixDx =
       !prefixAnchor || Math.abs(newPrefix.top - plan.oldPrefixTop) >= line * 0.5
@@ -642,6 +658,12 @@ class Scritto extends ServerSafeHTMLElement {
     this.style.textAlign = ''
     this._holdWrap(false)
     this.style.marginInlineEnd = ''
+    this._clearBand()
+  }
+
+  /** The band is worn for the ghosts, so it lifts when the last of them has gone. */
+  _clearBand() {
+    if (this._exitingChars.length) return
     this.style.removeProperty('--scritto-exit-room')
     this.removeAttribute('data-shrink-clip')
   }
@@ -797,10 +819,41 @@ class Scritto extends ServerSafeHTMLElement {
       clearAnimStyle(nodes[i])
       group.appendChild(nodes[i])
     }
-    const entry: ExitEntry = [group, x, y]
+    // Measured off the glyphs' own edges: `offset` is a distance from the value's
+    // start, so on a second line it counts back towards it rather than along.
+    const last = glyphs[glyphs.length - 1]
+    const entry: ExitEntry = [group, x, y, Math.abs(last.left - glyphs[0].left) + last.width]
     this._exitingChars.push(entry)
     this._exits.appendChild(group)
     this._exitQueue.push({ group, nodes, glyphs, entry })
+  }
+
+  /**
+   * Ink that wrapped has no single edge to fade against: it lies over text that
+   * has already re-flowed, and a band on the box would cut every line but the
+   * first away whole. Each line's group gets its own band instead, swept across
+   * the ink it has to clear over the life of the ghosts, so the old value
+   * dissolves in place rather than sitting solid over the words underneath.
+   */
+  private _armWipes(edge: number, carried: number, toW: number, total: number) {
+    if (!WIPE_READY || this.edgeFade === 'never') return
+    const dir = this._isRTL ? -1 : 1
+    const pad = blockSlackPx(this)
+    const ramp = edgeSlackPx(this)
+    for (const [group, x, top, width] of this._exitingChars) {
+      // Where this line's ink starts, measured along the value from its own edge.
+      const from = (x - carried - edge) * dir
+      // The line the value still holds keeps whatever fits inside the new box; a
+      // line it has left behind has nowhere to keep any of its ink.
+      const keeps = top === 0 ? Math.min(Math.max(toW, from), from + width) : from
+      const sweep = Math.ceil(from + width - keeps + pad + ramp)
+      if (sweep <= 0) continue
+      group.toggleAttribute('data-wipe', true)
+      group.animate(
+        { [WIPE_VAR]: ['0px', `${sweep}px`] },
+        { duration: total, easing: SHRINK_EASING, fill: 'forwards' },
+      )
+    }
   }
 
   private _startExits(trend: number, delayAt: (offset: number) => number) {
@@ -819,7 +872,10 @@ class Scritto extends ServerSafeHTMLElement {
             group.remove()
             const idx = this._exitingChars.indexOf(entry)
             if (idx !== -1) this._exitingChars.splice(idx, 1)
-            if (!this._exitingChars.length) this._exitEnd = 0
+            if (!this._exitingChars.length) {
+              this._exitEnd = 0
+              this._clearBand()
+            }
           }
         })
       }
@@ -862,6 +918,7 @@ class Scritto extends ServerSafeHTMLElement {
       for (let j = 0; j < nodes.length; j++) releaseChar(nodes[j])
       group.remove()
     }
+    this._clearBand()
   }
 
   private _animateChar(el: Char, isOut: boolean, trend: number, delay: number, onFinish?: () => void) {
