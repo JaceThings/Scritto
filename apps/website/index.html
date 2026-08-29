@@ -7,7 +7,7 @@
     <meta name="theme-color" content="#1c1918" media="(prefers-color-scheme: dark)" />
     <meta
       name="description"
-      content="Scritto is a small JavaScript library that rolls text in place. Bindings for React, Vue, Svelte, and Solid, plus a framework-agnostic core."
+      content="Scritto animates text in place: only the characters that changed move. Bindings for React, Vue, Svelte, and Solid, plus a core that runs without a framework."
     />
     <title>scritto</title>
     <link rel="stylesheet" href="/src/styles/site.css" />
@@ -20,9 +20,10 @@
         <div id="page" class="flex w-full flex-col gap-9">
         <section class="stagger w-full text-text-primary" style="--i: 5">
           <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px] text-justify hyphens-auto">
-            Scritto is a small JavaScript library that rolls text in place. Give it a new value and
-            the characters that changed slide to what they became while the rest sit still. That
-            works on words and emoji as well as numbers, in any framework or none of them.
+            Scritto is a JavaScript library that animates text in place. Give an element a new value
+            and only the characters that changed move: each one rolls from the old character to the
+            new one while the rest hold their position. It works on numbers, words, and emoji, with
+            bindings for React, Vue, Svelte, and Solid, and a core that runs without a framework.
           </p>
         </section>
 

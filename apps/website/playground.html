@@ -18,8 +18,8 @@
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Roll</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                Anything you can type rolls in place. Click the card for the next value, or edit the
-                list below to roll your own. A comma or Enter starts a new one.
+                Anything you can type rolls in place. Click the card to advance to the next value, or
+                edit the list below to supply your own. A comma or Enter starts a new value.
               </p>
             </div>
             <div class="figure" data-highlight-exclude data-focus-section="roll">
@@ -48,8 +48,8 @@
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Alignment</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                Which side the value holds when it gets wider or narrower. Dynamic slides the number
-                back and forth so you can watch the roll hold together while it moves.
+                Which edge the value holds as it gets wider or narrower. Dynamic keeps the value moving
+                across the card, so you can watch a roll land while the element itself travels.
               </p>
             </div>
             <div class="figure" data-highlight-exclude data-focus-section="align">
@@ -70,8 +70,8 @@
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Trend</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                Which way the glyphs travel. Auto reads the numbers and follows them; up and down
-                override it.
+                Which way the glyphs travel. Auto follows the value, counting up or down with it. Up and
+                down set the direction regardless of the value.
               </p>
             </div>
             <div class="figure" data-highlight-exclude data-focus-section="trend">
@@ -92,8 +92,8 @@
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Bounce</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                How far each character overshoots as it lands. Zero settles flat; the library ships
-                at 0.20 and its bouncy preset is 0.30.
+                How far each character overshoots as it lands. Zero settles flat. The default is 0.20,
+                and the bouncy preset is 0.30.
               </p>
             </div>
             <div class="figure" data-highlight-exclude data-focus-section="bounce">
@@ -121,7 +121,7 @@
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Duration</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                How long the roll takes end to end. Drag the track, or focus it and use the arrow
+                How long the roll takes, end to end. Drag the track, or focus it and press the arrow
                 keys.
               </p>
             </div>
@@ -141,8 +141,8 @@
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">In a sentence</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                A live number sitting in ordinary copy. Words on either side make room as the figure
-                grows or shrinks.
+                A value that updates inside ordinary text. The words on either side make room as it
+                grows and close up as it shrinks.
               </p>
             </div>
             <div class="figure" data-highlight-exclude data-focus-section="sentence">
@@ -160,7 +160,8 @@
             <div class="flex w-full flex-col gap-3 px-1 text-text-primary">
               <h2 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Wrapped</h2>
               <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
-                When the value changes width, the words after it slide between lines and the block stays exactly as tall as it was. All at the value's own duration.
+                When the value changes width, the words after it move between lines at the value's own
+                duration, and the paragraph keeps the height it had.
               </p>
             </div>
             <div class="figure" data-highlight-exclude data-focus-section="wrapped">
