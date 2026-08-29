@@ -2,12 +2,13 @@
 // drag), and a silent loop keeping iOS on the session the silent switch spares.
 // Every file is peak-matched, so one volume means the same across them.
 
-const SOUND_FILES = ['/click.webm', '/copy-success.webm', '/pill-select.webm', '/roll-switch.webm', '/silent.webm'] as const
+const SOUND_FILES = ['/click.webm', '/copy-success.webm', '/pill-select.webm', '/roll-switch.webm'] as const
 
-for (const src of SOUND_FILES) {
-  const a = new Audio(src)
-  a.preload = 'auto'
-}
+// iOS only unlocks WebAudio from a live HTML5 source inside a gesture. The
+// 615 B silent loop is that source, so it has to be on the wire before the
+// first tap — the four event files can wait until that same gesture.
+const silentUnlock = new Audio('/silent.webm')
+silentUnlock.preload = 'auto'
 
 const playFile = (src: string, volume: number) => {
   const inst = new Audio(src)
@@ -58,11 +59,15 @@ const unlock = () => {
       } catch {}
     }
 
-    const silent = new Audio('/silent.webm')
-    silent.loop = true
-    silent.setAttribute('playsinline', '')
-    silent.volume = 0.0001
-    silent.play().catch(() => {})
+    for (const file of SOUND_FILES) {
+      const a = new Audio(file)
+      a.preload = 'auto'
+    }
+
+    silentUnlock.loop = true
+    silentUnlock.setAttribute('playsinline', '')
+    silentUnlock.volume = 0.0001
+    silentUnlock.play().catch(() => {})
   } catch {
     // Let the next gesture retry — don't strip the listeners.
     return

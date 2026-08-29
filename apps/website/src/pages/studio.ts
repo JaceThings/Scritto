@@ -179,7 +179,10 @@ export const initStudio = (root: ParentNode = document) => {
     host.update(from.value, false)
     host.update(to.value, true)
 
-    queueMicrotask(() => {
+    // Measure against Inter, not the fallback that used to still be in flight
+    // when the roman face was not preloaded. `fonts.ready` is a microtask
+    // once the face is in, so this still runs after `update` registers.
+    void document.fonts.ready.then(() => {
       running = tracked()
       for (const animation of running) animation.pause()
       span = running.reduce((longest, animation) => {
@@ -237,6 +240,8 @@ export const initStudio = (root: ParentNode = document) => {
 
   const buildStrip = async () => {
     const gen = ++stripGen
+    await document.fonts.ready
+    if (gen !== stripGen) return
     const cells: HTMLCanvasElement[] = []
     strip.replaceChildren(playhead)
     for (let i = 0; i < THUMBS; i++) {
@@ -447,7 +452,10 @@ export const initStudio = (root: ParentNode = document) => {
   })
 
   colour.value = inkFromPage() ?? colour.value
-  roll(false, 0.4)
+  // First measure and the 250 ms strip both sample the host. Wait for Inter
+  // so those numbers are the real face, not a fallback that happened to still
+  // be in flight — preload or not, the layout has to come out the same.
+  void document.fonts.ready.then(() => roll(false, 0.4))
 
   window.scrittoStudio = { capture: shoot, seek, span: () => span, strip: buildStrip }
 

@@ -12,7 +12,7 @@ export const initHome = (root: ParentNode = document) => {
 
   return () => {
     corners()
-    justified?.destroy()
+    justified()
     readout()
     install()
   }
