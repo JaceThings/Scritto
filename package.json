@@ -16,7 +16,7 @@
     "check:versus": "bun apps/website/scripts/check-versus.ts",
     "check:docs": "bun apps/website/scripts/check-docs.ts",
     "ci:version": "changeset version && bun update && git add --all",
-    "ci:publish": "for dir in packages/*; do (cd \"$dir\" && bun publish) || exit 1; done && changeset tag",
+    "ci:publish": "bun scripts/publish.ts",
     "size": "bun run build && bun scripts/size.ts"
   },
   "devDependencies": {
