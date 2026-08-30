@@ -1,4 +1,7 @@
-export type Slab = { turn: number; tilt: number; roll: number }
+export type Slab = { turn: number; tilt: number; roll: number; scale: number }
+
+/** A slab, written short: the presets are mostly one angle away from square on. */
+export const slab = (turn: number, tilt: number, roll = 0, scale = 1): Slab => ({ turn, tilt, roll, scale })
 
 export type Mark = {
   size: number
@@ -21,8 +24,8 @@ export const DEFAULTS: Mark = {
   depth: 22,
   gap: 62,
   focus: 'each',
-  a: { turn: 0, tilt: 0, roll: 0 },
-  b: { turn: 0, tilt: 28, roll: 0 },
+  a: slab(0, 0),
+  b: slab(0, 28),
   camera: 620,
   shade: 0.3,
   weight: 0,
@@ -94,12 +97,13 @@ export type Facet = { points: Point[]; depth: number; light: number }
  * origin, so a point nearer the lens is magnified by `camera / (camera - z)` and
  * a face whose normal turns away from the lens is dropped.
  */
-const facets = (mark: Mark, slab: Slab, offset: number): Facet[] => {
+const facets = (mark: Mark, piece: Slab, offset: number): Facet[] => {
   // Each slab keeps its own camera axis by default, so one left flat reads as
   // flat rather than showing the side face the lens would find off-centre.
   const shared = mark.focus === 'shared'
-  const points = corners(mark.depth, mark.size, mark.size)
-    .map((v) => spin(v, slab))
+  const k = piece.scale
+  const points = corners(mark.depth * k, mark.size * k, mark.size * k)
+    .map((v) => spin(v, piece))
     .map(([x, y, z]) => [shared ? x + offset : x, y, z] as Vec)
   const out: Facet[] = []
   for (const face of FACES) {
@@ -136,6 +140,30 @@ const tone = (ink: string, light: number, shade: number) => {
   const k = 1 - shade * (1 - clamp01(light * 0.5 + 0.5))
   const [r, g, b] = toRgb(ink).map((c) => Math.round(c * k))
   return `rgb(${r} ${g} ${b})`
+}
+
+export type Span = 'height' | 'width'
+
+const spanOf = (mark: Mark, piece: Slab, span: Span) => {
+  const axis = span === 'height' ? 1 : 0
+  const ns = facets(mark, piece, 0).flatMap((f) => f.points.map((p) => p[axis]))
+  return ns.length ? Math.max(...ns) - Math.min(...ns) : 0
+}
+
+/**
+ * The scale that draws `piece` the same size as `against`. Perspective makes the
+ * span a curve rather than a line, so each guess is refined against a fresh
+ * measurement instead of being solved outright.
+ */
+export const matchScale = (mark: Mark, piece: Slab, against: Slab, span: Span) => {
+  const target = spanOf(mark, against, span)
+  let scale = piece.scale || 1
+  for (let i = 0; i < 4; i++) {
+    const drawn = spanOf(mark, { ...piece, scale }, span)
+    if (!drawn) break
+    scale *= target / drawn
+  }
+  return Math.round(scale * 1000) / 1000
 }
 
 export const build = (mark: Mark) => {

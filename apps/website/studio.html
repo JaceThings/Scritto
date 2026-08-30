@@ -35,6 +35,7 @@
           <label class="studio-field"><span>Turn</span><input data-key="a.turn" type="range" min="-180" max="180" step="1" /><output data-out="a.turn"></output></label>
           <label class="studio-field"><span>Tilt</span><input data-key="a.tilt" type="range" min="-90" max="90" step="1" /><output data-out="a.tilt"></output></label>
           <label class="studio-field"><span>Roll</span><input data-key="a.roll" type="range" min="-45" max="45" step="1" /><output data-out="a.roll"></output></label>
+          <label class="studio-field"><span>Scale</span><input data-key="a.scale" type="range" min="0.3" max="2" step="0.01" /><output data-out="a.scale"></output></label>
         </fieldset>
 
         <fieldset class="studio-group">
@@ -42,6 +43,14 @@
           <label class="studio-field"><span>Turn</span><input data-key="b.turn" type="range" min="-180" max="180" step="1" /><output data-out="b.turn"></output></label>
           <label class="studio-field"><span>Tilt</span><input data-key="b.tilt" type="range" min="-90" max="90" step="1" /><output data-out="b.tilt"></output></label>
           <label class="studio-field"><span>Roll</span><input data-key="b.roll" type="range" min="-45" max="45" step="1" /><output data-out="b.roll"></output></label>
+          <label class="studio-field"><span>Scale</span><input data-key="b.scale" type="range" min="0.3" max="2" step="0.01" /><output data-out="b.scale"></output></label>
+          <label class="studio-field"><span>Match</span>
+            <select data-role="match">
+              <option value="off">nothing</option>
+              <option value="height">the left's height</option>
+              <option value="width">the left's width</option>
+            </select>
+          </label>
           <label class="studio-field studio-check"><span>Mirror the left</span><input data-role="mirror" type="checkbox" /></label>
         </fieldset>
 

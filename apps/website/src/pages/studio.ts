@@ -1,4 +1,4 @@
-import { DEFAULTS, build, toSvg, type Mark } from '../lib/slab'
+import { DEFAULTS, build, matchScale, slab, toSvg, type Mark, type Span } from '../lib/slab'
 
 const find = <T extends HTMLElement>(role: string) => document.querySelector<T>(`[data-role="${role}"]`)!
 
@@ -18,32 +18,35 @@ const write = (key: string, value: number | string) => {
 }
 
 const PRESETS: { name: string; of: Partial<Mark> }[] = [
-  { name: 'tipped', of: { b: { turn: 0, tilt: 28, roll: 0 } } },
-  { name: 'nudged', of: { b: { turn: 0, tilt: 14, roll: 0 } } },
-  { name: 'quarter', of: { b: { turn: 0, tilt: 45, roll: 0 } } },
-  { name: 'over', of: { b: { turn: 0, tilt: 64, roll: 0 } } },
-  { name: 'back', of: { b: { turn: 0, tilt: -34, roll: 0 } } },
-  { name: 'both ways', of: { a: { turn: 0, tilt: -14, roll: 0 }, b: { turn: 0, tilt: 30, roll: 0 } } },
-  { name: 'turned', of: { b: { turn: 34, tilt: 22, roll: 0 } } },
-  { name: 'leaning', of: { a: { turn: 0, tilt: 0, roll: -7 }, b: { turn: 0, tilt: 28, roll: -7 } } },
-  { name: 'wide lens', of: { camera: 300, b: { turn: 0, tilt: 30, roll: 0 } } },
-  { name: 'long lens', of: { camera: 2800, b: { turn: 0, tilt: 30, roll: 0 } } },
-  { name: 'slim', of: { depth: 10, gap: 42, b: { turn: 0, tilt: 28, roll: 0 } } },
-  { name: 'heavy', of: { depth: 42, gap: 80, b: { turn: 0, tilt: 28, roll: 0 } } },
-  { name: 'tight', of: { gap: 14, b: { turn: 0, tilt: 28, roll: 0 } } },
-  { name: 'one camera', of: { focus: 'shared', b: { turn: 0, tilt: 28, roll: 0 } } },
-  { name: 'drawn', of: { mode: 'outline', weight: 5, b: { turn: 0, tilt: 30, roll: 0 } } },
-  { name: 'inked', of: { mode: 'both', weight: 3, shade: 0.55, b: { turn: 0, tilt: 30, roll: 0 } } },
+  { name: 'tipped', of: { b: slab(0, 28) } },
+  { name: 'nudged', of: { b: slab(0, 14) } },
+  { name: 'quarter', of: { b: slab(0, 45) } },
+  { name: 'over', of: { b: slab(0, 64) } },
+  { name: 'back', of: { b: slab(0, -34) } },
+  { name: 'matched', of: { b: slab(0, 34, 0, 0.78) } },
+  { name: 'both ways', of: { a: slab(0, -14), b: slab(0, 30) } },
+  { name: 'turned', of: { b: slab(34, 22) } },
+  { name: 'leaning', of: { a: slab(0, 0, -7), b: slab(0, 28, -7) } },
+  { name: 'wide lens', of: { camera: 300, b: slab(0, 30) } },
+  { name: 'long lens', of: { camera: 2800, b: slab(0, 30) } },
+  { name: 'slim', of: { depth: 10, gap: 42, b: slab(0, 28) } },
+  { name: 'heavy', of: { depth: 42, gap: 80, b: slab(0, 28) } },
+  { name: 'tight', of: { gap: 14, b: slab(0, 28) } },
+  { name: 'one camera', of: { focus: 'shared', b: slab(0, 28) } },
+  { name: 'drawn', of: { mode: 'outline', weight: 5, b: slab(0, 30) } },
+  { name: 'inked', of: { mode: 'both', weight: 3, shade: 0.55, b: slab(0, 30) } },
 ]
 
 const art = find('art')
 const dims = find('dims')
 const scale = find<HTMLInputElement>('scale')
 const mirror = find<HTMLInputElement>('mirror')
+const match = find<HTMLSelectElement>('match')
 const inputs = [...document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-key]')]
 
 const show = () => {
-  if (mirror.checked) mark.b = { turn: -mark.a.turn, tilt: -mark.a.tilt, roll: -mark.a.roll }
+  if (mirror.checked) mark.b = { ...mark.b, turn: -mark.a.turn, tilt: -mark.a.tilt, roll: -mark.a.roll }
+  if (match.value !== 'off') mark.b.scale = matchScale(mark, mark.b, mark.a, match.value as Span)
   art.innerHTML = toSvg(mark)
   const { box } = build(mark)
   const k = Number(scale.value)
@@ -69,10 +72,12 @@ for (const input of inputs) {
 
 scale.addEventListener('input', show)
 mirror.addEventListener('change', show)
+match.addEventListener('change', show)
 
 const apply = (of: Partial<Mark>) => {
   Object.assign(mark, structuredClone(DEFAULTS), structuredClone(of))
   mirror.checked = false
+  match.value = 'off'
   show()
 }
 
@@ -94,8 +99,8 @@ find('shuffle').addEventListener('click', () => {
     depth: between(8, 46),
     gap: between(14, 120),
     camera: between(240, 2400, 10),
-    a: { turn: 0, tilt: between(-10, 10), roll: 0 },
-    b: { turn: between(-12, 12), tilt: between(-45, 62), roll: 0 },
+    a: slab(0, between(-10, 10)),
+    b: slab(between(-12, 12), between(-45, 62)),
   })
 })
 
