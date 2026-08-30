@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/icon.png" alt="" width="128" height="128" />
+
 <h1>Scritto</h1>
 
 Give it a new value and the text rolls to it. Whatever didn't change stays exactly where it was.
