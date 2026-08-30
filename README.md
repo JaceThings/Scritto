@@ -4,7 +4,7 @@
 
 <h1>Scritto</h1>
 
-Give it a new value and the text rolls to it. Whatever didn't change stays exactly where it was.
+SwiftUI's numeric text transition, on the web.
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE) [![TypeScript](https://img.shields.io/badge/TypeScript-strict-blue.svg)](https://www.typescriptlang.org/)
 
