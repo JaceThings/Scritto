@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#f7f6f2" />
+    <title>scritto suite</title>
+    <script>
+      (() => {
+        const stored = document.cookie.match(/(?:^|; )theme=([^;]*)/)?.[1]
+        const dark = stored ? stored === 'dark' : matchMedia('(prefers-color-scheme: dark)').matches
+        document.documentElement.classList.toggle('dark', dark)
+        document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#1c1918' : '#f7f6f2')
+      })()
+    </script>
+    <link rel="stylesheet" href="/src/dev/dev.css" />
+  </head>
+  <body class="m-6 max-w-5xl">
+    <p>
+      <a class="text-accent no-underline hover:text-fg" href="./playground.html">playground</a>
+      ·
+      <a class="text-accent no-underline hover:text-fg" href="./edges.html">edges</a>
+      ·
+      <a class="text-accent no-underline hover:text-fg" href="./resize.html">resize</a>
+      ·
+      <a class="text-accent no-underline hover:text-fg" href="./look.html">look</a>
+      ·
+      <button
+        class="cursor-pointer border-0 bg-transparent p-0 font-[inherit] text-muted hover:text-fg"
+        id="theme"
+        type="button"
+        aria-pressed="false"
+      >
+        Dark
+      </button>
+    </p>
+    <p class="text-muted">
+      20 cases: isolated hosts, in-copy layout, multi-line wrap, 200–20k word paragraphs, bounce, RTL, emoji, comma
+      peel. fps / update ms / setup ms / long tasks / dropped frames / leftover animations / heap.
+    </p>
+    <p class="mb-4 flex items-center gap-3">
+      <button class="cursor-pointer rounded-lg bg-surface px-3 py-1.5 font-medium" id="run-all" type="button">
+        Run all
+      </button>
+      <span class="text-sm text-muted" id="status">idle</span>
+    </p>
+    <table class="mb-8 w-full text-sm" id="results"></table>
+    <div class="text-[17px] leading-7" id="page"></div>
+    <script type="module" src="/src/dev/suite.ts"></script>
+  </body>
+</html>

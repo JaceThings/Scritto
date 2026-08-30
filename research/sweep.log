@@ -1,0 +1,18 @@
+RECT 24,1298,900,130
+CASES 14
+TOTAL 45
+CASE pre00 light -> light
+CASE pre01 dlight -> light
+CASE pre02 dalight -> light
+CASE pre03 daylight -> light
+CASE pre05 sunnylight -> light
+CASE pre09 brightestlight -> light
+CASE pre12 extraordinarlight -> light
+CASE pre20 supercalifragilisticlight -> light
+CASE run01 dayt -> t
+CASE run02 dayht -> ht
+CASE run03 dayght -> ght
+CASE run04 dayight -> ight
+CASE run05 daylight -> light
+CASE run07 daylight -> aylight
+DONE

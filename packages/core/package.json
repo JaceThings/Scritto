@@ -1,0 +1,46 @@
+{
+  "name": "@scritto/core",
+  "version": "0.1.0",
+  "description": "Framework-agnostic rolling text web component",
+  "keywords": [
+    "scritto",
+    "animated-text",
+    "animated-number",
+    "animation",
+    "swiftui",
+    "text"
+  ],
+  "bugs": {
+    "url": "https://github.com/JaceThings/Scritto/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JaceThings/Scritto.git"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./ssr.css": "./dist/ssr.css"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup && cp src/ssr.css dist/ssr.css",
+    "dev": "tsup --watch"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.1",
+    "typescript": "^5"
+  }
+}

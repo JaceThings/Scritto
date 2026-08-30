@@ -1,0 +1,57 @@
+{
+  "name": "@scritto/solid",
+  "version": "0.1.0",
+  "description": "Solid.js wrapper for @scritto/core",
+  "keywords": [
+    "scritto",
+    "animated-text",
+    "animated-number",
+    "animation",
+    "swiftui",
+    "text"
+  ],
+  "bugs": {
+    "url": "https://github.com/JaceThings/Scritto/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JaceThings/Scritto.git"
+  },
+  "files": [
+    "src",
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "solid": "./src/index.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite build --watch"
+  },
+  "dependencies": {
+    "@scritto/core": "workspace:*"
+  },
+  "devDependencies": {
+    "solid-js": "^1.9.11",
+    "typescript": "^5.0.0",
+    "vite": "^7.3.1",
+    "vite-plugin-dts": "^4.5.4",
+    "vite-plugin-solid": "^2.11.10"
+  },
+  "peerDependencies": {
+    "solid-js": "^1"
+  },
+  "solid": "./src/index.ts"
+}

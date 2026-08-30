@@ -1,0 +1,264 @@
+.studio-body {
+  margin: 0;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+.studio {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  grid-template-rows: minmax(0, 1fr) auto;
+  grid-template-areas: 'stage panel' 'shelf panel';
+  width: 100%;
+  height: 100dvh;
+}
+
+.studio-stage {
+  position: relative;
+  display: flex;
+  overflow: hidden;
+  grid-area: stage;
+  align-items: center;
+  justify-content: center;
+  padding: 32px;
+}
+
+/* The board reads through whatever the export will leave transparent. */
+.studio-checker {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(45deg, var(--color-hairline) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--color-hairline) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--color-hairline) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--color-hairline) 75%);
+  background-position: 0 0, 0 12px, 12px -12px, -12px 0;
+  background-size: 24px 24px;
+  opacity: 0.6;
+}
+
+
+.studio-panel {
+  display: flex;
+  overflow-y: auto;
+  grid-area: panel;
+  flex-direction: column;
+  gap: 22px;
+  padding: 24px 22px 40px;
+  border-left: 1px solid var(--color-hairline);
+}
+
+.studio-panel fieldset + fieldset {
+  padding-top: 20px;
+  border-top: 1px solid color-mix(in srgb, var(--color-hairline) 70%, transparent);
+}
+
+.studio-title {
+  margin: 0;
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 550;
+  letter-spacing: -0.25px;
+}
+
+.studio-note {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--color-text-secondary);
+}
+
+.studio-group {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  margin: 0;
+}
+
+.studio-group legend {
+  padding: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
+}
+
+.studio-field {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+  grid-template-columns: 62px minmax(0, 1fr) 54px;
+  font-size: 13px;
+}
+
+.studio-field > span {
+  color: var(--color-text-secondary);
+}
+
+.studio-check {
+  grid-template-columns: auto auto;
+  justify-content: start;
+  gap: 8px;
+}
+
+.studio-field input[type='text'],
+.studio-field select {
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
+  font: inherit;
+  font-size: 14px;
+  color: inherit;
+  grid-column: 2 / -1;
+}
+
+.studio-field input[type='text']:focus,
+.studio-field select:focus {
+  border-color: color-mix(in srgb, var(--color-text-primary) 35%, transparent);
+  outline: none;
+}
+
+.studio-field input[type='color'] {
+  width: 100%;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--color-hairline);
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+  grid-column: 2 / -1;
+}
+
+.studio-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.studio-hint {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.35;
+  color: var(--color-text-secondary);
+}
+
+.studio-hint:empty {
+  display: none;
+}
+
+/* Held over the stage while the strip is built, so the frame you are looking at
+   stops still instead of racing through the timeline. */
+
+.studio-field input[type='range'] {
+  width: 100%;
+  min-width: 0;
+}
+
+.studio-field output {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  color: var(--color-text-primary);
+}
+
+.studio-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.studio-buttons button {
+  padding: 6px 10px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 8px;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  cursor: pointer;
+}
+
+.studio-size {
+  margin: 0;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-text-secondary);
+}
+
+.studio-shelf {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 20px 16px;
+  border-top: 1px solid var(--color-hairline);
+  grid-area: shelf;
+}
+
+.studio-shelf-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.studio-shelf h2 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
+}
+
+.studio-presets {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+
+.studio-preset {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px 7px;
+  border: 1px solid var(--color-hairline);
+  border-radius: 10px;
+  background: transparent;
+  font: inherit;
+  font-size: 11px;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.studio-preset:hover {
+  border-color: color-mix(in srgb, var(--color-text-primary) 35%, transparent);
+  color: var(--color-text-primary);
+}
+
+.studio-preset svg {
+  width: auto;
+  height: 46px;
+}
+
+.studio-art {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.studio-art svg {
+  width: auto;
+  height: min(58dvh, 560px);
+  max-width: 100%;
+}

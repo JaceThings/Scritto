@@ -1,0 +1,12 @@
+RECT 24,1298,900,130
+CASES 8
+TOTAL 27
+CASE mid-only xxlightxx -> yylightyy
+CASE mid-long zzzzdaylightzzzz -> qqqqdaylightqqqq
+CASE both-ends abcXXXdef -> abcYYYYYdef
+CASE suffix-only abcdef -> XYdef
+CASE prefix-only abcdef -> abcXY
+CASE units 1,234 kg -> 9,876,543 kg
+CASE repeat aaa -> aaaa
+CASE word-mid say light now -> the light is
+DONE

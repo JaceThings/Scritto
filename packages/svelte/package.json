@@ -1,0 +1,59 @@
+{
+  "name": "@scritto/svelte",
+  "version": "0.1.0",
+  "description": "Svelte wrapper for @scritto/core",
+  "keywords": [
+    "scritto",
+    "animated-text",
+    "animated-number",
+    "animation",
+    "swiftui",
+    "text"
+  ],
+  "bugs": {
+    "url": "https://github.com/JaceThings/Scritto/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JaceThings/Scritto.git"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "svelte": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "svelte-package",
+    "check": "svelte-check --tsconfig ./tsconfig.json",
+    "dev": "svelte-package -w",
+    "package": "svelte-package",
+    "package:watch": "svelte-package --watch"
+  },
+  "dependencies": {
+    "@scritto/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@sveltejs/package": "^2.5.7",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "prettier": "^3.8.0",
+    "prettier-plugin-svelte": "^3.4.1",
+    "svelte-check": "^4.3.5",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "svelte": "^5"
+  }
+}

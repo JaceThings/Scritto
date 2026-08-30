@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en" data-route="/versus">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1918" media="(prefers-color-scheme: dark)" />
+    <title>scritto · versus</title>
+    <link rel="stylesheet" href="/src/styles/site.css" />
+    <link rel="stylesheet" href="/src/styles/playground.css" />
+    <link rel="stylesheet" href="/src/styles/versus.css" />
+  </head>
+  <body>
+    <main class="flex min-h-dvh w-full items-stretch justify-center bg-bg">
+      <article class="column gap-9">
+        <div id="page" class="flex w-full flex-col gap-9">
+          <section class="stagger w-full text-text-primary" style="--i: 5">
+            <h1 class="text-[16px] leading-none font-[550] tracking-[-0.25px]">Versus</h1>
+            <p class="mt-3 text-[14px] leading-[1.4] font-medium tracking-[-0.25px]">
+              Upstream numeric-text and this fork, on one page and one timer, with the same
+              constants pushed into both. Freeze holds every animation in both mid-roll so you
+              can scrub across the two and count what is stacked in a slot.
+            </p>
+          </section>
+
+          <div class="stagger flex w-full flex-col gap-4" style="--i: 6">
+            <div class="figure" data-focus-section="versus">
+              <div class="versus-pair">
+                <div class="versus-side">
+                  <div class="versus-tag">upstream · numeric-text</div>
+                  <div class="stage" style="cursor: default; height: 9rem">
+                    <numeric-text
+                      id="up"
+                      class="text-[40px] leading-none font-[550] tracking-[-0.25px]"
+                      role="img"
+                    ></numeric-text>
+                  </div>
+                </div>
+                <div class="versus-side">
+                  <div class="versus-tag">this fork · scritto</div>
+                  <div class="stage" style="cursor: default; height: 9rem">
+                    <scritto-text
+                      id="fk"
+                      class="text-[40px] leading-none font-[550] tracking-[-0.25px]"
+                      role="img"
+                    ></scritto-text>
+                  </div>
+                </div>
+              </div>
+
+              <div class="row versus-transport">
+                <button data-role="freeze" type="button">Freeze</button>
+                <button data-role="tick" type="button">Step one value</button>
+                <span class="versus-count" data-role="count"></span>
+              </div>
+              <div class="row row-slider" data-role="scrub"></div>
+
+              <div class="row row-slider" data-role="interval"></div>
+              <div class="row row-slider" data-role="step"></div>
+              <div class="row row-slider" data-role="duration"></div>
+              <div class="row row-slider" data-role="stagger"></div>
+              <div class="row row-slider" data-role="blur"></div>
+              <div class="row row-slider" data-role="travel"></div>
+              <div class="row row-slider" data-role="scale"></div>
+              <div class="row row-slider" data-role="rotate"></div>
+              <div class="row" style="padding: 16px; gap: 18px; flex-wrap: wrap">
+                <label class="flex items-center gap-2 text-[13px] font-medium text-text-input">
+                  <input data-role="group" type="checkbox" checked /> Group digits
+                </label>
+                <label class="flex items-center gap-2 text-[13px] font-medium text-text-input">
+                  <input data-role="running" type="checkbox" checked /> Running
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </article>
+    </main>
+    <script type="module" src="/src/dev/versus.ts"></script>
+  </body>
+</html>

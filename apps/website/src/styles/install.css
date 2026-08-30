@@ -1,0 +1,118 @@
+/* 6px of padding against a matching negative margin buys a 41px hit target
+   without moving the 29px surface. */
+.install-copy {
+  display: block;
+  margin: -6px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  color: inherit;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.install-copy:focus,
+.install-copy:focus-visible {
+  outline: none;
+}
+
+.install-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 6px;
+  overflow: hidden;
+  background: var(--color-surface);
+  padding: 6px 8px;
+  border-radius: 8px;
+  box-shadow: var(--shadow-install);
+}
+
+.install-glyphs {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+}
+
+.install-mark {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 17px;
+  color: var(--color-text-input);
+}
+
+/* The four ribbons abut and weld into a blob at 17px; a surface-coloured
+   hairline reopens the seams. */
+#mark-solid path {
+  stroke: var(--color-surface);
+  stroke-width: 0.9;
+  stroke-linejoin: round;
+}
+
+.install-command {
+  flex: 1;
+  min-width: 0;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+  color: var(--color-text-input);
+}
+
+.install-swap {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  color: var(--color-text-input);
+  transition: color 300ms var(--ease-out-quint);
+}
+
+.install-copy[data-copied] .install-swap {
+  color: var(--color-accent-green);
+}
+
+.install-glyph {
+  position: absolute;
+  inset: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transform: scale(0.4);
+  filter: blur(3px);
+  transition:
+    opacity 300ms var(--ease-spring),
+    transform 300ms var(--ease-spring),
+    filter 300ms var(--ease-spring);
+  will-change: opacity, transform, filter;
+}
+
+.install-copy:not([data-copied]) .install-glyph[data-glyph='copy'],
+.install-copy[data-copied] .install-glyph[data-glyph='check'] {
+  opacity: 1;
+  transform: scale(1);
+  filter: blur(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .install-swap,
+  .install-glyph {
+    transition-duration: 1ms;
+  }
+
+  .install-glyph {
+    transform: none;
+    filter: none;
+  }
+}

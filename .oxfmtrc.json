@@ -1,0 +1,9 @@
+{
+  "semi": false,
+  "printWidth": 120,
+  "singleQuote": true,
+  "bracketSpacing": true,
+  "trailingComma": "all",
+  "arrowParens": "always",
+  "proseWrap": "preserve"
+}
