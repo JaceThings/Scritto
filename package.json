@@ -1,0 +1,28 @@
+{
+  "name": "scritto",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "bun run --filter './packages/*' build",
+    "dev": "bun run --filter './packages/*' dev",
+    "play": "bun run --filter website dev",
+    "bench:suite": "bun apps/website/scripts/run-suite.ts",
+    "check:flow": "bun apps/website/scripts/check-flow.ts",
+    "check:churn": "bun apps/website/scripts/check-churn.ts",
+    "check:stress": "bun apps/website/scripts/check-stress.ts",
+    "check:versus": "bun apps/website/scripts/check-versus.ts",
+    "check:docs": "bun apps/website/scripts/check-docs.ts",
+    "ci:version": "changeset version && bun update && git add --all",
+    "ci:publish": "for dir in packages/*; do (cd \"$dir\" && bun publish) || exit 1; done && changeset tag",
+    "size": "bun run build && bun scripts/size.ts"
+  },
+  "devDependencies": {
+    "@changesets/cli": "^2.31.1",
+    "@types/bun": "latest",
+    "playwright": "^1.62.1",
+    "typescript": "^5.9.3"
+  }
+}

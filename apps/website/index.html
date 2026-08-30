@@ -1,0 +1,192 @@
+<!doctype html>
+<html lang="en" data-route="/">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1918" media="(prefers-color-scheme: dark)" />
+    <meta
+      name="description"
+      content="Scritto animates text in place: only the characters that changed move. Bindings for React, Vue, Svelte, and Solid, plus a core that runs without a framework."
+    />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://scrit.to/" />
+    <meta property="og:title" content="Scritto" />
+    <meta property="og:description" content="Scritto animates text in place: only the characters that changed move. Bindings for React, Vue, Svelte, and Solid, plus a core that runs without a framework." />
+    <meta property="og:image" content="https://scrit.to/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <title>scritto</title>
+    <link rel="stylesheet" href="/src/styles/site.css" />
+    <link rel="stylesheet" href="/src/styles/install.css" />
+  </head>
+  <body>
+    <main class="flex min-h-dvh w-full items-stretch justify-center bg-bg">
+      <article class="column gap-9">
+        <!-- @include header.html -->
+        <div id="page" class="flex w-full flex-col gap-9">
+        <section class="stagger w-full text-text-primary" style="--i: 5">
+          <p class="text-[14px] leading-[1.4] font-medium tracking-[-0.25px] text-justify hyphens-auto">
+            Scritto is a JavaScript library that animates text in place. Give an element a new value
+            and only the characters that changed move: each one rolls from the old character to the
+            new one while the rest hold their position. It works on numbers, words, and emoji, with
+            bindings for React, Vue, Svelte, and Solid, and a core that runs without a framework.
+          </p>
+        </section>
+        <section class="stagger w-full text-text-primary" style="--i: 6">
+          <!-- Live values live in a shadow root, so the marker cannot measure them
+               and paints the scraps between them as stray blobs.
+               No text-wrap: pretty here either: it re-wraps the whole block, so the
+               timer gaining a digit would shuffle every line above it. Greedy
+               wrapping keeps a growing value's effect below where it sits. -->
+          <scritto-flow data-highlight-exclude class="block text-[14px] leading-[1.4] font-medium tracking-[-0.25px] text-wrap">
+            You're the <scritto-text id="you" class="live align-baseline"></scritto-text> visitor.
+            <scritto-text id="here-count" class="live align-baseline"></scritto-text>
+            <scritto-text id="here" class="align-baseline"></scritto-text>
+            This page has been opened <scritto-text id="views" class="live align-baseline"></scritto-text>
+            times and poked at <scritto-text id="clicks" class="live align-baseline"></scritto-text>
+            times, and the packages have been downloaded a total of
+            <scritto-text id="npm" class="live align-baseline"></scritto-text> times so far this
+            month. All of it counts up as it happens, and you've been
+            sitting here <span class="whitespace-nowrap">for
+              <scritto-text id="sat" class="live align-baseline"></scritto-text>.</span>
+          </scritto-flow>
+        </section>
+        <div class="stagger" style="--i: 7">
+          <div class="divider" role="separator"></div>
+        </div>
+        <section class="flex w-full flex-col gap-3" aria-labelledby="install-heading" data-focus-section="install" data-highlight-exclude>
+          <h2 data-highlight-exclude id="install-heading" class="sr-only">Install</h2>
+          <svg class="install-glyphs" aria-hidden="true">
+            <symbol id="mark-react" viewBox="0 0 19 17">
+              <path d="M15 5.69C14.81 5.62 14.62 5.56 14.42 5.51C14.45 5.37 14.48 5.24 14.51 5.11C14.95 2.99 14.66 1.28 13.68 0.71C12.74 0.17 11.21 0.73 9.66 2.08C9.51 2.21 9.36 2.35 9.21 2.49C9.11 2.4 9.01 2.31 8.91 2.22C7.28 0.78 5.66 0.17 4.68 0.74C3.74 1.28 3.46 2.89 3.86 4.9C3.89 5.09 3.94 5.29 3.99 5.5C3.76 5.56 3.54 5.63 3.32 5.7C1.42 6.37 0.2 7.41 0.2 8.48C0.2 9.6 1.51 10.71 3.49 11.39C3.65 11.45 3.81 11.5 3.98 11.54C3.92 11.76 3.88 11.98 3.84 12.19C3.46 14.16 3.75 15.74 4.69 16.27C5.66 16.83 7.28 16.26 8.86 14.88C8.98 14.77 9.11 14.66 9.23 14.54C9.4 14.69 9.56 14.84 9.72 14.98C11.25 16.29 12.76 16.82 13.7 16.28C14.66 15.72 14.97 14.04 14.57 11.98C14.54 11.83 14.5 11.67 14.46 11.5C14.57 11.47 14.69 11.43 14.79 11.4C16.86 10.72 18.2 9.61 18.2 8.48C18.2 7.4 16.94 6.36 15 5.69ZM14.55 10.67C14.45 10.7 14.35 10.73 14.25 10.76C14.02 10.04 13.71 9.28 13.34 8.49C13.7 7.72 13.99 6.96 14.21 6.25C14.4 6.3 14.58 6.36 14.75 6.41C16.42 6.99 17.43 7.83 17.43 8.48C17.43 9.18 16.33 10.08 14.55 10.67ZM13.81 12.13C13.99 13.04 14.02 13.86 13.9 14.5C13.79 15.08 13.58 15.46 13.31 15.62C12.74 15.95 11.53 15.52 10.22 14.4C10.07 14.27 9.92 14.13 9.77 13.98C10.28 13.43 10.78 12.79 11.28 12.07C12.15 12 12.97 11.87 13.72 11.7C13.75 11.85 13.78 11.99 13.81 12.13ZM6.34 15.56C5.78 15.76 5.34 15.76 5.07 15.61C4.51 15.28 4.27 14.02 4.59 12.33C4.63 12.13 4.67 11.94 4.72 11.73C5.46 11.89 6.28 12.01 7.15 12.08C7.65 12.78 8.17 13.42 8.69 13.99C8.58 14.1 8.47 14.2 8.35 14.3C7.65 14.91 6.95 15.34 6.34 15.56ZM3.74 10.67C2.86 10.37 2.14 9.98 1.64 9.55C1.19 9.17 0.97 8.79 0.97 8.48C0.97 7.83 1.95 7 3.58 6.43C3.77 6.36 3.98 6.3 4.2 6.23C4.42 6.97 4.72 7.73 5.07 8.5C4.71 9.29 4.41 10.06 4.18 10.8C4.03 10.76 3.88 10.71 3.74 10.67ZM4.61 4.75C4.27 3.03 4.5 1.73 5.06 1.4C5.66 1.05 7 1.55 8.4 2.79C8.49 2.87 8.58 2.95 8.67 3.04C8.15 3.6 7.63 4.24 7.14 4.93C6.29 5.01 5.48 5.14 4.73 5.31C4.69 5.12 4.65 4.93 4.61 4.75ZM12.38 6.67C12.2 6.36 12.01 6.06 11.83 5.77C12.4 5.84 12.95 5.94 13.47 6.05C13.31 6.55 13.12 7.07 12.89 7.6C12.73 7.29 12.56 6.98 12.38 6.67ZM9.21 3.59C9.56 3.97 9.92 4.4 10.27 4.86C9.92 4.85 9.56 4.84 9.2 4.84C8.84 4.84 8.49 4.85 8.14 4.86C8.49 4.4 8.85 3.98 9.21 3.59ZM6.02 6.67C5.84 6.98 5.67 7.29 5.51 7.6C5.29 7.07 5.1 6.55 4.94 6.05C5.46 5.93 6 5.84 6.57 5.77C6.38 6.06 6.2 6.36 6.02 6.67ZM6.59 11.26C6 11.19 5.44 11.1 4.93 10.99C5.09 10.48 5.29 9.95 5.51 9.41C5.68 9.72 5.85 10.03 6.03 10.34C6.21 10.65 6.4 10.96 6.59 11.26ZM9.23 13.44C8.87 13.04 8.5 12.61 8.15 12.14C8.49 12.16 8.84 12.16 9.2 12.16C9.57 12.16 9.93 12.15 10.29 12.14C9.94 12.61 9.58 13.05 9.23 13.44ZM12.9 9.38C13.14 9.93 13.34 10.45 13.5 10.96C12.98 11.08 12.42 11.17 11.83 11.24C12.01 10.95 12.2 10.64 12.38 10.33C12.56 10.01 12.74 9.69 12.9 9.38ZM11.71 9.95C11.43 10.43 11.14 10.9 10.85 11.34C10.31 11.38 9.76 11.39 9.2 11.39C8.64 11.39 8.1 11.38 7.57 11.34C7.27 10.9 6.97 10.43 6.69 9.95C6.41 9.47 6.16 8.99 5.92 8.5C6.16 8.02 6.41 7.53 6.69 7.06C6.97 6.57 7.26 6.11 7.56 5.67C8.1 5.63 8.65 5.61 9.2 5.61C9.76 5.61 10.31 5.63 10.84 5.67C11.14 6.11 11.43 6.57 11.71 7.05C11.99 7.54 12.25 8.02 12.49 8.49C12.25 8.97 11.99 9.46 11.71 9.95ZM13.3 1.38C13.9 1.72 14.14 3.12 13.76 4.96C13.73 5.07 13.71 5.19 13.68 5.31C12.93 5.14 12.12 5.01 11.27 4.93C10.77 4.23 10.26 3.59 9.75 3.04C9.89 2.91 10.02 2.78 10.16 2.66C11.49 1.51 12.73 1.05 13.3 1.38ZM9.2 6.88C10.09 6.88 10.81 7.6 10.81 8.48C10.81 9.37 10.09 10.09 9.2 10.09C8.31 10.09 7.59 9.37 7.59 8.48C7.59 7.6 8.31 6.88 9.2 6.88Z" fill="currentColor" stroke="currentColor" stroke-width="0.4" />
+            </symbol>
+            <symbol id="mark-vue" viewBox="0 0 18 17">
+              <path d="M4.25 1.67L7.12 1.67L9 4.79L10.88 1.67L13.75 1.67L9.02 9.88L4.25 1.67Z" fill="currentColor" fill-opacity="0.7" />
+              <path d="M1.11 1.7L4.25 1.67L9.02 9.88L13.75 1.67L16.89 1.68L9.02 15.19L1.11 1.7Z" fill="currentColor" />
+            </symbol>
+            <symbol id="mark-svelte" viewBox="0 0 18 17">
+              <path fill-rule="evenodd" clip-rule="evenodd" d="M8.27 1.22C9.34 0.58 10.61 0.37 11.83 0.63C13.05 0.89 14.12 1.6 14.83 2.63C15.18 3.12 15.43 3.67 15.57 4.26C15.7 4.85 15.72 5.46 15.61 6.05C15.5 6.63 15.27 7.18 14.94 7.66C15.4 8.54 15.57 9.54 15.41 10.52C15.3 11.11 15.08 11.66 14.74 12.15C14.41 12.64 13.98 13.06 13.48 13.38L9.73 15.77C7.59 17.12 4.68 16.5 3.17 14.37C2.82 13.87 2.57 13.32 2.43 12.73C2.3 12.14 2.28 11.53 2.39 10.94C2.5 10.36 2.73 9.81 3.06 9.33C2.58 8.44 2.42 7.41 2.59 6.42C2.7 5.83 2.92 5.28 3.25 4.79C3.59 4.29 4.02 3.88 4.52 3.56L8.27 1.22ZM13.27 3.56C12.59 2.57 11.29 2.11 10.09 2.42C9.84 2.49 9.59 2.59 9.36 2.73L5.61 5.12C5.31 5.31 5.06 5.56 4.86 5.86C4.66 6.15 4.53 6.48 4.47 6.83C4.4 7.19 4.41 7.56 4.49 7.92C4.57 8.28 4.72 8.61 4.94 8.91C5.61 9.9 6.92 10.42 8.11 10.11C8.37 10.02 8.62 9.9 8.84 9.74L10.3 8.86C10.37 8.82 10.44 8.78 10.51 8.76C10.69 8.71 10.87 8.73 11.04 8.79C11.2 8.86 11.35 8.97 11.45 9.12C11.51 9.21 11.56 9.31 11.59 9.42C11.62 9.52 11.62 9.63 11.6 9.74C11.58 9.85 11.54 9.95 11.48 10.04C11.41 10.13 11.33 10.21 11.24 10.26L7.54 12.6C7.46 12.65 7.37 12.68 7.28 12.7C7.11 12.75 6.92 12.73 6.76 12.67C6.59 12.6 6.44 12.49 6.34 12.34C6.23 12.19 6.18 12.01 6.19 11.82V11.66L6.08 11.61C5.56 11.46 5.07 11.21 4.62 10.89L4.42 10.78L4.31 10.99C4.29 11.09 4.27 11.2 4.26 11.3C4.2 11.66 4.2 12.03 4.28 12.39C4.37 12.74 4.52 13.08 4.73 13.38C5.41 14.42 6.71 14.89 7.91 14.57C8.17 14.49 8.41 14.37 8.64 14.21L12.39 11.87C12.69 11.68 12.94 11.43 13.14 11.14C13.34 10.84 13.47 10.51 13.53 10.16C13.6 9.8 13.59 9.43 13.51 9.07C13.43 8.72 13.27 8.38 13.06 8.08C12.39 7.04 11.08 6.57 9.89 6.89C9.63 6.97 9.38 7.09 9.16 7.25L7.7 8.13C7.63 8.18 7.56 8.21 7.49 8.24C7.31 8.28 7.13 8.26 6.96 8.2C6.8 8.13 6.65 8.02 6.55 7.87C6.49 7.78 6.44 7.68 6.41 7.58C6.38 7.47 6.38 7.36 6.4 7.25C6.42 7.14 6.46 7.04 6.52 6.95C6.58 6.86 6.67 6.79 6.76 6.73L10.46 4.34C10.54 4.29 10.63 4.26 10.72 4.24C10.89 4.19 11.08 4.21 11.24 4.27C11.41 4.34 11.56 4.45 11.66 4.6C11.78 4.77 11.83 4.97 11.81 5.17V5.33H11.92C12.44 5.48 12.93 5.73 13.37 6.05L13.58 6.21L13.69 6C13.71 5.88 13.73 5.76 13.74 5.64C13.8 5.28 13.79 4.91 13.71 4.55C13.63 4.2 13.48 3.86 13.27 3.56Z" fill="currentColor" />
+            </symbol>
+            <symbol id="mark-solid" viewBox="0 0 24 24">
+              <path d="M11.56 0.79A9.08 9.08 0 0 0 9.780.99l-0.450.15c-0.910.3-1.660.76-2.1 1.35l-0.30.45-2.04 3.53c0.43-0.390.97-0.7 1.64-0.89h0l0.61-0.15h0a8.82 8.82 0 0 1 1.78-0.21c2.92-0.05 6.03 1.15 8.42 2.36 2.32 1.18 3.89 2.32 3.99 2.39L24 5.52c-0.08-0.06-1.66-1.21-3.99-2.39-2.39-1.21-5.52-2.4-8.45-2.34z" fill="currentColor" />
+              <path d="M8.92 5.37a8.63 8.63 0 0 0-1.750.2l-0.610.15c-1.280.38-2.1 1.16-2.43 2.11-0.330.95-0.19 2.060.49 3.120.330.430.750.81 1.22 1.15L12.33 10h0a6.94 6.94 0 0 1 6.01 1.01l2.84-0.96c-0.17-0.12-1.66-1.2-3.91-2.34-2.38-1.21-5.48-2.4-8.35-2.34z" fill="currentColor" />
+              <path d="M14.36 9.86a6.79 6.79 0 0 0-1.980.28L2.94 13.19 0 18.33l9.28-2.99a6.95 6.95 0 0 1 7.41 2.31v0c0.690.90.89 1.910.66 2.81l2.57-4.63c0.59-1.040.45-2.23-0.3-3.43a6.79 6.79 0 0 0-5.25-2.54z" fill="currentColor" />
+              <path d="M11.33 15.2a6.79 6.79 0 0 0-2.010.28L0.01 18.49c0.170.13 2.02 1.5 4.69 2.77 2.8 1.33 6.37 2.47 9.47 1.71l0.45-0.15h0c1.28-0.38 2.13-1.16 2.49-2.090.35-0.930.21-2-0.54-2.98a6.79 6.79 0 0 0-5.24-2.55z" fill="currentColor" />
+            </symbol>
+            <symbol id="mark-js" viewBox="0 0 18 17">
+              <path d="M1 2.9C1 2.06 1 1.64 1.16 1.32C1.31 1.04 1.54 0.81 1.82 0.66C2.14 0.5 2.56 0.5 3.4 0.5H14.6C15.44 0.5 15.86 0.5 16.18 0.66C16.46 0.81 16.69 1.04 16.84 1.32C17 1.64 17 2.06 17 2.9V14.1C17 14.94 17 15.36 16.84 15.68C16.69 15.96 16.46 16.19 16.18 16.34C15.86 16.5 15.44 16.5 14.6 16.5H3.4C2.56 16.5 2.14 16.5 1.82 16.34C1.54 16.19 1.31 15.96 1.16 15.68C1 15.36 1 14.94 1 14.1V2.9ZM15.69 12.68C15.57 11.95 15.1 11.34 13.69 10.77C13.2 10.54 12.65 10.38 12.49 10.01C12.43 9.79 12.42 9.67 12.46 9.54C12.56 9.11 13.07 8.98 13.47 9.1C13.73 9.18 13.97 9.38 14.12 9.7C14.81 9.25 14.81 9.25 15.29 8.95C15.11 8.67 15.02 8.55 14.9 8.43C14.48 7.96 13.92 7.72 13.01 7.74L12.54 7.8C12.09 7.91 11.66 8.15 11.4 8.47C10.64 9.33 10.86 10.83 11.78 11.45C12.69 12.13 14.02 12.28 14.19 12.92C14.35 13.7 13.61 13.95 12.88 13.86C12.34 13.74 12.04 13.47 11.71 12.97L10.49 13.67C10.63 13.99 10.79 14.13 11.03 14.41C12.19 15.58 15.09 15.52 15.61 13.74C15.63 13.68 15.77 13.27 15.66 12.64L15.69 12.68ZM9.7 7.85H8.2C8.2 9.15 8.2 10.43 8.2 11.72C8.2 12.55 8.24 13.3 8.1 13.53C7.88 13.99 7.32 13.93 7.06 13.85C6.8 13.72 6.66 13.54 6.51 13.28C6.46 13.21 6.43 13.15 6.42 13.15L5.21 13.9C5.41 14.32 5.71 14.68 6.09 14.91C6.66 15.25 7.42 15.36 8.23 15.18C8.75 15.03 9.2 14.72 9.43 14.24C9.77 13.62 9.7 12.86 9.7 12.01C9.71 10.64 9.7 9.27 9.7 7.89L9.7 7.85Z" fill="currentColor" />
+            </symbol>
+            <symbol id="icon-copy" viewBox="0 0 15 16">
+              <path d="M3.24 15.14C2.6 15.14 2.12 14.97 1.8 14.65C1.47 14.32 1.31 13.83 1.31 13.19V5.01C1.31 4.37 1.47 3.88 1.8 3.55C2.12 3.22 2.6 3.05 3.24 3.05H5.38V7.44C5.38 7.82 5.48 8.1 5.66 8.29C5.85 8.48 6.13 8.57 6.52 8.57H10.75V13.19C10.75 13.83 10.58 14.32 10.26 14.65C9.93 14.97 9.45 15.14 8.81 15.14H3.24ZM6.57 7.7C6.36 7.7 6.25 7.59 6.25 7.37V3.21C6.37 3.24 6.5 3.31 6.62 3.4C6.75 3.49 6.87 3.6 7.01 3.74L10.15 6.93C10.28 7.07 10.39 7.2 10.47 7.33C10.55 7.45 10.6 7.57 10.63 7.69L6.57 7.7ZM11.62 12.09V8.71C11.62 8.27 11.56 7.86 11.45 7.49C11.35 7.11 11.14 6.76 10.81 6.44L7.44 3.06C7.1 2.74 6.76 2.51 6.4 2.38C6.04 2.25 5.63 2.19 5.17 2.19H4.25V1.9C4.25 1.29 4.42 0.82 4.75 0.49C5.08 0.16 5.56 0 6.18 0H9.38V3.55C9.38 3.85 9.46 4.09 9.64 4.26C9.81 4.43 10.05 4.52 10.35 4.52H13.69V10.13C13.69 10.46 13.65 10.75 13.56 11C13.47 11.24 13.34 11.45 13.17 11.61C13.01 11.77 12.81 11.89 12.58 11.97C12.35 12.05 12.09 12.09 11.8 12.09H11.62ZM10.51 3.72C10.3 3.72 10.19 3.61 10.19 3.38L10.18 0.24C10.28 0.25 10.38 0.29 10.47 0.36C10.57 0.43 10.67 0.52 10.78 0.64L13.2 3.11C13.31 3.23 13.4 3.33 13.47 3.43C13.54 3.52 13.58 3.62 13.6 3.72H10.51Z" fill="currentColor" />
+            </symbol>
+            <symbol id="icon-check" viewBox="0 0 15 15">
+              <path d="M6.27 12.66C5.98 12.66 5.74 12.54 5.54 12.28L2.45 8.43C2.38 8.33 2.32 8.24 2.29 8.16C2.26 8.07 2.24 7.98 2.24 7.89C2.24 7.68 2.31 7.51 2.44 7.38C2.58 7.24 2.75 7.18 2.97 7.18C3.21 7.18 3.41 7.28 3.58 7.5L6.24 10.92L11.41 2.72C11.5 2.58 11.59 2.48 11.69 2.43C11.78 2.37 11.91 2.34 12.06 2.34C12.26 2.34 12.43 2.4 12.56 2.53C12.7 2.66 12.76 2.83 12.76 3.03C12.76 3.12 12.75 3.2 12.72 3.29C12.69 3.37 12.65 3.46 12.59 3.56L6.99 12.28C6.82 12.53 6.58 12.66 6.27 12.66Z" fill="currentColor" />
+            </symbol>
+          </svg>
+          <button
+            class="install-copy stagger" data-focus-ring
+            style="--i: 8"
+            type="button"
+            data-copy="npm install @scritto/react"
+            data-pkg="@scritto/react"
+            aria-label="Copy npm install @scritto/react to clipboard"
+          >
+            <span class="install-row">
+              <span class="install-mark" aria-hidden="true">
+                <svg width="19" height="17"><use href="#mark-react" /></svg>
+              </span>
+              <span class="install-command">npm install @scritto/react</span>
+              <span class="install-swap" aria-hidden="true">
+                <span class="install-glyph" data-glyph="copy"><svg width="15" height="16"><use href="#icon-copy" /></svg></span>
+                <span class="install-glyph" data-glyph="check"><svg width="15" height="15"><use href="#icon-check" /></svg></span>
+              </span>
+            </span>
+          </button>
+          <button
+            class="install-copy stagger" data-focus-ring
+            style="--i: 9"
+            type="button"
+            data-copy="npm install @scritto/vue"
+            data-pkg="@scritto/vue"
+            aria-label="Copy npm install @scritto/vue to clipboard"
+          >
+            <span class="install-row">
+              <span class="install-mark" aria-hidden="true">
+                <svg width="18" height="17"><use href="#mark-vue" /></svg>
+              </span>
+              <span class="install-command">npm install @scritto/vue</span>
+              <span class="install-swap" aria-hidden="true">
+                <span class="install-glyph" data-glyph="copy"><svg width="15" height="16"><use href="#icon-copy" /></svg></span>
+                <span class="install-glyph" data-glyph="check"><svg width="15" height="15"><use href="#icon-check" /></svg></span>
+              </span>
+            </span>
+          </button>
+          <button
+            class="install-copy stagger" data-focus-ring
+            style="--i: 10"
+            type="button"
+            data-copy="npm install @scritto/svelte"
+            data-pkg="@scritto/svelte"
+            aria-label="Copy npm install @scritto/svelte to clipboard"
+          >
+            <span class="install-row">
+              <span class="install-mark" aria-hidden="true">
+                <svg width="18" height="17"><use href="#mark-svelte" /></svg>
+              </span>
+              <span class="install-command">npm install @scritto/svelte</span>
+              <span class="install-swap" aria-hidden="true">
+                <span class="install-glyph" data-glyph="copy"><svg width="15" height="16"><use href="#icon-copy" /></svg></span>
+                <span class="install-glyph" data-glyph="check"><svg width="15" height="15"><use href="#icon-check" /></svg></span>
+              </span>
+            </span>
+          </button>
+          <button
+            class="install-copy stagger" data-focus-ring
+            style="--i: 11"
+            type="button"
+            data-copy="npm install @scritto/solid"
+            data-pkg="@scritto/solid"
+            aria-label="Copy npm install @scritto/solid to clipboard"
+          >
+            <span class="install-row">
+              <span class="install-mark" aria-hidden="true">
+                <svg width="17" height="17"><use href="#mark-solid" /></svg>
+              </span>
+              <span class="install-command">npm install @scritto/solid</span>
+              <span class="install-swap" aria-hidden="true">
+                <span class="install-glyph" data-glyph="copy"><svg width="15" height="16"><use href="#icon-copy" /></svg></span>
+                <span class="install-glyph" data-glyph="check"><svg width="15" height="15"><use href="#icon-check" /></svg></span>
+              </span>
+            </span>
+          </button>
+          <button
+            class="install-copy stagger" data-focus-ring
+            style="--i: 12"
+            type="button"
+            data-copy="npm install @scritto/core"
+            data-pkg="@scritto/core"
+            aria-label="Copy npm install @scritto/core to clipboard"
+          >
+            <span class="install-row">
+              <span class="install-mark" aria-hidden="true">
+                <svg width="18" height="17"><use href="#mark-js" /></svg>
+              </span>
+              <span class="install-command">npm install @scritto/core</span>
+              <span class="install-swap" aria-hidden="true">
+                <span class="install-glyph" data-glyph="copy"><svg width="15" height="16"><use href="#icon-copy" /></svg></span>
+                <span class="install-glyph" data-glyph="check"><svg width="15" height="15"><use href="#icon-check" /></svg></span>
+              </span>
+            </span>
+          </button>
+          <p data-highlight-exclude class="sr-only" aria-live="polite" aria-atomic="true" data-copy-status></p>
+        </section>
+        </div>
+        <!-- @include footer.html i=14 -->
+      </article>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

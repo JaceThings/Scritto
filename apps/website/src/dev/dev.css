@@ -1,0 +1,45 @@
+@import 'tailwindcss';
+@import '@scritto/core/ssr.css';
+@import '@fontsource-variable/inter';
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* The site's own palette (styles/tokens.css), so a dev page never looks like
+   a different product: warm paper light, #1c1918 dark. */
+@theme {
+  --font-sans: 'Inter Variable', Inter, system-ui, sans-serif;
+  --color-bg: #f7f6f2;
+  --color-fg: #73574a;
+  --color-surface: #ffffff;
+  --color-line: #edece8;
+  /* Same token as the site's `--hairline`. Named here so this file's own
+     Tailwind pass emits `border-hairline` / `bg-hairline` for resize.html,
+     which site.css no longer scans. Aliased, not a second swatch, so the
+     value still follows tokens.css (including dark). */
+  --color-hairline: var(--hairline);
+  --color-muted: rgba(154, 145, 138, 0.75);
+  --color-accent: #5b5ddf;
+}
+
+.dark {
+  --color-bg: #1c1918;
+  --color-fg: #fef1df;
+  --color-surface: #2c2926;
+  --color-line: rgba(255, 255, 255, 0.08);
+  --color-muted: #9a928a;
+  --color-accent: #8b8de8;
+}
+
+@layer base {
+  html {
+    color-scheme: light;
+  }
+
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    @apply bg-bg text-fg font-sans antialiased;
+  }
+}

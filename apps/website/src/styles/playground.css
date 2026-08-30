@@ -1,0 +1,479 @@
+.figure {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--color-figure);
+  /* First-paint fallback; JS swaps in a clip-path and clears it. */
+  border-radius: 12px 12px 20px 20px;
+  box-shadow: var(--shadow-figure);
+}
+
+/* A card is a step above the page, so its text takes a brighter step with it —
+   in dark the top of the scale. The card's rules already read these three, so
+   remapping them here lifts the whole card and keeps its hierarchy. */
+.figure {
+  /* `color` too, not only the token: the page's declaration resolved against
+     the page's value, so text with no colour of its own inherits that. */
+  --color-text-primary: var(--color-figure-text);
+  --color-text-input: var(--color-figure-input);
+  --color-text-secondary: var(--color-figure-secondary);
+  color: var(--color-figure-text);
+}
+
+.figure:not(:has(.row)) {
+  border-radius: 12px;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 10rem;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  /* Gutters so an aligned value stops short of the card edge. */
+  padding: 0 26px;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+}
+
+.stage-tall {
+  height: 255px;
+}
+
+/* A CSS ring here would be cut by the figure's clip; keyboard uses the overlay. */
+.stage:focus,
+.copy-stage:focus {
+  outline: none;
+}
+
+.stage:focus-visible,
+.copy-stage:focus-visible {
+  outline: none;
+}
+
+[data-focus-ring]:focus,
+[data-focus-ring]:focus-visible {
+  outline: none;
+}
+
+.footer-link:focus,
+.footer-link:focus-visible {
+  outline: none;
+}
+
+.copy-stage {
+  position: relative;
+  display: block;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 16px;
+  text-align: left;
+  cursor: pointer;
+  font: inherit;
+}
+
+/* Backstops a browser whose metrics wrap the copy to fewer lines: the card
+   would shrink and jump everything below it. */
+.copy-stage-wrap {
+  min-height: calc(32px + 15px * 1.5 * 5);
+}
+
+.copy-stage-wrap .copy {
+  min-height: calc(15px * 1.5 * 5);
+}
+
+.copy {
+  display: block;
+  font-size: 15px;
+  line-height: 1.5;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+  color: var(--color-text-primary);
+}
+
+.row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  box-shadow: inset 0 1px 0 0 var(--color-hairline);
+}
+
+.pill-group {
+  display: flex;
+  width: 100%;
+  flex-wrap: wrap;
+  align-content: center;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 12px;
+}
+
+.pill {
+  display: flex;
+  flex: 1;
+  margin: -6px;
+  padding: 6px;
+  border: 0;
+  background: transparent;
+  font: inherit;
+  cursor: pointer;
+  user-select: none;
+}
+
+.pill > span {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  min-height: 29px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+  color: var(--color-text-input);
+  font-feature-settings:
+    'ss03' 1,
+    'ss04' 1;
+  font-variant-numeric: tabular-nums;
+  transition-property: background-color, scale;
+  transition-duration: 350ms, 120ms;
+  transition-timing-function: cubic-bezier(0.32, 0.72, 0, 1), var(--ease-out-quint);
+}
+
+.pill[aria-pressed='true'] > span {
+  background: color-mix(in srgb, var(--color-text-input) 12%, transparent);
+}
+
+.pill:active > span {
+  scale: 0.96;
+}
+
+.pill:focus,
+.pill:focus-visible {
+  outline: none;
+}
+
+@media (min-width: 561px) {
+  .pill-group[data-columns='4'] .pill {
+    flex-basis: calc(25% - 9px);
+  }
+}
+
+@media (max-width: 560px) {
+  .pill-group[data-columns='4'] .pill {
+    flex-basis: calc(50% - 6px);
+  }
+}
+
+.row-field {
+  padding: 16px;
+  gap: 12px;
+  justify-content: space-between;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+}
+
+.row-slider {
+  padding: 16px;
+}
+
+/* 0fr to 1fr rather than a height, so the row never has to be measured. Not
+   named `.collapse`: Tailwind ships that as `visibility: collapse`, which wins
+   the cascade for a property this rule never sets and hides the row for good. */
+.disclose {
+  display: grid;
+  grid-template-rows: 1fr;
+  opacity: 1;
+  translate: 0;
+  transition:
+    grid-template-rows 485ms var(--ease-settle),
+    opacity 485ms var(--ease-settle),
+    translate 485ms var(--ease-settle);
+}
+
+.disclose[data-open='false'] {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  /* The row leaves upward into the pills it belongs to, not straight down. */
+  translate: 0 -4px;
+}
+
+/* The clip carries no padding of its own: a border-box height still cannot
+   shrink past its own padding, so a padded grid item never reaches zero. */
+.disclose-clip {
+  min-height: 0;
+  overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .disclose {
+    transition: none;
+  }
+}
+
+.row-label {
+  flex: none;
+  user-select: none;
+  color: var(--color-text-input);
+}
+
+.field {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  margin: 0;
+  text-align: right;
+  font: inherit;
+  color: var(--color-text-primary);
+  outline: none;
+  cursor: text;
+}
+
+.field:focus,
+.field:focus-visible {
+  outline: none;
+}
+
+.hops {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+/* Value and its comma travel together, or the comma wraps to the next line. */
+.hop {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  transform-origin: 50% 50%;
+  color: var(--color-text-secondary);
+  transition: color 200ms var(--ease-out-quint);
+}
+
+.hop[aria-current='true'],
+.hop:focus-within {
+  color: var(--color-text-primary);
+}
+
+.hop[data-exit] {
+  pointer-events: none;
+}
+
+.hop-slot {
+  position: relative;
+  display: inline-block;
+  width: max-content;
+}
+
+.hop-face {
+  display: inline;
+  white-space: pre;
+  pointer-events: none;
+  opacity: 1;
+  transition: opacity 200ms var(--ease-out-quint);
+}
+
+/* The face is the only in-flow child; the field is stretched over it and
+   clipped so a UA min-width cannot paint a fill beside the word. */
+.hop-value {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  border: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: none;
+  background-color: transparent;
+  box-shadow: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  white-space: pre;
+  outline: none;
+  caret-color: var(--color-text-primary);
+  opacity: 0;
+  transition: opacity 200ms var(--ease-out-quint);
+}
+
+.hop-value:focus,
+.hop-value:focus-visible {
+  background: none;
+  background-color: transparent;
+  box-shadow: none;
+}
+
+.hop:focus-within .hop-face {
+  opacity: 0;
+}
+
+.hop:focus-within .hop-value {
+  opacity: 1;
+}
+
+.hop-sep {
+  flex: none;
+  padding-right: 0.3em;
+  pointer-events: none;
+  user-select: none;
+  color: color-mix(in srgb, var(--color-text-input) 40%, transparent);
+  transition: color 200ms var(--ease-out-quint);
+}
+
+.slider {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slider-head {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 2px;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.25px;
+}
+
+.slider-label {
+  flex: 1;
+  min-width: 0;
+  user-select: none;
+  color: var(--color-text-input);
+}
+
+/* Block, not inline-flex: a flex item would blockify the scritto-text host. */
+.slider-readout,
+.slider-input {
+  display: block;
+  flex: none;
+  text-align: right;
+  white-space: nowrap;
+  font-feature-settings:
+    'ss03' 1,
+    'ss04' 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.slider-readout {
+  cursor: text;
+  color: color-mix(in srgb, var(--color-text-input) 50%, transparent);
+  user-select: none;
+}
+
+.slider-input {
+  border: 0;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  background: transparent;
+  font: inherit;
+  letter-spacing: inherit;
+  color: var(--color-text-input);
+}
+
+.slider-readout:focus,
+.slider-readout:focus-visible {
+  outline: none;
+}
+
+.slider-drag {
+  width: 100%;
+  padding: 8px 0 16px;
+  margin: -8px 0 -16px;
+  touch-action: none;
+  user-select: none;
+  cursor: pointer;
+}
+
+.slider-shell {
+  position: relative;
+  width: 100%;
+  height: 8px;
+}
+
+/* Rubber band: width grows by the overshoot so the radius stays uniform, and
+   the translate pins the opposite edge. */
+.slider-stretch {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.slider-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--color-text-input) 12%, transparent);
+}
+
+.slider-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: var(--color-text-input);
+}
+
+.slider-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  appearance: none;
+  -webkit-appearance: none;
+  background: transparent;
+  pointer-events: none;
+}
+
+.slider-range::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 0;
+  height: 0;
+}
+
+.slider-range::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  border: 0;
+  background: transparent;
+}
+
+.slider-range:focus-visible {
+  outline: none;
+}
+
+.slider-shell:has(.slider-range:focus-visible) {
+  outline: none;
+}

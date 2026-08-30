@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ESNext", "DOM", "DOM.Iterable"],
+
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "esModuleInterop": true,
+
+    "outDir": "dist",
+
+    "declaration": true,
+    "emitDeclarationOnly": true,
+
+    "types": [],
+  },
+  "exclude": ["node_modules", "dist"],
+}

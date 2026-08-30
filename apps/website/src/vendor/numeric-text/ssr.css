@@ -1,0 +1,4 @@
+numeric-text:not(:defined) {
+  display: inline-flex;
+  white-space: nowrap !important;
+}
