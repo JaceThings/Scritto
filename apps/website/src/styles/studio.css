@@ -8,7 +8,7 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr) 360px;
   grid-template-rows: minmax(0, 1fr) auto;
-  grid-template-areas: 'stage panel' 'timeline panel';
+  grid-template-areas: 'stage panel' 'shelf panel';
   width: 100%;
   height: 100dvh;
 }
@@ -37,12 +37,6 @@
   opacity: 0.6;
 }
 
-.studio-text {
-  position: relative;
-  line-height: 1;
-  letter-spacing: -0.25px;
-  font-variant-numeric: tabular-nums;
-}
 
 .studio-panel {
   display: flex;
@@ -106,8 +100,9 @@
 }
 
 .studio-check {
-  grid-template-columns: 66px auto;
+  grid-template-columns: auto auto;
   justify-content: start;
+  gap: 8px;
 }
 
 .studio-field input[type='text'],
@@ -146,20 +141,6 @@
   gap: 6px;
 }
 
-.studio-upload {
-  padding: 6px 10px;
-  border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  font-size: 13px;
-  cursor: pointer;
-}
-
-.studio-upload input {
-  display: none;
-}
-
 .studio-hint {
   margin: 0;
   font-size: 12px;
@@ -173,11 +154,6 @@
 
 /* Held over the stage while the strip is built, so the frame you are looking at
    stops still instead of racing through the timeline. */
-.studio-freeze {
-  position: absolute;
-  z-index: 2;
-  pointer-events: none;
-}
 
 .studio-field input[type='range'] {
   width: 100%;
@@ -197,11 +173,7 @@
   gap: 6px;
 }
 
-.studio-presets button,
-.studio-buttons button,
-.studio-export,
-.studio-replay,
-.studio-play {
+.studio-buttons button {
   padding: 6px 10px;
   border: 1px solid var(--color-hairline);
   border-radius: 8px;
@@ -212,14 +184,6 @@
   cursor: pointer;
 }
 
-.studio-export {
-  padding: 9px 10px;
-  border-color: transparent;
-  background: var(--color-text-primary);
-  color: var(--color-bg);
-  font-weight: 550;
-}
-
 .studio-size {
   margin: 0;
   font-size: 12px;
@@ -227,134 +191,74 @@
   color: var(--color-text-secondary);
 }
 
-.studio-timeline {
+.studio-shelf {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px 20px 14px;
+  padding: 12px 20px 16px;
   border-top: 1px solid var(--color-hairline);
-  grid-area: timeline;
+  grid-area: shelf;
 }
 
-.studio-track {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-/* One rasterised frame per cell, so the strip is the transition itself rather
-   than a picture of a slider. */
-.studio-strip {
-  position: relative;
-  display: grid;
-  overflow: hidden;
-  grid-auto-columns: minmax(0, 1fr);
-  grid-auto-flow: column;
-  height: 56px;
-  border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  background: color-mix(in srgb, var(--color-text-primary) 4%, transparent);
-}
-
-.studio-strip canvas {
-  display: block;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  border-right: 1px solid color-mix(in srgb, var(--color-hairline) 60%, transparent);
-  object-fit: contain;
-}
-
-.studio-strip canvas:last-of-type {
-  border-right: 0;
-}
-
-.studio-playhead {
-  position: absolute;
-  z-index: 1;
-  top: 0;
-  bottom: 0;
-  width: 2px;
-  background: var(--color-live);
-  pointer-events: none;
-}
-
-.studio-scrub {
-  width: 100%;
-  min-width: 0;
-}
-
-.studio-transport {
+.studio-shelf-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.studio-play {
-  width: 40px;
-  text-align: center;
-}
-
-.studio-step {
-  min-width: 34px;
-  padding: 6px 8px;
-  text-align: center;
-  font-variant-numeric: tabular-nums;
-}
-
-.studio-step[aria-pressed='true'] {
-  border-color: transparent;
-  background: color-mix(in srgb, var(--color-text-primary) 12%, transparent);
-}
-
-.studio-rate select {
-  padding: 5px 6px;
-  border: 1px solid var(--color-hairline);
-  border-radius: 8px;
-  background: transparent;
-  font: inherit;
-  font-size: 13px;
-  color: inherit;
-}
-
-.studio-keys {
+.studio-shelf h2 {
   margin: 0;
   font-size: 11px;
-  color: var(--color-text-secondary);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--color-text-primary) 55%, transparent);
 }
 
-.studio-keys kbd {
-  padding: 1px 4px;
+.studio-presets {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+}
+
+.studio-preset {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 6px 7px;
   border: 1px solid var(--color-hairline);
-  border-radius: 4px;
+  border-radius: 10px;
+  background: transparent;
   font: inherit;
-  font-size: 10px;
-}
-
-.studio-time {
-  min-width: 96px;
-  font-size: 12px;
-  font-variant-numeric: tabular-nums;
-  text-align: right;
+  font-size: 11px;
   color: var(--color-text-secondary);
+  cursor: pointer;
 }
 
-@media (max-width: 860px) {
-  .studio {
-    grid-template-columns: minmax(0, 1fr);
-    grid-template-rows: 46dvh auto auto;
-    grid-template-areas: 'stage' 'timeline' 'panel';
-    height: auto;
-    min-height: 100dvh;
-  }
+.studio-preset:hover {
+  border-color: color-mix(in srgb, var(--color-text-primary) 35%, transparent);
+  color: var(--color-text-primary);
+}
 
-  .studio-panel {
-    border-left: 0;
-    border-top: 1px solid var(--color-hairline);
-  }
+.studio-preset svg {
+  width: auto;
+  height: 46px;
+}
 
-  .studio-transport {
-    flex-wrap: wrap;
-  }
+.studio-art {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+}
+
+.studio-art svg {
+  width: auto;
+  height: min(58dvh, 560px);
+  max-width: 100%;
 }

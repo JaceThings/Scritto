@@ -1,496 +1,140 @@
-import '@scritto/core'
-import type { Scritto, Trend } from '@scritto/core'
-// The site resolves `@scritto/core` to this source, so this is the live object.
-import { CONFIG } from '../../../../packages/core/src/const'
-import { captureHost, download } from '../lib/raster'
+import { DEFAULTS, build, toSvg, type Mark } from '../lib/slab'
 
-const SCRUB_STEPS = 1000
-const FPS = 60
-const FRAME_MS = 1000 / FPS
-const THUMBS = 16
-const THUMB_HEIGHT = 54
+const find = <T extends HTMLElement>(role: string) => document.querySelector<T>(`[data-role="${role}"]`)!
 
-type Knob =
-  | 'size'
-  | 'weight'
-  | 'duration'
-  | 'blur'
-  | 'travel'
-  | 'scale'
-  | 'rotate'
-  | 'stagger'
-  | 'glow'
-  | 'glowAlpha'
-  | 'shot'
-  | 'pad'
+const mark: Mark = structuredClone(DEFAULTS)
 
-const FORMAT = {
-  size: (value: number) => `${value}px`,
-  weight: (value: number) => String(value),
-  duration: (value: number) => `${value}ms`,
-  blur: (value: number) => `${value.toFixed(3)}em`,
-  travel: (value: number) => `${value.toFixed(2)}em`,
-  scale: (value: number) => value.toFixed(2),
-  rotate: (value: number) => `${value}°`,
-  stagger: (value: number) => value.toFixed(2),
-  glow: (value: number) => (value ? `${value}px` : 'off'),
-  glowAlpha: (value: number) => `${value}%`,
-  shot: (value: number) => `${value}×`,
-  pad: (value: number) => `${value}px`,
-} satisfies Record<Knob, (value: number) => string>
-
-const clamp = (n: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, n))
-
-const seconds = (ms: number) => `${(ms / 1000).toFixed(2)}s`
-
-export const initStudio = (root: ParentNode = document) => {
-  const find = <T extends HTMLElement>(role: string) => root.querySelector<T>(`[data-role="${role}"]`)!
-  const out = (name: string) => root.querySelector<HTMLOutputElement>(`[data-out="${name}"]`)!
-  const host = root.querySelector<Scritto>('#studio-text')!
-
-  const from = find<HTMLInputElement>('from')
-  const to = find<HTMLInputElement>('to')
-  const trend = find<HTMLSelectElement>('trend')
-  const bounce = find<HTMLInputElement>('bounce')
-  const colour = find<HTMLInputElement>('color')
-  const glowColour = find<HTMLInputElement>('glowColor')
-  const fontSelect = find<HTMLSelectElement>('font')
-  const fontNote = find<HTMLParagraphElement>('font-note')
-  const stage = find<HTMLElement>('stage')
-  const scrub = find<HTMLInputElement>('scrub')
-  const play = find<HTMLButtonElement>('play')
-  const loop = find<HTMLButtonElement>('loop')
-  const rate = find<HTMLSelectElement>('rate')
-  const strip = find<HTMLElement>('strip')
-  const playhead = find<HTMLElement>('playhead')
-  const dims = find<HTMLParagraphElement>('dims')
-
-  /** An uploaded font travels with the export; an installed one resolves locally. */
-  let fontCss = ''
-
-  const embed = async (family: string, blob: Blob) => {
-    const bytes = new Uint8Array(await blob.arrayBuffer())
-    let binary = ''
-    for (const byte of bytes) binary += String.fromCharCode(byte)
-    await document.fonts.ready
-    const face = new FontFace(family, bytes)
-    await face.load()
-    document.fonts.add(face)
-    return `@font-face{font-family:'${family}';src:url(data:font/woff2;base64,${btoa(binary)})}`
-  }
-
-  const addOption = (group: string, value: string, label: string) => {
-    let holder = fontSelect.querySelector<HTMLOptGroupElement>(`optgroup[label="${group}"]`)
-    if (!holder) {
-      holder = document.createElement('optgroup')
-      holder.label = group
-      fontSelect.append(holder)
-    }
-    const option = document.createElement('option')
-    option.value = value
-    option.textContent = label
-    holder.prepend(option)
-    fontSelect.value = value
-  }
-
-  // The stage is transparent, so a black default disappears on the dark page.
-  const inkFromPage = () => {
-    const rgb = getComputedStyle(host).color.match(/\d+/g)
-    if (!rgb || rgb.length < 3) return null
-    return `#${rgb.slice(0, 3).map((part) => Number(part).toString(16).padStart(2, '0')).join('')}`
-  }
-
-  const knob = (name: Knob) => Number(find<HTMLInputElement>(name).value)
-  const knobs: Knob[] = [
-    'size',
-    'weight',
-    'duration',
-    'blur',
-    'travel',
-    'scale',
-    'rotate',
-    'stagger',
-    'glow',
-    'glowAlpha',
-    'shot',
-    'pad',
-  ]
-
-  let running: Animation[] = []
-  let span = 1
-  let at = 0
-  let playing = false
-  let frame = 0
-
-  // A document's animations stop at the shadow boundary.
-  const tracked = () => [...host.getAnimations({ subtree: true }), ...(host.shadowRoot?.getAnimations() ?? [])]
-
-  const seek = (ms: number) => {
-    at = clamp(ms, 0, span)
-    for (const animation of running) animation.currentTime = at
-    scrub.value = String(Math.round((at / span) * SCRUB_STEPS))
-    playhead.style.left = `${(at / span) * 100}%`
-    const frames = Math.max(1, Math.round(span / FRAME_MS))
-    out('time').textContent = `${seconds(at)} / ${seconds(span)} · ${Math.round(at / FRAME_MS)}/${frames}`
-  }
-
-  const step = (frames: number) => {
-    stop()
-    seek(at + frames * FRAME_MS)
-  }
-
-  const stop = () => {
-    playing = false
-    cancelAnimationFrame(frame)
-    play.textContent = '▶'
-    play.setAttribute('aria-label', 'Play')
-  }
-
-  /**
-   * The animations are held paused and driven by hand, so nothing ever reaches
-   * its finish: a roll that finished would release its outgoing glyphs, and
-   * scrubbing back would find them gone.
-   */
-  const roll = (keepPosition: boolean, openAt = 0) => {
-    stop()
-    const fraction = keepPosition && span > 0 ? at / span : openAt
-    CONFIG.blur = knob('blur')
-    CONFIG.y = knob('travel')
-    CONFIG.scale = knob('scale')
-    CONFIG.rotate = knob('rotate')
-    CONFIG.stagger = knob('stagger')
-
-    host.style.fontFamily = fontSelect.value
-    host.style.fontSize = `${knob('size')}px`
-    host.style.fontWeight = String(knob('weight'))
-    host.style.color = colour.value
-    host.style.textShadow = glow()
-
-    host.setOptions({
-      respectMotionPreference: false,
-      bounce: bounce.checked,
-      // SAFETY: the select only offers the three values a trend can take.
-      trend: Number(trend.value) as Trend,
-      transition: { duration: knob('duration') },
-    })
-
-    for (const animation of running) animation.cancel()
-    running = []
-    host.update(from.value, false)
-    host.update(to.value, true)
-
-    // Measure against Inter, not the fallback that used to still be in flight
-    // when the roman face was not preloaded. `fonts.ready` is a microtask
-    // once the face is in, so this still runs after `update` registers.
-    void document.fonts.ready.then(() => {
-      running = tracked()
-      for (const animation of running) animation.pause()
-      span = running.reduce((longest, animation) => {
-        const end = animation.effect?.getComputedTiming().endTime
-        return Math.max(longest, Number(end ?? 0))
-      }, 1)
-      seek(fraction * span)
-      measure()
-      // Every knob movement re-rolls, and a strip costs sixteen captures, so it
-      // waits for the hand to stop.
-      clearTimeout(stripQueued)
-      stripQueued = window.setTimeout(() => void buildStrip(), 250)
-    })
-  }
-
-  /**
-   * Two shadows rather than one: a tight core and a wide halo, which is what
-   * reads as light coming off the glyph instead of a drop shadow behind it.
-   */
-  const glow = () => {
-    const radius = knob('glow')
-    if (!radius) return 'none'
-    const rgb = glowColour.value.match(/[\da-f]{2}/gi)?.map((part) => Number.parseInt(part, 16)) ?? [255, 255, 255]
-    const alpha = knob('glowAlpha') / 100
-    const ink = (a: number) => `rgba(${rgb[0]}, ${rgb[1]}, ${rgb[2]}, ${a.toFixed(3)})`
-    return `0 0 ${radius * 0.4}px ${ink(alpha)}, 0 0 ${radius}px ${ink(alpha * 0.7)}`
-  }
-
-  let stripGen = 0
-  let stripQueued = 0
-
-  /**
-   * One rasterised frame per cell. A thumbnail is the same capture the export
-   * uses, so the strip is the transition rather than a drawing of it. Building
-   * it walks the animations to each position, which is why it runs once a change
-   * has settled and never while something is playing.
-   */
-  /** A still of the frame on screen, held over the stage while the strip builds. */
-  const freeze = async () => {
-    const box = host.getBoundingClientRect()
-    const stageBox = stage.getBoundingClientRect()
-    const shot = await captureHost(host, window.devicePixelRatio || 1, 24, fontCss)
-    shot.className = 'studio-freeze'
-    shot.style.left = `${box.left - stageBox.left - 24}px`
-    shot.style.top = `${box.top - stageBox.top - 24}px`
-    shot.style.width = `${box.width + 48}px`
-    shot.style.height = `${box.height + 48}px`
-    stage.append(shot)
-    host.style.visibility = 'hidden'
-    return () => {
-      host.style.visibility = ''
-      shot.remove()
-    }
-  }
-
-  const buildStrip = async () => {
-    const gen = ++stripGen
-    await document.fonts.ready
-    if (gen !== stripGen) return
-    const cells: HTMLCanvasElement[] = []
-    strip.replaceChildren(playhead)
-    for (let i = 0; i < THUMBS; i++) {
-      const cell = document.createElement('canvas')
-      cell.width = 1
-      cell.height = 1
-      cell.title = `${seconds((span * i) / (THUMBS - 1))}`
-      cells.push(cell)
-      strip.append(cell)
-    }
-    const held = at
-    const thaw = await freeze()
-    if (gen !== stripGen) {
-      thaw()
-      return
-    }
-    try {
-      for (let i = 0; i < THUMBS; i++) {
-        if (gen !== stripGen) return
-        seek((span * i) / (THUMBS - 1))
-        await new Promise((done) => requestAnimationFrame(() => done(null)))
-        if (gen !== stripGen) return
-        const box = host.getBoundingClientRect()
-        const scale = box.height ? Math.min(1, THUMB_HEIGHT / box.height) : 1
-        const shot = await captureHost(host, scale, 6, fontCss)
-        if (gen !== stripGen) return
-        const cell = cells[i]
-        cell.width = shot.width
-        cell.height = shot.height
-        cell.getContext('2d')?.drawImage(shot, 0, 0)
-      }
-      seek(held)
-    } finally {
-      thaw()
-    }
-  }
-
-  const measure = () => {
-    const box = host.getBoundingClientRect()
-    const scale = knob('shot')
-    const pad = knob('pad')
-    const width = Math.round((box.width + pad * 2) * scale)
-    const height = Math.round((box.height + pad * 2) * scale)
-    dims.textContent = `${width} × ${height} px`
-  }
-
-  const tick = (last: number) => {
-    frame = requestAnimationFrame((now) => {
-      const next = at + (now - last) * Number(rate.value)
-      if (next >= span) {
-        if (loop.getAttribute('aria-pressed') !== 'true') {
-          seek(span)
-          stop()
-          return
-        }
-        seek(next - span)
-      } else {
-        seek(next)
-      }
-      tick(now)
-    })
-  }
-
-  const start = () => {
-    playing = true
-    play.textContent = '❚❚'
-    play.setAttribute('aria-label', 'Pause')
-    if (at >= span) seek(0)
-    tick(performance.now())
-  }
-
-  const toggle = () => (playing ? stop() : start())
-
-  play.addEventListener('click', toggle)
-  find<HTMLButtonElement>('back').addEventListener('click', () => step(-1))
-  find<HTMLButtonElement>('next').addEventListener('click', () => step(1))
-  loop.addEventListener('click', () => {
-    const on = loop.getAttribute('aria-pressed') === 'true'
-    loop.setAttribute('aria-pressed', String(!on))
-  })
-
-  scrub.addEventListener('input', () => {
-    stop()
-    seek((Number(scrub.value) / SCRUB_STEPS) * span)
-  })
-
-  strip.addEventListener('pointerdown', (event) => {
-    const box = strip.getBoundingClientRect()
-    if (!box.width) return
-    stop()
-    seek(((event.clientX - box.left) / box.width) * span)
-  })
-
-  for (const name of knobs) {
-    const input = find<HTMLInputElement>(name)
-    const label = out(name)
-    const paint = () => (label.textContent = FORMAT[name](Number(input.value)))
-    paint()
-    input.addEventListener('input', () => {
-      paint()
-      if (name === 'shot' || name === 'pad') {
-        measure()
-        return
-      }
-      roll(true)
-    })
-  }
-
-  for (const el of [from, to, trend, bounce, colour, glowColour, fontSelect]) {
-    el.addEventListener('change', () => roll(true))
-  }
-
-  find<HTMLButtonElement>('pick-local').addEventListener('click', async () => {
-    if (!window.queryLocalFonts) {
-      fontNote.textContent = 'This browser has no local font access. Upload a file instead.'
-      return
-    }
-    try {
-      const fonts = await window.queryLocalFonts()
-      const families = [...new Set(fonts.map((entry) => entry.family))].sort()
-      if (!families.length) {
-        fontNote.textContent = 'Access was granted but no families came back. Upload a file instead.'
-        return
-      }
-      for (const family of families.reverse()) addOption('Installed', `'${family}'`, family)
-      fontNote.textContent = `${families.length} installed families added, ${families[families.length - 1]} first.`
-      roll(true)
-    } catch {
-      fontNote.textContent = 'Permission declined, so the installed list stays empty.'
-    }
-  })
-
-  find<HTMLInputElement>('upload').addEventListener('change', async (event) => {
-    const file = event.target instanceof HTMLInputElement ? event.target.files?.[0] : null
-    if (!file) return
-    const family = `Uploaded ${file.name.replace(/\.[^.]+$/, '')}`
-    try {
-      fontCss = await embed(family, file)
-      addOption('Uploaded', `'${family}'`, file.name)
-      fontNote.textContent = `${file.name} is loaded and travels with the export.`
-      roll(true)
-    } catch {
-      fontNote.textContent = `${file.name} could not be read as a font.`
-    }
-  })
-  for (const el of [from, to]) el.addEventListener('input', () => roll(true))
-
-  for (const preset of find<HTMLElement>('presets').querySelectorAll<HTMLButtonElement>('button')) {
-    preset.addEventListener('click', () => {
-      from.value = preset.dataset.from ?? ''
-      to.value = preset.dataset.to ?? ''
-      roll(false)
-    })
-  }
-
-  find<HTMLButtonElement>('replay').addEventListener('click', () => roll(false))
-
-  const shoot = () => captureHost(host, knob('shot'), knob('pad'), fontCss)
-
-  // A shortcut has no business firing while somebody is typing a value.
-  const typing = (target: EventTarget | null) =>
-    target instanceof HTMLElement && ['INPUT', 'SELECT', 'TEXTAREA'].includes(target.tagName)
-
-  window.addEventListener('keydown', (event) => {
-    if (event.key === ' ' && !typing(event.target)) {
-      event.preventDefault()
-      toggle()
-      return
-    }
-    const jump = event.shiftKey ? 10 : 1
-    if (event.key === '.' || event.key === 'ArrowRight') {
-      if (event.key === 'ArrowRight' && typing(event.target)) return
-      event.preventDefault()
-      step(jump)
-      return
-    }
-    if (event.key === ',' || event.key === 'ArrowLeft') {
-      if (event.key === 'ArrowLeft' && typing(event.target)) return
-      event.preventDefault()
-      step(-jump)
-      return
-    }
-    if (event.key === 'Home' && !typing(event.target)) {
-      event.preventDefault()
-      step(-Infinity)
-      return
-    }
-    if (event.key === 'End' && !typing(event.target)) {
-      event.preventDefault()
-      stop()
-      seek(span)
-      return
-    }
-    if ((event.key === 'l' || event.key === 'L') && !typing(event.target)) {
-      event.preventDefault()
-      loop.click()
-      return
-    }
-    if ((event.key === 's' || event.key === 'S') && event.metaKey && event.altKey) {
-      event.preventDefault()
-      void shoot().then((canvas) => download(canvas, `scritto-${Date.now()}.png`))
-    }
-  })
-
-
-  find<HTMLButtonElement>('export').addEventListener('click', () => {
-    void shoot().then((canvas) => download(canvas, `scritto-${Date.now()}.png`))
-  })
-
-  colour.value = inkFromPage() ?? colour.value
-  // First measure and the 250 ms strip both sample the host. Wait for Inter
-  // so those numbers are the real face, not a fallback that happened to still
-  // be in flight — preload or not, the layout has to come out the same.
-  void document.fonts.ready.then(() => roll(false, 0.4))
-
-  window.scrittoStudio = { capture: shoot, seek, span: () => span, strip: buildStrip }
-
-  return () => {
-    stop()
-    stripGen += 1
-    clearTimeout(stripQueued)
-    for (const animation of running) animation.cancel()
-  }
+/** `a.turn` reads and writes the nested slab; anything else is a field of the mark. */
+const read = (key: string): number | string => {
+  const [head, tail] = key.split('.')
+  const slot = mark[head as keyof Mark]
+  return tail ? (slot as Record<string, number>)[tail] : (slot as number | string)
 }
 
-declare global {
-  interface FontData {
-    family: string
-    fullName: string
-    postscriptName: string
-    blob(): Promise<Blob>
-  }
-
-  interface Window {
-    queryLocalFonts?: () => Promise<FontData[]>
-  }
-
-  interface ShadowRoot {
-    getAnimations(): Animation[]
-  }
-
-  interface Window {
-    scrittoStudio?: {
-      capture: () => Promise<HTMLCanvasElement>
-      seek: (ms: number) => void
-      span: () => number
-      strip: () => Promise<void>
-    }
-  }
+const write = (key: string, value: number | string) => {
+  const [head, tail] = key.split('.')
+  if (tail) (mark[head as keyof Mark] as Record<string, number>)[tail] = value as number
+  else (mark as Record<string, unknown>)[head] = value
 }
 
-initStudio(document)
+const PRESETS: { name: string; of: Partial<Mark> }[] = [
+  { name: 'edge on', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 62, tilt: 0, roll: 0 } } },
+  { name: 'ajar', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 74, tilt: 0, roll: 0 } } },
+  { name: 'open book', of: { a: { turn: 104, tilt: 0, roll: 0 }, b: { turn: 62, tilt: 0, roll: 0 } } },
+  { name: 'tipped', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 90, tilt: 26, roll: 0 } } },
+  { name: 'both tipped', of: { a: { turn: 90, tilt: -14, roll: 0 }, b: { turn: 90, tilt: 22, roll: 0 } } },
+  { name: 'quarter', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 45, tilt: 0, roll: 0 }, gap: 84 } },
+  { name: 'facing', of: { a: { turn: 76, tilt: 0, roll: 0 }, b: { turn: -76, tilt: 0, roll: 0 } } },
+  { name: 'lean', of: { a: { turn: 90, tilt: 0, roll: -8 }, b: { turn: 68, tilt: 0, roll: -8 } } },
+  { name: 'wide angle', of: { camera: 260, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 58, tilt: 0, roll: 0 } } },
+  { name: 'flat', of: { camera: 3600, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 60, tilt: 0, roll: 0 } } },
+  { name: 'slim', of: { depth: 10, gap: 40, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 66, tilt: 0, roll: 0 } } },
+  { name: 'heavy', of: { depth: 44, gap: 78, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 66, tilt: 0, roll: 0 } } },
+  { name: 'tight', of: { gap: 6, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 70, tilt: 0, roll: 0 } } },
+  { name: 'drawn', of: { mode: 'outline', weight: 6, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 62, tilt: 16, roll: 0 } } },
+  { name: 'inked', of: { mode: 'both', weight: 3, shade: 0.55, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 58, tilt: 0, roll: 0 } } },
+  { name: 'toppling', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 84, tilt: 52, roll: 0 }, gap: 70 } },
+]
+
+const art = find('art')
+const dims = find('dims')
+const scale = find<HTMLInputElement>('scale')
+const mirror = find<HTMLInputElement>('mirror')
+const inputs = [...document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-key]')]
+
+const show = () => {
+  if (mirror.checked) {
+    mark.b = { turn: 180 - mark.a.turn, tilt: mark.a.tilt, roll: -mark.a.roll }
+  }
+  art.innerHTML = toSvg(mark)
+  const { box } = build(mark)
+  const k = Number(scale.value)
+  dims.textContent = `${Math.round(box.width)} × ${Math.round(box.height)} · PNG ${Math.round(box.width * k)} × ${Math.round(box.height * k)}`
+  for (const input of inputs) {
+    const key = input.dataset.key!
+    const value = read(key)
+    if (input.value !== String(value)) input.value = String(value)
+    const out = document.querySelector(`[data-out="${key}"]`)
+    if (out) out.textContent = typeof value === 'number' ? String(Math.round(value * 100) / 100) : String(value)
+  }
+  const out = document.querySelector('[data-out="scale"]')
+  if (out) out.textContent = `${k}×`
+}
+
+for (const input of inputs) {
+  input.addEventListener('input', () => {
+    const key = input.dataset.key!
+    write(key, input.type === 'range' ? Number(input.value) : input.value)
+    show()
+  })
+}
+
+scale.addEventListener('input', show)
+mirror.addEventListener('change', show)
+
+const apply = (of: Partial<Mark>) => {
+  Object.assign(mark, structuredClone(DEFAULTS), structuredClone(of))
+  mirror.checked = false
+  show()
+}
+
+const presets = find('presets')
+for (const preset of PRESETS) {
+  const button = document.createElement('button')
+  button.type = 'button'
+  button.className = 'studio-preset'
+  const shot = { ...structuredClone(DEFAULTS), ...structuredClone(preset.of), pad: 16 }
+  button.innerHTML = `${toSvg(shot, preset.name)}<span>${preset.name}</span>`
+  button.addEventListener('click', () => apply(preset.of))
+  presets.append(button)
+}
+
+const between = (lo: number, hi: number, step = 1) => Math.round((lo + Math.random() * (hi - lo)) / step) * step
+
+find('shuffle').addEventListener('click', () => {
+  apply({
+    depth: between(8, 46),
+    gap: between(10, 120),
+    camera: between(220, 2400, 10),
+    a: { turn: between(74, 106), tilt: between(-20, 20), roll: 0 },
+    b: { turn: between(20, 100), tilt: between(-30, 40), roll: 0 },
+  })
+})
+
+find('reset').addEventListener('click', () => apply({}))
+
+const save = (blob: Blob, name: string) => {
+  const url = URL.createObjectURL(blob)
+  const link = Object.assign(document.createElement('a'), { href: url, download: name })
+  link.click()
+  URL.revokeObjectURL(url)
+}
+
+find('svg').addEventListener('click', () => {
+  save(new Blob([toSvg(mark)], { type: 'image/svg+xml' }), 'scritto-mark.svg')
+})
+
+find('copy').addEventListener('click', async () => {
+  await navigator.clipboard.writeText(toSvg(mark))
+  const button = find('copy')
+  button.textContent = 'Copied'
+  setTimeout(() => (button.textContent = 'Copy SVG'), 1200)
+})
+
+find('png').addEventListener('click', async () => {
+  const { box } = build(mark)
+  const k = Number(scale.value)
+  const url = URL.createObjectURL(new Blob([toSvg(mark)], { type: 'image/svg+xml' }))
+  const image = new Image()
+  image.src = url
+  await image.decode()
+  const canvas = document.createElement('canvas')
+  canvas.width = Math.round(box.width * k)
+  canvas.height = Math.round(box.height * k)
+  canvas.getContext('2d')!.drawImage(image, 0, 0, canvas.width, canvas.height)
+  URL.revokeObjectURL(url)
+  const blob = await new Promise<Blob | null>((done) => canvas.toBlob(done, 'image/png'))
+  if (blob) save(blob, `scritto-mark@${k}x.png`)
+})
+
+show()
