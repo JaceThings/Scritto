@@ -1,4 +1,4 @@
-import { DEFAULTS, build, matchScale, slab, toSvg, type Mark } from '../lib/slab'
+import { DEFAULTS, alignTop, build, matchScale, slab, toSvg, type Mark } from '../lib/slab'
 
 const find = <T extends HTMLElement>(role: string) => document.querySelector<T>(`[data-role="${role}"]`)!
 
@@ -36,6 +36,7 @@ const matched = (of: Partial<Mark>): Mark => {
   const full: Mark = { ...structuredClone(DEFAULTS), ...structuredClone(of) }
   full.b.scale = matchScale(full, full.b, full.a, 'height')
   full.b.thick = matchScale(full, full.b, full.a, 'width', 'thick')
+  full.b.lift = alignTop(full, full.b, full.a)
   return full
 }
 
@@ -48,14 +49,12 @@ const inputs = [...document.querySelectorAll<HTMLInputElement | HTMLSelectElemen
 
 const show = () => {
   if (mirror.checked) mark.b = { ...mark.b, turn: -mark.a.turn, tilt: -mark.a.tilt, roll: -mark.a.roll }
-  if (match.value === 'height' || match.value === 'width') {
-    mark.b.scale = matchScale(mark, mark.b, mark.a, match.value)
-  }
-  // Height first, then the edge on its own: one factor cannot hold both, since a
-  // slab scaled down to the same height draws a thinner bar than the one beside it.
-  if (match.value === 'both') {
-    mark.b.scale = matchScale(mark, mark.b, mark.a, 'height')
-    mark.b.thick = matchScale(mark, mark.b, mark.a, 'width', 'thick')
+  if (match.value !== 'off') {
+    // Height first, then the edge on its own: one factor cannot hold both, since a
+    // slab scaled to the same height draws a thinner bar than the one beside it.
+    if (match.value !== 'width') mark.b.scale = matchScale(mark, mark.b, mark.a, 'height')
+    if (match.value !== 'height') mark.b.thick = matchScale(mark, mark.b, mark.a, 'width', 'thick')
+    mark.b.lift = alignTop(mark, mark.b, mark.a)
   }
   art.innerHTML = toSvg(mark)
   const { box } = build(mark)

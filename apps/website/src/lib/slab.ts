@@ -1,12 +1,21 @@
-export type Slab = { turn: number; tilt: number; roll: number; scale: number; thick: number }
+export type Slab = {
+  turn: number
+  tilt: number
+  roll: number
+  scale: number
+  thick: number
+  /** Screen-space nudge, since a turned slab's ink does not sit centred on its own origin. */
+  lift: number
+}
 
 /** A slab, written short: the presets are mostly one angle away from square on. */
-export const slab = (turn: number, tilt: number, roll = 0, scale = 1, thick = 1): Slab => ({
+export const slab = (turn: number, tilt: number, roll = 0, scale = 1, thick = 1, lift = 0): Slab => ({
   turn,
   tilt,
   roll,
   scale,
   thick,
+  lift,
 })
 
 export type Mark = {
@@ -123,7 +132,7 @@ const facets = (mark: Mark, piece: Slab, offset: number): Facet[] => {
       points: face.map((i) => {
         const [x, y, z] = points[i]
         const k = mark.camera / (mark.camera - z)
-        return [x * k + (shared ? 0 : offset), y * k] as Point
+        return [x * k + (shared ? 0 : offset), y * k + piece.lift] as Point
       }),
       depth: face.reduce((sum, i) => sum + points[i][2], 0) / 4,
       light: unit[0] * LIGHT[0] + unit[1] * LIGHT[1] + unit[2] * LIGHT[2],
@@ -153,10 +162,20 @@ export type Span = 'height' | 'width'
 /** `scale` sizes the whole slab; `thick` sizes only the edge it shows head on. */
 export type Grow = 'scale' | 'thick'
 
-const spanOf = (mark: Mark, piece: Slab, span: Span) => {
-  const axis = span === 'height' ? 1 : 0
+const edgesOf = (mark: Mark, piece: Slab, axis: 0 | 1) => {
   const ns = facets(mark, piece, 0).flatMap((f) => f.points.map((p) => p[axis]))
-  return ns.length ? Math.max(...ns) - Math.min(...ns) : 0
+  return ns.length ? { lo: Math.min(...ns), hi: Math.max(...ns) } : { lo: 0, hi: 0 }
+}
+
+const spanOf = (mark: Mark, piece: Slab, span: Span) => {
+  const { lo, hi } = edgesOf(mark, piece, span === 'height' ? 1 : 0)
+  return hi - lo
+}
+
+/** The nudge that stands `piece` on the same top and bottom line as `against`. */
+export const alignTop = (mark: Mark, piece: Slab, against: Slab) => {
+  const shift = edgesOf(mark, against, 1).lo - edgesOf(mark, piece, 1).lo
+  return Math.round((piece.lift + shift) * 100) / 100
 }
 
 /**
