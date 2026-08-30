@@ -48,10 +48,10 @@
           <label class="studio-field"><span>Edge</span><input data-key="b.thick" type="range" min="0.2" max="3" step="0.01" /><output data-out="b.thick"></output></label>
           <label class="studio-field"><span>Match</span>
             <select data-role="match">
+              <option value="both">height and thickness</option>
+              <option value="height">height only</option>
+              <option value="width">thickness only</option>
               <option value="off">nothing</option>
-              <option value="height">the left's height</option>
-              <option value="width">the left's width</option>
-              <option value="both">both, thickness apart</option>
             </select>
           </label>
           <label class="studio-field studio-check"><span>Mirror the left</span><input data-role="mirror" type="checkbox" /></label>

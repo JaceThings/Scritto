@@ -18,24 +18,26 @@ const write = (key: string, value: number | string) => {
 }
 
 const PRESETS: { name: string; of: Partial<Mark> }[] = [
-  { name: 'tipped', of: { b: slab(0, 28) } },
   { name: 'nudged', of: { b: slab(0, 14) } },
+  { name: 'tipped', of: { b: slab(0, 28) } },
   { name: 'quarter', of: { b: slab(0, 45) } },
   { name: 'over', of: { b: slab(0, 64) } },
   { name: 'back', of: { b: slab(0, -34) } },
-  { name: 'matched', of: { b: slab(0, 34, 0, 0.78) } },
-  { name: 'both ways', of: { a: slab(0, -14), b: slab(0, 30) } },
-  { name: 'turned', of: { b: slab(34, 22) } },
-  { name: 'leaning', of: { a: slab(0, 0, -7), b: slab(0, 28, -7) } },
-  { name: 'wide lens', of: { camera: 300, b: slab(0, 30) } },
-  { name: 'long lens', of: { camera: 2800, b: slab(0, 30) } },
   { name: 'slim', of: { depth: 10, gap: 42, b: slab(0, 28) } },
   { name: 'heavy', of: { depth: 42, gap: 80, b: slab(0, 28) } },
   { name: 'tight', of: { gap: 14, b: slab(0, 28) } },
-  { name: 'one camera', of: { focus: 'shared', b: slab(0, 28) } },
+  { name: 'wide', of: { gap: 120, b: slab(0, 28) } },
   { name: 'drawn', of: { mode: 'outline', weight: 5, b: slab(0, 30) } },
   { name: 'inked', of: { mode: 'both', weight: 3, shade: 0.55, b: slab(0, 30) } },
 ]
+
+/** Every starting point stands both slabs at one height and one thickness. */
+const matched = (of: Partial<Mark>): Mark => {
+  const full: Mark = { ...structuredClone(DEFAULTS), ...structuredClone(of) }
+  full.b.scale = matchScale(full, full.b, full.a, 'height')
+  full.b.thick = matchScale(full, full.b, full.a, 'width', 'thick')
+  return full
+}
 
 const art = find('art')
 const dims = find('dims')
@@ -83,9 +85,8 @@ mirror.addEventListener('change', show)
 match.addEventListener('change', show)
 
 const apply = (of: Partial<Mark>) => {
-  Object.assign(mark, structuredClone(DEFAULTS), structuredClone(of))
+  Object.assign(mark, matched(of))
   mirror.checked = false
-  match.value = 'off'
   show()
 }
 
@@ -94,8 +95,7 @@ for (const preset of PRESETS) {
   const button = document.createElement('button')
   button.type = 'button'
   button.className = 'studio-preset'
-  const shot = { ...structuredClone(DEFAULTS), ...structuredClone(preset.of), pad: 16 }
-  button.innerHTML = `${toSvg(shot, preset.name)}<span>${preset.name}</span>`
+  button.innerHTML = `${toSvg({ ...matched(preset.of), pad: 16 }, preset.name)}<span>${preset.name}</span>`
   button.addEventListener('click', () => apply(preset.of))
   presets.append(button)
 }
