@@ -18,7 +18,10 @@
 
       <aside class="studio-panel">
         <h1 class="studio-title">Mark</h1>
-        <p class="studio-note">Two slabs in perspective. Turn either one, then take the SVG or a PNG.</p>
+        <p class="studio-note">
+          Two slabs, each a square standing on its edge. Head on, a slab is the flat bar; tilt turns
+          it like a wheel and brings its top face over.
+        </p>
 
         <fieldset class="studio-group">
           <legend>Shape</legend>
@@ -46,6 +49,12 @@
           <legend>Camera</legend>
           <label class="studio-field"><span>Perspective</span><input data-key="camera" type="range" min="160" max="4000" step="10" /><output data-out="camera"></output></label>
           <label class="studio-field"><span>Shading</span><input data-key="shade" type="range" min="0" max="1" step="0.01" /><output data-out="shade"></output></label>
+          <label class="studio-field"><span>Lens</span>
+            <select data-key="focus">
+              <option value="each">one per slab</option>
+              <option value="shared">one for both</option>
+            </select>
+          </label>
         </fieldset>
 
         <fieldset class="studio-group">

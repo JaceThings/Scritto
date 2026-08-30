@@ -18,22 +18,22 @@ const write = (key: string, value: number | string) => {
 }
 
 const PRESETS: { name: string; of: Partial<Mark> }[] = [
-  { name: 'edge on', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 62, tilt: 0, roll: 0 } } },
-  { name: 'ajar', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 74, tilt: 0, roll: 0 } } },
-  { name: 'open book', of: { a: { turn: 104, tilt: 0, roll: 0 }, b: { turn: 62, tilt: 0, roll: 0 } } },
-  { name: 'tipped', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 90, tilt: 26, roll: 0 } } },
-  { name: 'both tipped', of: { a: { turn: 90, tilt: -14, roll: 0 }, b: { turn: 90, tilt: 22, roll: 0 } } },
-  { name: 'quarter', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 45, tilt: 0, roll: 0 }, gap: 84 } },
-  { name: 'facing', of: { a: { turn: 76, tilt: 0, roll: 0 }, b: { turn: -76, tilt: 0, roll: 0 } } },
-  { name: 'lean', of: { a: { turn: 90, tilt: 0, roll: -8 }, b: { turn: 68, tilt: 0, roll: -8 } } },
-  { name: 'wide angle', of: { camera: 260, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 58, tilt: 0, roll: 0 } } },
-  { name: 'flat', of: { camera: 3600, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 60, tilt: 0, roll: 0 } } },
-  { name: 'slim', of: { depth: 10, gap: 40, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 66, tilt: 0, roll: 0 } } },
-  { name: 'heavy', of: { depth: 44, gap: 78, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 66, tilt: 0, roll: 0 } } },
-  { name: 'tight', of: { gap: 6, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 70, tilt: 0, roll: 0 } } },
-  { name: 'drawn', of: { mode: 'outline', weight: 6, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 62, tilt: 16, roll: 0 } } },
-  { name: 'inked', of: { mode: 'both', weight: 3, shade: 0.55, a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 58, tilt: 0, roll: 0 } } },
-  { name: 'toppling', of: { a: { turn: 90, tilt: 0, roll: 0 }, b: { turn: 84, tilt: 52, roll: 0 }, gap: 70 } },
+  { name: 'tipped', of: { b: { turn: 0, tilt: 28, roll: 0 } } },
+  { name: 'nudged', of: { b: { turn: 0, tilt: 14, roll: 0 } } },
+  { name: 'quarter', of: { b: { turn: 0, tilt: 45, roll: 0 } } },
+  { name: 'over', of: { b: { turn: 0, tilt: 64, roll: 0 } } },
+  { name: 'back', of: { b: { turn: 0, tilt: -34, roll: 0 } } },
+  { name: 'both ways', of: { a: { turn: 0, tilt: -14, roll: 0 }, b: { turn: 0, tilt: 30, roll: 0 } } },
+  { name: 'turned', of: { b: { turn: 34, tilt: 22, roll: 0 } } },
+  { name: 'leaning', of: { a: { turn: 0, tilt: 0, roll: -7 }, b: { turn: 0, tilt: 28, roll: -7 } } },
+  { name: 'wide lens', of: { camera: 300, b: { turn: 0, tilt: 30, roll: 0 } } },
+  { name: 'long lens', of: { camera: 2800, b: { turn: 0, tilt: 30, roll: 0 } } },
+  { name: 'slim', of: { depth: 10, gap: 42, b: { turn: 0, tilt: 28, roll: 0 } } },
+  { name: 'heavy', of: { depth: 42, gap: 80, b: { turn: 0, tilt: 28, roll: 0 } } },
+  { name: 'tight', of: { gap: 14, b: { turn: 0, tilt: 28, roll: 0 } } },
+  { name: 'one camera', of: { focus: 'shared', b: { turn: 0, tilt: 28, roll: 0 } } },
+  { name: 'drawn', of: { mode: 'outline', weight: 5, b: { turn: 0, tilt: 30, roll: 0 } } },
+  { name: 'inked', of: { mode: 'both', weight: 3, shade: 0.55, b: { turn: 0, tilt: 30, roll: 0 } } },
 ]
 
 const art = find('art')
@@ -43,9 +43,7 @@ const mirror = find<HTMLInputElement>('mirror')
 const inputs = [...document.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-key]')]
 
 const show = () => {
-  if (mirror.checked) {
-    mark.b = { turn: 180 - mark.a.turn, tilt: mark.a.tilt, roll: -mark.a.roll }
-  }
+  if (mirror.checked) mark.b = { turn: -mark.a.turn, tilt: -mark.a.tilt, roll: -mark.a.roll }
   art.innerHTML = toSvg(mark)
   const { box } = build(mark)
   const k = Number(scale.value)
@@ -94,10 +92,10 @@ const between = (lo: number, hi: number, step = 1) => Math.round((lo + Math.rand
 find('shuffle').addEventListener('click', () => {
   apply({
     depth: between(8, 46),
-    gap: between(10, 120),
-    camera: between(220, 2400, 10),
-    a: { turn: between(74, 106), tilt: between(-20, 20), roll: 0 },
-    b: { turn: between(20, 100), tilt: between(-30, 40), roll: 0 },
+    gap: between(14, 120),
+    camera: between(240, 2400, 10),
+    a: { turn: 0, tilt: between(-10, 10), roll: 0 },
+    b: { turn: between(-12, 12), tilt: between(-45, 62), roll: 0 },
   })
 })
 

@@ -4,6 +4,7 @@ export type Mark = {
   size: number
   depth: number
   gap: number
+  focus: 'each' | 'shared'
   a: Slab
   b: Slab
   camera: number
@@ -19,8 +20,9 @@ export const DEFAULTS: Mark = {
   size: 100,
   depth: 22,
   gap: 62,
-  a: { turn: 90, tilt: 0, roll: 0 },
-  b: { turn: 62, tilt: 0, roll: 0 },
+  focus: 'each',
+  a: { turn: 0, tilt: 0, roll: 0 },
+  b: { turn: 0, tilt: 28, roll: 0 },
   camera: 620,
   shade: 0.3,
   weight: 0,
@@ -33,7 +35,12 @@ export const DEFAULTS: Mark = {
 type Vec = [number, number, number]
 type Point = [number, number]
 
-/** Corners of a box centred on its own origin, in the order the faces index. */
+/**
+ * Corners of a box centred on its own origin, in the order the faces index. The
+ * slab is a square standing on edge: as tall and as deep as the square, and only
+ * as wide as its thickness, so head on it is the flat bar and a tilt turns it
+ * like a wheel, bringing the top face over.
+ */
 const corners = (w: number, h: number, d: number): Vec[] => [
   [-w, -h, -d],
   [w, -h, -d],
@@ -57,8 +64,10 @@ const FACES: [number, number, number, number][] = [
 
 const rad = (deg: number) => (deg * Math.PI) / 180
 
+// Tilt is negated so a positive one brings the top face over, the way a wheel
+// turns towards you, rather than tipping the slab away and showing its foot.
 const spin = ([x, y, z]: Vec, { turn, tilt, roll }: Slab): Vec => {
-  const [sx, cx] = [Math.sin(rad(tilt)), Math.cos(rad(tilt))]
+  const [sx, cx] = [Math.sin(rad(-tilt)), Math.cos(rad(-tilt))]
   const [sy, cy] = [Math.sin(rad(turn)), Math.cos(rad(turn))]
   const [sz, cz] = [Math.sin(rad(roll)), Math.cos(rad(roll))]
   const y1 = y * cx - z * sx
@@ -86,9 +95,12 @@ export type Facet = { points: Point[]; depth: number; light: number }
  * a face whose normal turns away from the lens is dropped.
  */
 const facets = (mark: Mark, slab: Slab, offset: number): Facet[] => {
-  const points = corners(mark.size, mark.size, mark.depth)
+  // Each slab keeps its own camera axis by default, so one left flat reads as
+  // flat rather than showing the side face the lens would find off-centre.
+  const shared = mark.focus === 'shared'
+  const points = corners(mark.depth, mark.size, mark.size)
     .map((v) => spin(v, slab))
-    .map(([x, y, z]) => [x + offset, y, z] as Vec)
+    .map(([x, y, z]) => [shared ? x + offset : x, y, z] as Vec)
   const out: Facet[] = []
   for (const face of FACES) {
     const [a, b, c] = [points[face[0]], points[face[1]], points[face[2]]]
@@ -101,7 +113,7 @@ const facets = (mark: Mark, slab: Slab, offset: number): Facet[] => {
       points: face.map((i) => {
         const [x, y, z] = points[i]
         const k = mark.camera / (mark.camera - z)
-        return [x * k, y * k] as Point
+        return [x * k + (shared ? 0 : offset), y * k] as Point
       }),
       depth: face.reduce((sum, i) => sum + points[i][2], 0) / 4,
       light: unit[0] * LIGHT[0] + unit[1] * LIGHT[1] + unit[2] * LIGHT[2],
