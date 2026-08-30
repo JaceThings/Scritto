@@ -1,0 +1,53 @@
+{
+  "name": "@scritto/react",
+  "version": "0.1.0",
+  "description": "React wrapper for @scritto/core",
+  "keywords": [
+    "scritto",
+    "animated-text",
+    "animated-number",
+    "animation",
+    "swiftui",
+    "text"
+  ],
+  "bugs": {
+    "url": "https://github.com/JaceThings/Scritto/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JaceThings/Scritto.git"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "type": "module",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "bunchee",
+    "dev": "bunchee --watch"
+  },
+  "dependencies": {
+    "@scritto/core": "workspace:*"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.9",
+    "bunchee": "^6.9.4",
+    "react": "^19.2.3",
+    "typescript": "^5.9.3"
+  },
+  "peerDependencies": {
+    "react": "^18 || ^19"
+  }
+}

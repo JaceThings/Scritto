@@ -1,0 +1,15 @@
+/* Before upgrade the host is plain text; after, every glyph is its own span
+   and kerning and ligatures across them are gone. Matching that here keeps the
+   width identical through the upgrade, so nothing around it shifts. */
+scritto-text:not(:defined) {
+  display: inline;
+  white-space: nowrap !important;
+  font-kerning: none;
+  font-variant-ligatures: none;
+}
+
+/* A flow is a paragraph; the runtime makes it one too, this keeps the first
+   paint from reflowing on upgrade. */
+scritto-flow {
+  display: block;
+}

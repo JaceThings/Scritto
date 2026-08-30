@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en" data-route="/studio">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#f7f6f2" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#1c1918" media="(prefers-color-scheme: dark)" />
+    <meta name="description" content="Two slabs in perspective, turned and matched by eye, exported as an SVG or a PNG." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://scrit.to/studio" />
+    <meta property="og:title" content="Scritto · mark" />
+    <meta property="og:description" content="Two slabs in perspective, turned and matched by eye, exported as an SVG or a PNG." />
+    <meta property="og:image" content="https://scrit.to/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <title>scritto · mark</title>
+    <link rel="stylesheet" href="/src/styles/site.css" />
+    <link rel="stylesheet" href="/src/styles/studio.css" />
+  </head>
+  <body class="studio-body">
+    <main class="studio">
+      <section class="studio-stage" data-role="stage">
+        <div class="studio-checker"></div>
+        <div class="studio-art" data-role="art"></div>
+      </section>
+      <aside class="studio-panel">
+        <h1 class="studio-title">Mark</h1>
+        <p class="studio-note">
+          Two slabs, each a square standing on its edge. Head on, a slab is the flat bar; tilt turns
+          it like a wheel and brings its top face over.
+        </p>
+        <fieldset class="studio-group">
+          <legend>Shape</legend>
+          <label class="studio-field"><span>Square</span><input data-key="size" type="range" min="40" max="200" step="1" /><output data-out="size"></output></label>
+          <label class="studio-field"><span>Thickness</span><input data-key="depth" type="range" min="2" max="120" step="1" /><output data-out="depth"></output></label>
+          <label class="studio-field"><span>Gap</span><input data-key="gap" type="range" min="-40" max="240" step="1" /><output data-out="gap"></output></label>
+        </fieldset>
+        <fieldset class="studio-group">
+          <legend>Left slab</legend>
+          <label class="studio-field"><span>Turn</span><input data-key="a.turn" type="range" min="-180" max="180" step="1" /><output data-out="a.turn"></output></label>
+          <label class="studio-field"><span>Tilt</span><input data-key="a.tilt" type="range" min="-90" max="90" step="1" /><output data-out="a.tilt"></output></label>
+          <label class="studio-field"><span>Roll</span><input data-key="a.roll" type="range" min="-45" max="45" step="1" /><output data-out="a.roll"></output></label>
+          <label class="studio-field"><span>Scale</span><input data-key="a.scale" type="range" min="0.3" max="2" step="0.01" /><output data-out="a.scale"></output></label>
+          <label class="studio-field"><span>Edge</span><input data-key="a.thick" type="range" min="0.2" max="3" step="0.01" /><output data-out="a.thick"></output></label>
+          <label class="studio-field"><span>Rise</span><input data-key="a.lift" type="range" min="-120" max="120" step="0.5" /><output data-out="a.lift"></output></label>
+        </fieldset>
+        <fieldset class="studio-group">
+          <legend>Right slab</legend>
+          <label class="studio-field"><span>Turn</span><input data-key="b.turn" type="range" min="-180" max="180" step="1" /><output data-out="b.turn"></output></label>
+          <label class="studio-field"><span>Tilt</span><input data-key="b.tilt" type="range" min="-90" max="90" step="1" /><output data-out="b.tilt"></output></label>
+          <label class="studio-field"><span>Roll</span><input data-key="b.roll" type="range" min="-45" max="45" step="1" /><output data-out="b.roll"></output></label>
+          <label class="studio-field"><span>Scale</span><input data-key="b.scale" type="range" min="0.3" max="2" step="0.01" /><output data-out="b.scale"></output></label>
+          <label class="studio-field"><span>Edge</span><input data-key="b.thick" type="range" min="0.2" max="3" step="0.01" /><output data-out="b.thick"></output></label>
+          <label class="studio-field"><span>Rise</span><input data-key="b.lift" type="range" min="-120" max="120" step="0.5" /><output data-out="b.lift"></output></label>
+          <label class="studio-field"><span>Match</span>
+            <select data-role="match">
+              <option value="both">height, thickness, baseline</option>
+              <option value="height">height only</option>
+              <option value="width">thickness only</option>
+              <option value="off">nothing</option>
+            </select>
+          </label>
+          <label class="studio-field studio-check"><span>Mirror the left</span><input data-role="mirror" type="checkbox" /></label>
+        </fieldset>
+        <fieldset class="studio-group">
+          <legend>Camera</legend>
+          <label class="studio-field"><span>Perspective</span><input data-key="camera" type="range" min="160" max="4000" step="10" /><output data-out="camera"></output></label>
+          <label class="studio-field"><span>Shading</span><input data-key="shade" type="range" min="0" max="1" step="0.01" /><output data-out="shade"></output></label>
+          <label class="studio-field"><span>Lens</span>
+            <select data-key="focus">
+              <option value="each">one per slab</option>
+              <option value="shared">one for both</option>
+            </select>
+          </label>
+        </fieldset>
+        <fieldset class="studio-group">
+          <legend>Ink</legend>
+          <label class="studio-field"><span>Faces</span>
+            <select data-key="mode">
+              <option value="solid">solid</option>
+              <option value="outline">outline</option>
+              <option value="both">both</option>
+            </select>
+          </label>
+          <label class="studio-field"><span>Fill</span><input data-key="ink" type="color" /></label>
+          <label class="studio-field"><span>Line</span><input data-key="line" type="color" /></label>
+          <label class="studio-field"><span>Weight</span><input data-key="weight" type="range" min="0" max="16" step="0.5" /><output data-out="weight"></output></label>
+          <label class="studio-field"><span>Padding</span><input data-key="pad" type="range" min="0" max="160" step="2" /><output data-out="pad"></output></label>
+        </fieldset>
+        <fieldset class="studio-group">
+          <legend>Export</legend>
+          <label class="studio-field"><span>PNG scale</span><input data-role="scale" type="range" min="1" max="12" step="1" value="4" /><output data-out="scale"></output></label>
+          <p class="studio-size" data-role="dims"></p>
+          <div class="studio-buttons">
+            <button type="button" data-role="svg">Export SVG</button>
+            <button type="button" data-role="png">Export PNG</button>
+            <button type="button" data-role="copy">Copy SVG</button>
+          </div>
+        </fieldset>
+      </aside>
+      <footer class="studio-shelf">
+        <div class="studio-shelf-head">
+          <h2>Starting points</h2>
+          <div class="studio-buttons">
+            <button type="button" data-role="shuffle">Shuffle</button>
+            <button type="button" data-role="reset">Reset</button>
+          </div>
+        </div>
+        <div class="studio-presets" data-role="presets"></div>
+      </footer>
+    </main>
+    <script type="module" src="/src/pages/studio.ts"></script>
+  </body>
+</html>

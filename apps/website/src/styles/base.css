@@ -1,0 +1,170 @@
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100%;
+}
+
+html {
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  font-optical-sizing: auto;
+}
+
+h1,
+h2 {
+  color: var(--color-heading);
+}
+
+body {
+  font-family: var(--font-sans);
+  font-weight: 500;
+  font-feature-settings:
+    'kern' 1,
+    'liga' 1,
+    'calt' 1,
+    'cv05' 1;
+  font-variant-numeric: tabular-nums;
+  font-size: 14px;
+  line-height: 1.2;
+  letter-spacing: -0.25px;
+  background: var(--color-bg);
+  color: var(--color-text-primary);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+p.text-justify {
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
+
+h1,
+h2,
+h3 {
+  text-wrap: balance;
+}
+
+@keyframes site-in {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.stagger {
+  animation: site-in 0.7s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+  animation-delay: calc(0.35s + var(--i, 0) * 0.08s);
+}
+
+/* Only the body takes part in a route change; the masthead and footer keep
+   their own cascade running instead of snapping. */
+html.routed #page .stagger {
+  animation: none;
+}
+
+.entry-gloss {
+  hyphens: none;
+  -webkit-hyphens: none;
+}
+
+code {
+  font: inherit;
+}
+
+.site-nav {
+  position: relative;
+}
+
+.nav-slot {
+  display: inline-flex;
+}
+
+/* Home is routed by the script; this only covers the homepage's first paint. */
+html:not(.routed)[data-route='/'] .nav-home,
+.nav-home[hidden] {
+  display: none;
+}
+
+.column {
+  @apply relative flex w-[510px] max-w-full flex-col items-stretch py-20 max-[560px]:w-[calc(100vw-32px)] max-[560px]:pt-6 max-[560px]:pb-16;
+}
+
+.divider {
+  height: 1.25px;
+  width: 100%;
+  background: linear-gradient(to right, var(--color-divider-from), var(--color-divider-to));
+}
+
+@property --footer-link-line {
+  syntax: '<color>';
+  inherits: false;
+  initial-value: transparent;
+}
+
+.footer-link-underline {
+  background:
+    radial-gradient(circle 1px at 100% 50%, var(--footer-link-line) 99%, transparent) 0 100% / 1px 2px
+      no-repeat,
+    radial-gradient(circle 1px at 0% 50%, var(--footer-link-line) 99%, transparent) 100% 100% / 1px 2px
+      no-repeat,
+    linear-gradient(var(--footer-link-line), var(--footer-link-line)) 50% 100% / calc(100% - 2px) 2px
+      no-repeat;
+  padding-bottom: 2px;
+  transition: --footer-link-line 0.3s ease-out;
+}
+
+@media (hover: hover) {
+  .footer-link:hover .footer-link-underline {
+    --footer-link-line: color-mix(in srgb, var(--color-text-primary) 30%, transparent);
+  }
+}
+
+scritto-text.live {
+  color: var(--color-live);
+}
+
+/* Alone, the visitor count has nothing to show, and an empty inline-block still
+   holds the spaces either side of it apart. */
+#here-count:empty {
+  display: none;
+}
+
+/* Assistive-tech copy: keep it out of Cmd+A, and so out of the marker.
+   `user-select` alone would not: the pipeline reads the Range, not the paint. */
+.sr-only {
+  user-select: none;
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+  user-select: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stagger {
+    animation: none;
+  }
+
+  .hop,
+  .hop-face,
+  .hop-value,
+  .hop-sep {
+    transition: none;
+  }
+}

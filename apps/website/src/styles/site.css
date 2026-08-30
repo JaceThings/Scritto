@@ -1,0 +1,54 @@
+/* Auto-scan would also pull src/dev and the five check pages, so every
+   production stylesheet would ship their utilities. Pin sources to the
+   shipped HTML: JS comments in lib/components (`collapse`, `invisible`)
+   are not class names, and the pages do not construct utilities at runtime. */
+@import 'tailwindcss' source(none);
+@source '../../index.html';
+@source '../../playground.html';
+@source '../../studio.html';
+/* Dev pages, so their utilities exist under `bun run play`. Costs the shipped
+   sheet ~190 bytes gzipped; a second Tailwind pass for them cannot see the
+   theme's spacing scale, so this is the cheap way that actually works. */
+@source '../../versus.html';
+@source '../../resize.html';
+@source '../../partials';
+@import '@scritto/core/ssr.css';
+@import './tokens.css';
+@import './base.css';
+
+/* Fontsource's barrel pulls every script into dist. Only latin is used; the
+   roman face keeps that full latin range so playground/studio user text still
+   covers accents. Subsets are rebuilt by src/fonts/subset.py. */
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('@fontsource-variable/inter/files/inter-latin-wght-normal.woff2') format('woff2-variations');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329,
+    U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+/* U+02C8 (the stress mark in /ˈskrit.to/) lives in latin-ext. Hosting just
+   that glyph keeps the 85 kB latin-ext file off the wire. */
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../fonts/inter-stress.woff2') format('woff2-variations');
+  unicode-range: U+02C8;
+}
+
+/* `font-synthesis: none` in base.css means the entry's italics need a real face.
+   Italic copy is a closed Basic Latin corpus, so a subset is enough. The
+   subset keeps the full wght axis so a requested 450/500/550 instance
+   resolves the same way as fontsource's original `font-weight: 100 900`. */
+@font-face {
+  font-family: 'Inter Variable';
+  font-style: italic;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url('../fonts/inter-latin-italic.woff2') format('woff2-variations');
+  unicode-range: U+0020-007E;
+}

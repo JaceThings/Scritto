@@ -1,0 +1,152 @@
+/* Colours live on :root so they can flip with the system (or an explicit
+   data-theme, which wins); the theme only aliases them. Dark values come from
+   the corne.rs dark frame (Figma 224:148), bar the page fill: every
+   raised thing — install rows, playground cards — at #2c2926 behind a flat
+   white ring, rather than a tinted card behind a warm one. Its heading and
+   body layers still carry the light fills, so those two keep ja.mt's dark
+   pair, which is what they read as on that site. */
+@theme static inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-figure: var(--figure);
+  --color-heading: var(--heading);
+  --color-text-primary: var(--text-primary);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-input: var(--text-input);
+  --color-accent-green: var(--accent-green);
+  --color-live: var(--live);
+  --color-divider-from: var(--divider-from);
+  --color-divider-to: var(--divider-to);
+  --color-hairline: var(--hairline);
+  --color-figure-text: var(--figure-text);
+  --color-figure-input: var(--figure-input);
+  --color-figure-secondary: var(--figure-secondary);
+}
+
+:root {
+  color-scheme: light;
+  --bg: #f7f6f2;
+  --surface: #f7f6f2;
+  --figure: #ffffff;
+  --heading: #73574a;
+  --text-primary: #73574a;
+  --text-secondary: rgba(154, 145, 138, 0.75);
+  --text-input: #7e756c;
+  --accent-green: #5b793f;
+  --live: #5b5ddf;
+  --divider-from: rgba(115, 87, 74, 0.08);
+  --divider-to: rgba(115, 87, 74, 0);
+  --hairline: #edece8;
+  --figure-text: #73574a;
+  --figure-input: #7e756c;
+  --figure-secondary: rgba(154, 145, 138, 0.75);
+  --shadow-figure:
+    0 0 0 1px rgba(119, 119, 119, 0.08),
+    0 2px 2px -0.5px rgba(119, 119, 119, 0.08);
+  --shadow-install:
+    0 0 0 1px rgba(119, 119, 119, 0.19),
+    0 0 0 0.5px rgba(115, 87, 74, 0.08),
+    0 1px 2px 0 rgba(115, 87, 74, 0.1),
+    0 2px 2px -1px rgba(115, 87, 74, 0.05),
+    0 1px 6px 0 rgba(115, 87, 74, 0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --bg: #1c1918;
+    --surface: #2c2926;
+    --figure: #2c2926;
+    --heading: #fef1df;
+    --text-primary: #9a928a;
+    --text-secondary: rgba(154, 145, 138, 0.75);
+    --text-input: #9a928a;
+    --accent-green: #8fa876;
+    --live: #8b8de8;
+    --divider-from: rgba(255, 255, 255, 0.08);
+    --divider-to: rgba(255, 255, 255, 0);
+    --hairline: rgba(255, 255, 255, 0.08);
+    --figure-text: #fef1df;
+    --figure-input: rgba(254, 241, 223, 0.7);
+    --figure-secondary: rgba(254, 241, 223, 0.45);
+    --shadow-figure: 0 0 0 1px rgba(255, 255, 255, 0.1);
+    --shadow-install: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  }
+}
+
+[data-theme='dark'] {
+  color-scheme: dark;
+  --bg: #1c1918;
+  --surface: #2c2926;
+  --figure: #2c2926;
+  --heading: #fef1df;
+  --text-primary: #9a928a;
+  --text-secondary: rgba(154, 145, 138, 0.75);
+  --text-input: #9a928a;
+  --accent-green: #8fa876;
+  --live: #8b8de8;
+  --divider-from: rgba(255, 255, 255, 0.08);
+  --divider-to: rgba(255, 255, 255, 0);
+  --hairline: rgba(255, 255, 255, 0.08);
+  --figure-text: #fef1df;
+  --figure-input: rgba(254, 241, 223, 0.7);
+  --figure-secondary: rgba(254, 241, 223, 0.45);
+  --shadow-figure: 0 0 0 1px rgba(255, 255, 255, 0.1);
+  --shadow-install: 0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+@theme static {
+  --font-sans: 'Inter Variable', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New',
+    monospace;
+  --ease-out-quint: cubic-bezier(0.2, 0, 0, 1);
+  /* Lisse's disclosure spring, sampled: stiffness 380, damping 38, mass 0.9.
+     Just past critical, so it never overshoots — it only takes its time. */
+  --ease-settle: linear(
+    0,
+    0.0653,
+    0.2,
+    0.3488,
+    0.4867,
+    0.6041,
+    0.6994,
+    0.7744,
+    0.8321,
+    0.8759,
+    0.9087,
+    0.9332,
+    0.9512,
+    0.9645,
+    0.9742,
+    0.9813,
+    0.9864,
+    0.9902,
+    0.9929,
+    0.9949,
+    0.9963,
+    0.9973,
+    0.9981,
+    0.9986,
+    1
+  );
+  --ease-spring: linear(
+    0,
+    0.1052,
+    0.3155,
+    0.532,
+    0.7112,
+    0.8414,
+    0.9265,
+    0.9765,
+    1.0023,
+    1.013,
+    1.0151,
+    1.0133,
+    1.01,
+    1.0068,
+    1.0041,
+    1.0022,
+    1.001,
+    1
+  );
+}

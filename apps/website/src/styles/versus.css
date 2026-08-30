@@ -1,0 +1,62 @@
+/* /versus is a dev page, but it is built out of site.css's tokens and
+   utilities, so its rules live here rather than in dev.css: dev.css carries its
+   own palette and class-based dark theme, and layering that over site.css
+   forced the page light, which read as zero ink and failed `check:versus`. */
+
+/* /versus — the two engines sit in one figure, so the split has to read as a
+   split and still fold to a stack on a narrow page. */
+.versus-pair {
+  display: grid;
+  width: 100%;
+  /* `minmax(0, ...)`, not `1fr`: a bare `1fr` floors at the content's min-content
+     width, so a rolling value wide enough to overflow its stage dragged the
+     divider across and squeezed the other engine into a sliver. Each engine holds
+     half the figure whatever it is showing, and the stage clips its own overflow. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+}
+
+.versus-side + .versus-side {
+  box-shadow: inset 1px 0 0 0 var(--color-hairline);
+}
+
+.versus-tag {
+  padding: 14px 16px 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+}
+
+.versus-transport {
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 14px 16px;
+}
+
+.versus-transport button {
+  border-radius: 8px;
+  border: 1px solid var(--color-hairline);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 550;
+  color: var(--color-text-primary);
+  cursor: pointer;
+}
+
+.versus-count {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 640px) {
+  .versus-pair {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .versus-side + .versus-side {
+    box-shadow: inset 0 1px 0 0 var(--color-hairline);
+  }
+}

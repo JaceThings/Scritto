@@ -1,0 +1,1049 @@
+[
+  {
+    "group": "Counters",
+    "from": "9",
+    "to": "10",
+    "kept": "",
+    "entering": "10",
+    "exiting": "9",
+    "travel": 0,
+    "widthBefore": 31,
+    "widthAfter": 62,
+    "span": 460,
+    "stagger": [
+      0,
+      60
+    ]
+  },
+  {
+    "group": "Counters",
+    "from": "99",
+    "to": "100",
+    "kept": "",
+    "entering": "100",
+    "exiting": "99",
+    "travel": 0,
+    "widthBefore": 62,
+    "widthAfter": 92,
+    "span": 480,
+    "stagger": [
+      0,
+      80
+    ]
+  },
+  {
+    "group": "Counters",
+    "from": "999",
+    "to": "1,000",
+    "kept": "",
+    "entering": "1,000",
+    "exiting": "999",
+    "travel": 0,
+    "widthBefore": 92,
+    "widthAfter": 136,
+    "span": 493,
+    "stagger": [
+      0,
+      93
+    ]
+  },
+  {
+    "group": "Counters",
+    "from": "1,204",
+    "to": "1,205",
+    "kept": "1,20",
+    "entering": "5",
+    "exiting": "4",
+    "travel": 0,
+    "widthBefore": 136,
+    "widthAfter": 136,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Counters",
+    "from": "1,204",
+    "to": "88,900",
+    "kept": "",
+    "entering": "88,900",
+    "exiting": "1,204",
+    "travel": 0,
+    "widthBefore": 136,
+    "widthAfter": 167,
+    "span": 498,
+    "stagger": [
+      0,
+      98
+    ]
+  },
+  {
+    "group": "Counters",
+    "from": "12,345",
+    "to": "1,234",
+    "kept": "134",
+    "entering": ",2",
+    "exiting": "2,5",
+    "travel": 0,
+    "widthBefore": 167,
+    "widthAfter": 136,
+    "span": 493,
+    "stagger": [
+      0,
+      93
+    ]
+  },
+  {
+    "group": "Counters",
+    "from": "1",
+    "to": "1,000,000",
+    "kept": "1",
+    "entering": ",000,000",
+    "exiting": "",
+    "travel": 0,
+    "widthBefore": 31,
+    "widthAfter": 241,
+    "span": 502,
+    "stagger": [
+      0,
+      102
+    ]
+  },
+  {
+    "group": "Counters",
+    "from": "100",
+    "to": "99",
+    "kept": "",
+    "entering": "99",
+    "exiting": "100",
+    "travel": 0,
+    "widthBefore": 92,
+    "widthAfter": 62,
+    "span": 480,
+    "stagger": [
+      0,
+      80
+    ]
+  },
+  {
+    "group": "Money",
+    "from": "$2.50",
+    "to": "$12.75",
+    "kept": "$2.",
+    "entering": "175",
+    "exiting": "50",
+    "travel": 31,
+    "widthBefore": 136,
+    "widthAfter": 167,
+    "span": 493,
+    "stagger": [
+      0,
+      93
+    ]
+  },
+  {
+    "group": "Money",
+    "from": "$9.99",
+    "to": "$10.00",
+    "kept": "$",
+    "entering": "10.00",
+    "exiting": "9.99",
+    "travel": 0,
+    "widthBefore": 136,
+    "widthAfter": 167,
+    "span": 493,
+    "stagger": [
+      0,
+      93
+    ]
+  },
+  {
+    "group": "Money",
+    "from": "€1,204",
+    "to": "€1,205",
+    "kept": "€1,20",
+    "entering": "5",
+    "exiting": "4",
+    "travel": 0,
+    "widthBefore": 168,
+    "widthAfter": 168,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Money",
+    "from": "-$4.00",
+    "to": "$4.00",
+    "kept": "$4.00",
+    "entering": "",
+    "exiting": "-",
+    "travel": 31,
+    "widthBefore": 167,
+    "widthAfter": 136,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Percent",
+    "from": "99%",
+    "to": "100%",
+    "kept": "%",
+    "entering": "100",
+    "exiting": "99",
+    "travel": 31,
+    "widthBefore": 109,
+    "widthAfter": 140,
+    "span": 480,
+    "stagger": [
+      0,
+      80
+    ]
+  },
+  {
+    "group": "Percent",
+    "from": "0.9",
+    "to": "1.0",
+    "kept": "",
+    "entering": "1.0",
+    "exiting": "0.9",
+    "travel": 0,
+    "widthBefore": 74,
+    "widthAfter": 74,
+    "span": 470,
+    "stagger": [
+      0,
+      70
+    ]
+  },
+  {
+    "group": "Percent",
+    "from": "-1",
+    "to": "0",
+    "kept": "",
+    "entering": "0",
+    "exiting": "-1",
+    "travel": 0,
+    "widthBefore": 62,
+    "widthAfter": 31,
+    "span": 460,
+    "stagger": [
+      0,
+      60
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "12:59",
+    "to": "13:00",
+    "kept": "1",
+    "entering": "3:00",
+    "exiting": "2:59",
+    "travel": 0,
+    "widthBefore": 136,
+    "widthAfter": 136,
+    "span": 485,
+    "stagger": [
+      0,
+      85
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "9:41 AM",
+    "to": "9:42 AM",
+    "kept": "9:4 AM",
+    "entering": "2",
+    "exiting": "1",
+    "travel": 0,
+    "widthBefore": 196,
+    "widthAfter": 196,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "1 second",
+    "to": "2 seconds",
+    "kept": " second",
+    "entering": "2s",
+    "exiting": "1",
+    "travel": 0,
+    "widthBefore": 212,
+    "widthAfter": 238,
+    "span": 507,
+    "stagger": [
+      0,
+      107
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "59 seconds",
+    "to": "1 minute 0 seconds",
+    "kept": "   seconds",
+    "entering": "1minute0",
+    "exiting": "59",
+    "travel": 182,
+    "widthBefore": 269,
+    "widthAfter": 451,
+    "span": 505,
+    "stagger": [
+      0,
+      105
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "2 minutes 12 seconds",
+    "to": "2 minutes 13 seconds",
+    "kept": "2 minutes 1 seconds",
+    "entering": "3",
+    "exiting": "2",
+    "travel": 0,
+    "widthBefore": 508,
+    "widthAfter": 508,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "Monday",
+    "to": "Tuesday",
+    "kept": "day",
+    "entering": "Tues",
+    "exiting": "Mon",
+    "travel": 13,
+    "widthBefore": 186,
+    "widthAfter": 199,
+    "span": 493,
+    "stagger": [
+      0,
+      93
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "March",
+    "to": "April",
+    "kept": "",
+    "entering": "April",
+    "exiting": "March",
+    "travel": 0,
+    "widthBefore": 146,
+    "widthAfter": 107,
+    "span": 496,
+    "stagger": [
+      0,
+      96
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "1 unread",
+    "to": "2 unread",
+    "kept": " unread",
+    "entering": "2",
+    "exiting": "1",
+    "travel": 0,
+    "widthBefore": 205,
+    "widthAfter": 205,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "Track 1 of 12",
+    "to": "Track 2 of 12",
+    "kept": "Track  of 12",
+    "entering": "2",
+    "exiting": "1",
+    "travel": 0,
+    "widthBefore": 309,
+    "widthAfter": 309,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "3 files",
+    "to": "4 files",
+    "kept": " files",
+    "entering": "4",
+    "exiting": "3",
+    "travel": 0,
+    "widthBefore": 140,
+    "widthAfter": 140,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "loading",
+    "to": "loaded",
+    "kept": "load",
+    "entering": "ed",
+    "exiting": "ing",
+    "travel": 0,
+    "widthBefore": 168,
+    "widthAfter": 155,
+    "span": 470,
+    "stagger": [
+      0,
+      70
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "Draft",
+    "to": "Published",
+    "kept": "",
+    "entering": "Published",
+    "exiting": "Draft",
+    "travel": 0,
+    "widthBefore": 115,
+    "widthAfter": 226,
+    "span": 504,
+    "stagger": [
+      0,
+      104
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "12 km",
+    "to": "12 miles",
+    "kept": "12 ",
+    "entering": "miles",
+    "exiting": "km",
+    "travel": 0,
+    "widthBefore": 144,
+    "widthAfter": 195,
+    "span": 494,
+    "stagger": [
+      0,
+      94
+    ]
+  },
+  {
+    "group": "Words",
+    "from": "seven",
+    "to": "nine",
+    "kept": "",
+    "entering": "nine",
+    "exiting": "seven",
+    "travel": 0,
+    "widthBefore": 138,
+    "widthAfter": 98,
+    "span": 495,
+    "stagger": [
+      0,
+      95
+    ]
+  },
+  {
+    "group": "Words",
+    "from": "light",
+    "to": "daylight",
+    "kept": "light",
+    "entering": "day",
+    "exiting": "",
+    "travel": 84,
+    "widthBefore": 99,
+    "widthAfter": 184,
+    "span": 481,
+    "stagger": [
+      0,
+      81
+    ]
+  },
+  {
+    "group": "Words",
+    "from": "daylight",
+    "to": "light",
+    "kept": "light",
+    "entering": "",
+    "exiting": "day",
+    "travel": 84,
+    "widthBefore": 184,
+    "widthAfter": 99,
+    "span": 481,
+    "stagger": [
+      0,
+      81
+    ]
+  },
+  {
+    "group": "Words",
+    "from": "Creative",
+    "to": "Code",
+    "kept": "Ce",
+    "entering": "od",
+    "exiting": "reativ",
+    "travel": 71,
+    "widthBefore": 193,
+    "widthAfter": 122,
+    "span": 494,
+    "stagger": [
+      0,
+      94
+    ]
+  },
+  {
+    "group": "Words",
+    "from": "supercalifragilisticlight",
+    "to": "light",
+    "note": "the Apple travel case",
+    "kept": "light",
+    "entering": "",
+    "exiting": "supercalifragilistic",
+    "travel": 422,
+    "widthBefore": 521,
+    "widthAfter": 99,
+    "span": 512,
+    "stagger": [
+      0,
+      112
+    ]
+  },
+  {
+    "group": "Words",
+    "from": "the light you seek is within you",
+    "to": "you are the daylight",
+    "kept": "   ",
+    "entering": "youarethedaylight",
+    "exiting": "the light you seek is within you",
+    "travel": 0,
+    "widthBefore": 704,
+    "widthAfter": 454,
+    "span": 515,
+    "stagger": [
+      0,
+      115
+    ]
+  },
+  {
+    "group": "Scripts",
+    "from": "👋",
+    "to": "🌍",
+    "kept": "",
+    "entering": "🌍",
+    "exiting": "👋",
+    "travel": 0,
+    "widthBefore": 48,
+    "widthAfter": 48,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Scripts",
+    "from": "Hello 👋",
+    "to": "Hola 👋",
+    "kept": "H 👋",
+    "entering": "ola",
+    "exiting": "ello",
+    "travel": 13,
+    "widthBefore": 177,
+    "widthAfter": 164,
+    "span": 477,
+    "stagger": [
+      0,
+      77
+    ]
+  },
+  {
+    "group": "Scripts",
+    "from": "一",
+    "to": "二",
+    "kept": "",
+    "entering": "二",
+    "exiting": "一",
+    "travel": 0,
+    "widthBefore": 48,
+    "widthAfter": 48,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Scripts",
+    "from": "٣",
+    "to": "٤",
+    "kept": "",
+    "entering": "٤",
+    "exiting": "٣",
+    "travel": 0,
+    "widthBefore": 26,
+    "widthAfter": 26,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Scripts",
+    "from": "Grüße",
+    "to": "Grüßen",
+    "kept": "Grüße",
+    "entering": "n",
+    "exiting": "",
+    "travel": 0,
+    "widthBefore": 142,
+    "widthAfter": 170,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Shape",
+    "from": "abcdef",
+    "to": "abcXY",
+    "note": "prefix only",
+    "kept": "abc",
+    "entering": "XY",
+    "exiting": "def",
+    "travel": 0,
+    "widthBefore": 160,
+    "widthAfter": 152,
+    "span": 491,
+    "stagger": [
+      0,
+      91
+    ]
+  },
+  {
+    "group": "Shape",
+    "from": "abcdef",
+    "to": "XYdef",
+    "note": "suffix only",
+    "kept": "def",
+    "entering": "XY",
+    "exiting": "abc",
+    "travel": 17,
+    "widthBefore": 160,
+    "widthAfter": 143,
+    "span": 481,
+    "stagger": [
+      0,
+      81
+    ]
+  },
+  {
+    "group": "Shape",
+    "from": "abcXXXdef",
+    "to": "abcYYYYYdef",
+    "note": "both ends",
+    "kept": "abcdef",
+    "entering": "YYYYY",
+    "exiting": "XXX",
+    "travel": 66,
+    "widthBefore": 262,
+    "widthAfter": 328,
+    "span": 496,
+    "stagger": [
+      0,
+      96
+    ]
+  },
+  {
+    "group": "Shape",
+    "from": "xxlightxx",
+    "to": "yylightyy",
+    "note": "floating run",
+    "kept": "light",
+    "entering": "yyyy",
+    "exiting": "xxxx",
+    "travel": 2,
+    "widthBefore": 206,
+    "widthAfter": 210,
+    "span": 504,
+    "stagger": [
+      0,
+      104
+    ]
+  },
+  {
+    "group": "Shape",
+    "from": "zzzzdaylightzzzz",
+    "to": "qqqqdaylightqqqq",
+    "note": "floating run, long",
+    "kept": "daylight",
+    "entering": "qqqqqqqq",
+    "exiting": "zzzzzzzz",
+    "travel": 11,
+    "widthBefore": 398,
+    "widthAfter": 420,
+    "span": 512,
+    "stagger": [
+      0,
+      112
+    ]
+  },
+  {
+    "group": "Shape",
+    "from": "11",
+    "to": "1,001",
+    "note": "floating run pays for a separator",
+    "kept": "11",
+    "entering": ",00",
+    "exiting": "",
+    "travel": 74,
+    "widthBefore": 62,
+    "widthAfter": 136,
+    "span": 470,
+    "stagger": [
+      0,
+      70
+    ]
+  },
+  {
+    "group": "Counters",
+    "from": "7",
+    "to": "8",
+    "kept": "",
+    "entering": "8",
+    "exiting": "7",
+    "travel": 0,
+    "widthBefore": 31,
+    "widthAfter": 31,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Counters",
+    "from": "19",
+    "to": "20",
+    "kept": "",
+    "entering": "20",
+    "exiting": "19",
+    "travel": 0,
+    "widthBefore": 62,
+    "widthAfter": 62,
+    "span": 460,
+    "stagger": [
+      0,
+      60
+    ]
+  },
+  {
+    "group": "Money",
+    "from": "$1,000",
+    "to": "$999",
+    "kept": "$",
+    "entering": "999",
+    "exiting": "1,000",
+    "travel": 0,
+    "widthBefore": 167,
+    "widthAfter": 123,
+    "span": 493,
+    "stagger": [
+      0,
+      93
+    ]
+  },
+  {
+    "group": "Percent",
+    "from": "3%",
+    "to": "30%",
+    "kept": "3%",
+    "entering": "0",
+    "exiting": "",
+    "travel": 31,
+    "widthBefore": 79,
+    "widthAfter": 109,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Percent",
+    "from": "100%",
+    "to": "99%",
+    "kept": "%",
+    "entering": "99",
+    "exiting": "100",
+    "travel": 31,
+    "widthBefore": 140,
+    "widthAfter": 109,
+    "span": 480,
+    "stagger": [
+      0,
+      80
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "11:59 PM",
+    "to": "12:00 AM",
+    "kept": "1 M",
+    "entering": "2:00A",
+    "exiting": "1:59 P",
+    "travel": 4,
+    "widthBefore": 223,
+    "widthAfter": 227,
+    "span": 493,
+    "stagger": [
+      0,
+      93
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "in 5 minutes",
+    "to": "in 4 minutes",
+    "kept": "in  minutes",
+    "entering": "4",
+    "exiting": "5",
+    "travel": 0,
+    "widthBefore": 280,
+    "widthAfter": 280,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "Today",
+    "to": "Tomorrow",
+    "kept": "To",
+    "entering": "morrow",
+    "exiting": "day",
+    "travel": 0,
+    "widthBefore": 145,
+    "widthAfter": 238,
+    "span": 493,
+    "stagger": [
+      0,
+      93
+    ]
+  },
+  {
+    "group": "Time",
+    "from": "31 December",
+    "to": "1 January",
+    "kept": "1 ",
+    "entering": "January",
+    "exiting": "3December",
+    "travel": 31,
+    "widthBefore": 311,
+    "widthAfter": 229,
+    "span": 513,
+    "stagger": [
+      0,
+      113
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "Battery 84%",
+    "to": "Battery 83%",
+    "kept": "Battery 8%",
+    "entering": "3",
+    "exiting": "4",
+    "travel": 0,
+    "widthBefore": 288,
+    "widthAfter": 288,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "2.4 MB",
+    "to": "24.1 MB",
+    "kept": "2 MB",
+    "entering": "4.1",
+    "exiting": ".4",
+    "travel": 31,
+    "widthBefore": 162,
+    "widthAfter": 193,
+    "span": 470,
+    "stagger": [
+      0,
+      70
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "v1.9.0",
+    "to": "v1.10.0",
+    "kept": "v1..0",
+    "entering": "10",
+    "exiting": "9",
+    "travel": 31,
+    "widthBefore": 145,
+    "widthAfter": 176,
+    "span": 460,
+    "stagger": [
+      0,
+      60
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "4 of 10",
+    "to": "5 of 10",
+    "kept": " of 10",
+    "entering": "5",
+    "exiting": "4",
+    "travel": 0,
+    "widthBefore": 165,
+    "widthAfter": 165,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "Offline",
+    "to": "Online",
+    "kept": "Oline",
+    "entering": "n",
+    "exiting": "ff",
+    "travel": 8,
+    "widthBefore": 154,
+    "widthAfter": 147,
+    "span": 460,
+    "stagger": [
+      0,
+      60
+    ]
+  },
+  {
+    "group": "Labels",
+    "from": "18 °C",
+    "to": "19 °C",
+    "kept": "1 °C",
+    "entering": "9",
+    "exiting": "8",
+    "travel": 0,
+    "widthBefore": 131,
+    "widthAfter": 131,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Words",
+    "from": "one",
+    "to": "two",
+    "kept": "",
+    "entering": "two",
+    "exiting": "one",
+    "travel": 0,
+    "widthBefore": 86,
+    "widthAfter": 85,
+    "span": 481,
+    "stagger": [
+      0,
+      81
+    ]
+  },
+  {
+    "group": "Words",
+    "from": "nineteen",
+    "to": "twenty",
+    "kept": "en",
+    "entering": "twty",
+    "exiting": "ninete",
+    "travel": 86,
+    "widthBefore": 199,
+    "widthAfter": 157,
+    "span": 499,
+    "stagger": [
+      0,
+      99
+    ]
+  },
+  {
+    "group": "Scripts",
+    "from": "零",
+    "to": "一",
+    "kept": "",
+    "entering": "一",
+    "exiting": "零",
+    "travel": 0,
+    "widthBefore": 48,
+    "widthAfter": 48,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Scripts",
+    "from": "Ελλάδα",
+    "to": "Ελλάδας",
+    "kept": "Ελλάδα",
+    "entering": "ς",
+    "exiting": "",
+    "travel": 17,
+    "widthBefore": 165,
+    "widthAfter": 212,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  },
+  {
+    "group": "Scripts",
+    "from": "🌑",
+    "to": "🌒",
+    "kept": "",
+    "entering": "🌒",
+    "exiting": "🌑",
+    "travel": 0,
+    "widthBefore": 48,
+    "widthAfter": 48,
+    "span": 400,
+    "stagger": [
+      0,
+      0
+    ]
+  }
+]
