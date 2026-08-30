@@ -1,7 +1,13 @@
-export type Slab = { turn: number; tilt: number; roll: number; scale: number }
+export type Slab = { turn: number; tilt: number; roll: number; scale: number; thick: number }
 
 /** A slab, written short: the presets are mostly one angle away from square on. */
-export const slab = (turn: number, tilt: number, roll = 0, scale = 1): Slab => ({ turn, tilt, roll, scale })
+export const slab = (turn: number, tilt: number, roll = 0, scale = 1, thick = 1): Slab => ({
+  turn,
+  tilt,
+  roll,
+  scale,
+  thick,
+})
 
 export type Mark = {
   size: number
@@ -102,7 +108,7 @@ const facets = (mark: Mark, piece: Slab, offset: number): Facet[] => {
   // flat rather than showing the side face the lens would find off-centre.
   const shared = mark.focus === 'shared'
   const k = piece.scale
-  const points = corners(mark.depth * k, mark.size * k, mark.size * k)
+  const points = corners(mark.depth * k * piece.thick, mark.size * k, mark.size * k)
     .map((v) => spin(v, piece))
     .map(([x, y, z]) => [shared ? x + offset : x, y, z] as Vec)
   const out: Facet[] = []
@@ -144,6 +150,9 @@ const tone = (ink: string, light: number, shade: number) => {
 
 export type Span = 'height' | 'width'
 
+/** `scale` sizes the whole slab; `thick` sizes only the edge it shows head on. */
+export type Grow = 'scale' | 'thick'
+
 const spanOf = (mark: Mark, piece: Slab, span: Span) => {
   const axis = span === 'height' ? 1 : 0
   const ns = facets(mark, piece, 0).flatMap((f) => f.points.map((p) => p[axis]))
@@ -155,15 +164,15 @@ const spanOf = (mark: Mark, piece: Slab, span: Span) => {
  * span a curve rather than a line, so each guess is refined against a fresh
  * measurement instead of being solved outright.
  */
-export const matchScale = (mark: Mark, piece: Slab, against: Slab, span: Span) => {
+export const matchScale = (mark: Mark, piece: Slab, against: Slab, span: Span, grow: Grow = 'scale') => {
   const target = spanOf(mark, against, span)
-  let scale = piece.scale || 1
+  let factor = piece[grow] || 1
   for (let i = 0; i < 4; i++) {
-    const drawn = spanOf(mark, { ...piece, scale }, span)
+    const drawn = spanOf(mark, { ...piece, [grow]: factor }, span)
     if (!drawn) break
-    scale *= target / drawn
+    factor *= target / drawn
   }
-  return Math.round(scale * 1000) / 1000
+  return Math.round(factor * 1000) / 1000
 }
 
 export const build = (mark: Mark) => {

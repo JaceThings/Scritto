@@ -1,4 +1,4 @@
-import { DEFAULTS, build, matchScale, slab, toSvg, type Mark, type Span } from '../lib/slab'
+import { DEFAULTS, build, matchScale, slab, toSvg, type Mark } from '../lib/slab'
 
 const find = <T extends HTMLElement>(role: string) => document.querySelector<T>(`[data-role="${role}"]`)!
 
@@ -46,7 +46,15 @@ const inputs = [...document.querySelectorAll<HTMLInputElement | HTMLSelectElemen
 
 const show = () => {
   if (mirror.checked) mark.b = { ...mark.b, turn: -mark.a.turn, tilt: -mark.a.tilt, roll: -mark.a.roll }
-  if (match.value !== 'off') mark.b.scale = matchScale(mark, mark.b, mark.a, match.value as Span)
+  if (match.value === 'height' || match.value === 'width') {
+    mark.b.scale = matchScale(mark, mark.b, mark.a, match.value)
+  }
+  // Height first, then the edge on its own: one factor cannot hold both, since a
+  // slab scaled down to the same height draws a thinner bar than the one beside it.
+  if (match.value === 'both') {
+    mark.b.scale = matchScale(mark, mark.b, mark.a, 'height')
+    mark.b.thick = matchScale(mark, mark.b, mark.a, 'width', 'thick')
+  }
   art.innerHTML = toSvg(mark)
   const { box } = build(mark)
   const k = Number(scale.value)
