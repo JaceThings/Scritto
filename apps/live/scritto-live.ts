@@ -2,11 +2,9 @@ type Env = {
   redis: Bun.RedisClient
   REDIS_PREFIX: string
   IP_SALT?: string
-  // Origins allowed to open a socket and move the counters. Unset means any
-  // non-local browser origin, so an unconfigured deploy still works.
+  // Unset means any non-local browser origin, so an unconfigured deploy works.
   SITE_ORIGINS?: string
-  // Proxies appending to X-Forwarded-For, counted from the right. Only used
-  // without cf-connecting-ip; /debug/headers tells you what to set.
+  // Proxies appending to X-Forwarded-For; /debug/headers shows what to set.
   TRUSTED_HOPS?: string
   DEBUG_TOKEN?: string
 }
@@ -27,7 +25,6 @@ type Stats = {
 
 type Totals = Pick<Stats, 'views' | 'uniques' | 'clicks' | 'npm'>
 
-/** A request body, already validated: every field is either usable or absent. */
 type Body = {
   vid: string | null
   sid: string | null
@@ -35,7 +32,6 @@ type Body = {
   seq: number | null
 }
 
-/** Anything this server answers with. */
 type JsonBody = { [key: string]: string | number | boolean | null | JsonBody }
 
 type Runtime = {
@@ -75,21 +71,17 @@ const countAt = (raw: unknown, key: string) => {
   return typeof value === 'number' && Number.isSafeInteger(value) && value >= 0 ? value : null
 }
 
+const TOTAL_KEYS = ['views', 'uniques', 'clicks', 'npm'] as const
+const STAT_KEYS = [...TOTAL_KEYS, 'you', 'here'] as const
+
 const statsAt = (raw: unknown): Stats | null => {
-  const valueAt = (name: keyof Stats) => {
+  const stats = {} as Stats
+  for (const name of STAT_KEYS) {
     const value = fieldOf(raw, name)
-    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null
+    stats[name] = value
   }
-  const views = valueAt('views')
-  const uniques = valueAt('uniques')
-  const you = valueAt('you')
-  const here = valueAt('here')
-  const clicks = valueAt('clicks')
-  const npm = valueAt('npm')
-  if (views === null || uniques === null || you === null || here === null || clicks === null || npm === null) {
-    return null
-  }
-  return { views, uniques, you, here, clicks, npm }
+  return stats
 }
 
 const runtimes = new WeakMap<Env, Runtime>()
@@ -110,20 +102,17 @@ const NPM_CHUNK_DAYS = 365
 const NPM_TTL_MS = 10 * 60 * 1000
 const NPM_RETRY_MS = 60 * 1000
 
-// Clicks arrive as a running per-page-load total, which is client-supplied and
-// forgeable, hence a per-IP budget: 40 in 5s outruns any human (8-10/s in
-// bursts) while refusing a script. Over budget is declined, not dropped.
+// The running total a client posts is forgeable, hence a per-IP budget: 40 in
+// 5s outruns any human, and what it declines is refused rather than dropped.
 const CLICK_WINDOW_S = 5
 const CLICK_BUDGET = 40
 const CLICK_MAX_PER_WRITE = 60
-// A run lives only while it has unbanked pokes, so seconds in practice. Expiry
-// mid-run would bank the whole total twice, so this sits far beyond any
-// plausible write-retry window.
+// Expiry mid-run would bank the whole running total a second time, so this sits
+// far beyond the seconds a run actually lives.
 const CLICK_RUN_TTL_S = 30 * 24 * 3600
 const CLICK_GATE_S = 2
 
-// A browser's own id can outlive a year away; an IP is a hint and gets
-// reassigned, so it is held for a month rather than forever.
+// An IP is a hint and gets reassigned, so it is held for a month, not a year.
 const VID_TTL_S = 365 * 24 * 3600
 const IP_TTL_S = 30 * 24 * 3600
 
@@ -132,8 +121,7 @@ const SOCKET_MAX = 500
 
 const key = (env: Env, name: string) => `${env.REDIS_PREFIX}v2:${name}`
 
-// 2h is Chromium's ceiling for the preflight cache (Firefox allows 24h), so
-// anything larger is silently clamped rather than honoured.
+// Chromium's ceiling for the preflight cache; larger is silently clamped.
 const CORS_MAX_AGE_S = 7200
 
 const cors = {
@@ -150,11 +138,9 @@ const json = (data: JsonBody, status = 200) =>
   })
 
 // Every budget, identity and gate key hangs off this, so it must not be
-// caller-controlled. Cloudflare *appends* the client IP to an X-Forwarded-For
-// that arrived with the request, so its leftmost entry is whatever the caller
-// wrote — a forged header used to buy a fresh budget and identity. Only
-// cf-connecting-ip is written by our own edge; XFF is a fallback for a direct
-// hit, counted from the right where the nearest trusted proxy appends.
+// caller-controlled. Cloudflare appends to whatever X-Forwarded-For arrived, so
+// its leftmost entry is the caller's to forge: trust cf-connecting-ip, and
+// otherwise count from the right, where the nearest trusted proxy appends.
 const IP_HEADERS = ['cf-connecting-ip', 'x-forwarded-for', 'x-real-ip', 'true-client-ip']
 
 const clientIp = (req: Request, env: Env) => {
@@ -204,8 +190,9 @@ const counts = (req: Request, env: Env) => {
   return allowed.length === 0 || allowed.includes(origin!)
 }
 
-const digest = async (value: string) => {
-  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))
+const ipKey = async (req: Request, env: Env) => {
+  const salted = `${env.IP_SALT ?? 'scritto'}:${clientIp(req, env)}`
+  const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(salted))
   return [...new Uint8Array(bytes)].map((b) => b.toString(16).padStart(2, '0')).join('').slice(0, 16)
 }
 
@@ -260,11 +247,10 @@ const snapshot = (runtime: Runtime, you = 0, here = runtime.here): Stats => ({
 })
 
 const sameTotals = (left: Totals, right: Totals) =>
-  left.views === right.views && left.uniques === right.uniques && left.clicks === right.clicks && left.npm === right.npm
+  TOTAL_KEYS.every((name) => left[name] === right[name])
 
 const closeSocket = (ws: Socket) => {
   const data = ws.data
-  // The registry is the record of an open socket, so a second close is a no-op.
   if (!data.runtime.sockets.delete(ws)) return
   const peers = data.runtime.sidSockets.get(data.sid)
   if (!peers) return
@@ -298,9 +284,7 @@ const receiveBroadcast = (runtime: Runtime, message: string) => {
     mergeTotals(runtime, stats)
     runtime.here = stats.here
     fanOut(runtime, JSON.stringify({ ...stats, you: 0 }))
-  } catch {
-    // ignore messages not written by this service
-  }
+  } catch {}
 }
 
 const retrySubscriber = (runtime: Runtime) => {
@@ -383,9 +367,9 @@ const getRuntime = (env: Env) => {
   return runtime
 }
 
-// The point endpoints (last-month and friends) run several days behind, which
-// reads as zero for a package published this week, so sum the daily range. That
-// endpoint refuses a span over 18 months, hence the walk from the first publish.
+// The point endpoints run several days behind, which reads as zero for a package
+// published this week, so sum the daily range. That endpoint refuses a span over
+// 18 months, hence the walk from the first publish.
 const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10)
 const dayAfter = (day: string, count: number) => dayOf(Date.parse(`${day}T00:00:00Z`) + count * 86_400_000)
 
@@ -449,7 +433,6 @@ const refreshNpm = async (runtime: Runtime) => {
 }
 
 // Read-then-increment let two tabs opening together take the same ordinal.
-// Assigning inside the script settles it in one round trip.
 const IDENTIFY_LUA = `
 local you = redis.call('GET', KEYS[1])
 if not you then you = redis.call('GET', KEYS[2]) end
@@ -494,7 +477,7 @@ const hello = async (req: Request, env: Env, ctx: Ctx) => {
   const body = await readBody(req)
   const vid = body.vid ?? crypto.randomUUID()
   const sid = body.sid ?? crypto.randomUUID()
-  const ipHash = await digest(`${env.IP_SALT ?? 'scritto'}:${clientIp(req, env)}`)
+  const ipHash = await ipKey(req, env)
   const [you, here, view] = await Promise.all([
     identify(env, vid, ipHash),
     touchPresence(env, sid),
@@ -520,12 +503,10 @@ const beat = async (req: Request, env: Env) => {
   return json(current)
 }
 
-// Reading the run total, charging the budget and advancing the counters is one
-// step: as separate round trips two writes for the same run both credit the
-// same difference, and the client races itself by design when a poke and a
-// pagehide beacon land together. Over-budget writes still charge, so a flood
-// cannot outlast the window by pacing itself, and the run advances only by what
-// was granted — the rest stays unbanked for the client's next write.
+// One step, because a poke and a pagehide beacon racing each other over
+// separate round trips would both credit the same difference. Over-budget
+// writes still charge, so pacing cannot outlast the window, and the run advances
+// only by what was granted; the rest stays unbanked for the next write.
 const BANK_LUA = `
 local banked = tonumber(redis.call('GET', KEYS[1]) or '0')
 local clicks = tonumber(redis.call('GET', KEYS[2]) or '0')
@@ -570,7 +551,7 @@ const click = async (req: Request, env: Env) => {
   const runtime = getRuntime(env)
   await runtime.ready
   const { run, seq, sid } = await readBody(req)
-  const ipHash = await digest(`${env.IP_SALT ?? 'scritto'}:${clientIp(req, env)}`)
+  const ipHash = await ipKey(req, env)
   const banking: Promise<Banked> = run && seq !== null
     ? bank(env, ipHash, run, seq)
     // A bundle cached before this endpoint counted still posts a bare poke.
@@ -716,7 +697,6 @@ const socketMessage = async (ws: Socket, message: string | Buffer) => {
 
 // Which header carries the real client IP depends on what Cloudflare and
 // Railway each do to the request, so this reports what actually arrived.
-// Needs DEBUG_TOKEN, and reports IP-bearing headers only.
 const headerEcho = (req: Request, env: Env, url: URL) => {
   if (!env.DEBUG_TOKEN || url.searchParams.get('token') !== env.DEBUG_TOKEN) {
     return json({ error: 'not found' }, 404)
@@ -740,13 +720,10 @@ export default {
       if (runtime.sockets.size >= SOCKET_MAX) return json({ error: 'too many listeners' }, 503)
       const identity = { sid: url.searchParams.get('sid'), vid: url.searchParams.get('vid') }
       const sid = idAt(identity, 'sid')
-      // The vid is validated but not carried: nothing past the handshake reads
-      // it, and only /hello mints an ordinal from one.
+      // The vid is validated but not carried: only /hello mints an ordinal.
       if (!sid || !idAt(identity, 'vid')) return json({ error: 'identity required' }, 400)
-      const ipHash = await digest(`${env.IP_SALT ?? 'scritto'}:${clientIp(req, env)}`)
-      const data = { runtime, sid, ipHash }
-      // Identity (sid, vid, client IP) is pinned on the socket at upgrade so a
-      // later handshake cannot inherit another connection's budget key.
+      // Pinned at upgrade so a later handshake cannot inherit this budget key.
+      const data = { runtime, sid, ipHash: await ipKey(req, env) }
       if (ctx.upgrade(req, { data })) return
     }
     if (url.pathname === '/hello' && req.method === 'POST') return hello(req, env, ctx)
@@ -757,12 +734,8 @@ export default {
     return json({ error: 'not found' }, 404)
   },
   websocket: {
-    open(ws: Socket) {
-      openSocket(ws)
-    },
-    close(ws: Socket) {
-      closeSocket(ws)
-    },
+    open: openSocket,
+    close: closeSocket,
     message(ws: Socket, message: string | Buffer) {
       void socketMessage(ws, message).catch(() => {})
     },

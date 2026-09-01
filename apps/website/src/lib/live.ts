@@ -13,7 +13,6 @@ export const LIVE_URL = import.meta.env.VITE_LIVE_URL ?? 'https://live.scrit.to'
 
 declare global {
   interface Window {
-    /** The first /hello, fired from index.html before this bundle loads. */
     scrittoHello?: Promise<Response>
   }
 }
@@ -42,19 +41,18 @@ const numberAt = (raw: unknown, key: string) => {
   return typeof value === 'number' && Number.isFinite(value) ? value : null
 }
 
+const STAT_KEYS = ['views', 'uniques', 'you', 'here', 'clicks', 'npm'] as const
+
 // Error bodies are valid JSON too, and one undefined reaching the arithmetic
 // sticks "NaN" on screen.
 const parseStats = (raw: unknown): Stats | null => {
-  const views = numberAt(raw, 'views')
-  const uniques = numberAt(raw, 'uniques')
-  const you = numberAt(raw, 'you')
-  const here = numberAt(raw, 'here')
-  const clicks = numberAt(raw, 'clicks')
-  const npm = numberAt(raw, 'npm')
-  if (views === null || uniques === null || you === null || here === null || clicks === null || npm === null) {
-    return null
+  const stats = {} as Stats
+  for (const name of STAT_KEYS) {
+    const value = numberAt(raw, name)
+    if (value === null) return null
+    stats[name] = value
   }
-  return { views, uniques, you, here, clicks, npm }
+  return stats
 }
 
 const parseReply = (raw: unknown): Reply | null => {
@@ -64,7 +62,6 @@ const parseReply = (raw: unknown): Reply | null => {
   return { ...stats, acked: acked ?? 0, hasAck: acked !== null }
 }
 
-/** What the last visit saw, painted before the network answers. */
 export const lastStats = (): Stats | null => {
   try {
     return parseStats(JSON.parse(localStorage.getItem(LAST) ?? 'null'))
@@ -258,9 +255,7 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
           return
         }
         apply(frame)
-      } catch {
-        // ignore unparseable frames
-      }
+      } catch {}
     }
     socket.onopen = () => {
       openedAt = Date.now()

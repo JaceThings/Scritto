@@ -8,7 +8,6 @@ export type Slab = {
   lift: number
 }
 
-/** A slab, written short: the presets are mostly one angle away from square on. */
 export const slab = (turn: number, tilt: number, roll = 0, scale = 1, thick = 1, lift = 0): Slab => ({
   turn,
   tilt,
@@ -172,7 +171,6 @@ const spanOf = (mark: Mark, piece: Slab, span: Span) => {
   return hi - lo
 }
 
-/** The nudge that stands `piece` on the same top and bottom line as `against`. */
 export const alignTop = (mark: Mark, piece: Slab, against: Slab) => {
   const shift = edgesOf(mark, against, 1).lo - edgesOf(mark, piece, 1).lo
   return Math.round((piece.lift + shift) * 100) / 100
