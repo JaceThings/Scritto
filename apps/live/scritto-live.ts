@@ -1,20 +1,5 @@
-/** What a Redis command answers with, over RESP. */
-type RedisReply = string | number | null | RedisReply[]
-
-type Redis = {
-  get(key: string): Promise<string | null>
-  set(key: string, value: string, ...args: (string | number)[]): Promise<string | null>
-  incr(key: string): Promise<number>
-  send(command: string, args: string[]): Promise<RedisReply>
-  publish(channel: string, message: string): Promise<number>
-  duplicate(): Promise<Redis>
-  subscribe(channel: string, listener: (message: string, channel: string) => void): Promise<number>
-  close(): void
-  onclose: ((error: Error | null) => void) | null
-}
-
 type Env = {
-  redis: Redis
+  redis: Bun.RedisClient
   REDIS_PREFIX: string
   IP_SALT?: string
   // Origins allowed to open a socket and move the counters. Unset means any
@@ -27,7 +12,7 @@ type Env = {
 }
 
 type Ctx = {
-  upgrade(req: Request, options?: { data: SocketData }): boolean
+  upgrade(req: Request, options: { data: SocketData }): boolean
   waitUntil(task: Promise<unknown>): void
 }
 
@@ -56,13 +41,13 @@ type JsonBody = { [key: string]: string | number | boolean | null | JsonBody }
 type Runtime = {
   env: Env
   instance: string
-  sockets: Set<WebSocket>
-  sidSockets: Map<string, Set<WebSocket>>
+  sockets: Set<Socket>
+  sidSockets: Map<string, Set<Socket>>
   totals: Totals
   here: number
   ready: Promise<void>
   presence: Promise<void>
-  subscriber: Redis | null
+  subscriber: Bun.RedisClient | null
   subscribing: boolean
   subscriberRetry: ReturnType<typeof setTimeout> | null
 }
@@ -73,7 +58,7 @@ type SocketData = {
   ipHash: string
 }
 
-type LiveSocket = WebSocket & { data?: SocketData }
+type Socket = Bun.ServerWebSocket<SocketData>
 
 const ID_PATTERN = /^[a-z0-9-]{8,64}$/i
 
@@ -275,10 +260,10 @@ const snapshot = (runtime: Runtime, you = 0, here = runtime.here): Stats => ({
 const sameTotals = (left: Totals, right: Totals) =>
   left.views === right.views && left.uniques === right.uniques && left.clicks === right.clicks && left.npm === right.npm
 
-const closeSocket = (ws: WebSocket) => {
-  const data = (ws as LiveSocket).data
+const closeSocket = (ws: Socket) => {
+  const data = ws.data
   // The registry is the record of an open socket, so a second close is a no-op.
-  if (!data || !data.runtime.sockets.delete(ws)) return
+  if (!data.runtime.sockets.delete(ws)) return
   const peers = data.runtime.sidSockets.get(data.sid)
   if (!peers) return
   peers.delete(ws)
@@ -649,14 +634,10 @@ const refreshSocketPresence = async (runtime: Runtime) => {
   broadcast(runtime, snapshot(runtime))
 }
 
-const openSocket = (ws: WebSocket) => {
-  const data = (ws as LiveSocket).data
-  if (!data) {
-    ws.close(1008, 'missing identity')
-    return
-  }
+const openSocket = (ws: Socket) => {
+  const data = ws.data
   data.runtime.sockets.add(ws)
-  const peers = data.runtime.sidSockets.get(data.sid) ?? new Set<WebSocket>()
+  const peers = data.runtime.sidSockets.get(data.sid) ?? new Set<Socket>()
   const first = peers.size === 0
   peers.add(ws)
   data.runtime.sidSockets.set(data.sid, peers)
@@ -669,12 +650,9 @@ const openSocket = (ws: WebSocket) => {
   }).catch(() => {})
 }
 
-const socketMessage = async (ws: WebSocket, message: string | ArrayBuffer | Uint8Array) => {
-  const data = (ws as LiveSocket).data
-  if (!data) return
-  const text = typeof message === 'string'
-    ? message
-    : new TextDecoder().decode(message instanceof ArrayBuffer ? new Uint8Array(message) : message)
+const socketMessage = async (ws: Socket, message: string | Buffer) => {
+  const data = ws.data
+  const text = typeof message === 'string' ? message : new TextDecoder().decode(message)
   if (text.length > 512) {
     ws.close(1009, 'message too large')
     return
@@ -744,13 +722,13 @@ export default {
     return json({ error: 'not found' }, 404)
   },
   websocket: {
-    open(ws: WebSocket) {
+    open(ws: Socket) {
       openSocket(ws)
     },
-    close(ws: WebSocket) {
+    close(ws: Socket) {
       closeSocket(ws)
     },
-    message(ws: WebSocket, message: string | ArrayBuffer | Uint8Array) {
+    message(ws: Socket, message: string | Buffer) {
       void socketMessage(ws, message).catch(() => {})
     },
   },

@@ -23,6 +23,7 @@
     "@changesets/cli": "^2.31.1",
     "@types/bun": "latest",
     "playwright": "^1.62.1",
+    "railway": "^3.11.0",
     "typescript": "^5.9.3"
   }
 }

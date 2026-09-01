@@ -1,0 +1,8 @@
+{
+  "name": "live",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "bun index.ts"
+  }
+}

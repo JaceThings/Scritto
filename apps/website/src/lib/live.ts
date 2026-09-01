@@ -9,7 +9,7 @@ export type Stats = {
   npm: number
 }
 
-export const LIVE_URL = import.meta.env.VITE_LIVE_URL ?? 'https://scritto-live.iterati.ng'
+export const LIVE_URL = import.meta.env.VITE_LIVE_URL ?? 'https://live.scrit.to'
 
 const VID = 'scritto_vid'
 const SID = 'scritto_sid'
