@@ -50,7 +50,7 @@ const CASES: Case[] = [
     note: 'A label either side in one fit-content row: the right-hand one must be pushed, not overlapped.',
     values: ['€4.50', '€1,250.00', '€12', '€89,900.00'],
     build: (host) =>
-      el('div', `flex w-fit items-baseline gap-2 ${BOX}`, label('total'), host, label('this month')),
+      el('div', `flex w-fit items-baseline gap-2 ${BOX}`, label('total'), host, label('all time')),
     every: 3400,
   },
   {

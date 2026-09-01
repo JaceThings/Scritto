@@ -105,6 +105,8 @@ const PRESENCE_REFRESH_MS = 15_000
 const COUNTER_REFRESH_MS = 30_000
 const PUBSUB_RETRY_MS = 1000
 const VIEW_GATE_S = 15
+const NPM_SINCE = '2026-08-30'
+const NPM_CHUNK_DAYS = 365
 const NPM_TTL_MS = 10 * 60 * 1000
 const NPM_RETRY_MS = 60 * 1000
 
@@ -381,6 +383,31 @@ const getRuntime = (env: Env) => {
   return runtime
 }
 
+// The point endpoints (last-month and friends) run several days behind, which
+// reads as zero for a package published this week, so sum the daily range. That
+// endpoint refuses a span over 18 months, hence the walk from the first publish.
+const dayOf = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+const dayAfter = (day: string, count: number) => dayOf(Date.parse(`${day}T00:00:00Z`) + count * 86_400_000)
+
+const npmWindows = () => {
+  const today = dayOf(Date.now())
+  const windows: string[] = []
+  for (let start = NPM_SINCE; start <= today; ) {
+    const end = dayAfter(start, NPM_CHUNK_DAYS - 1)
+    windows.push(`${start}:${end < today ? end : today}`)
+    start = dayAfter(end, 1)
+  }
+  return windows
+}
+
+const daysTotal = (raw: unknown) => {
+  const days = fieldOf(raw, 'downloads')
+  if (!Array.isArray(days)) return null
+  let total = 0
+  for (const entry of days) total += countAt(entry, 'downloads') ?? 0
+  return total
+}
+
 const refreshNpm = async (runtime: Runtime) => {
   const env = runtime.env
   const stamped = Number(await env.redis.get(key(env, 'npmAt'))) || 0
@@ -388,21 +415,29 @@ const refreshNpm = async (runtime: Runtime) => {
   // Claimed before the work so concurrent requests do not all fetch, but only
   // for the retry window, so a failed refresh comes back in a minute.
   await env.redis.set(key(env, 'npmAt'), String(Date.now() - NPM_TTL_MS + NPM_RETRY_MS))
+  const windows = npmWindows()
   let total = 0
   let answered = true
   for (const pkg of NPM_PKGS) {
-    try {
-      const res = await fetch(`https://api.npmjs.org/downloads/point/last-month/${encodeURIComponent(pkg)}`)
-      // An unknown package is a real zero; any other failure is not an answer,
-      // and storing it would clobber a good total.
-      if (res.status === 404) continue
-      if (!res.ok) {
+    for (const window of windows) {
+      try {
+        const res = await fetch(`https://api.npmjs.org/downloads/range/${window}/${encodeURIComponent(pkg)}`)
+        // An unknown package is a real zero; any other failure is not an answer,
+        // and storing it would clobber a good total.
+        if (res.status === 404) continue
+        if (!res.ok) {
+          answered = false
+          continue
+        }
+        const counted = daysTotal(await res.json())
+        if (counted === null) {
+          answered = false
+          continue
+        }
+        total += counted
+      } catch {
         answered = false
-        continue
       }
-      total += countAt(await res.json(), 'downloads') ?? 0
-    } catch {
-      answered = false
     }
   }
   if (!answered) return
