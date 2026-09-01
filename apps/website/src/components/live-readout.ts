@@ -1,5 +1,5 @@
 import type { Scritto } from '@scritto/core'
-import { comma, company, companyCount, connectLive, nth, sitting, type Stats } from '../lib/live'
+import { comma, company, companyCount, connectLive, lastStats, nth, sitting, type Stats } from '../lib/live'
 
 const OPTIONS = { respectMotionPreference: true, bounce: false }
 const SAT_DURATION = 280
@@ -20,9 +20,6 @@ const started = (() => {
 
 // From one, or a fresh load paints "0 seconds" and drops the s a beat later.
 const elapsed = () => Math.max(1, Math.floor((Date.now() - started) / 1000))
-
-// Painted immediately on a return visit, so the sentence keeps its height.
-let cached: Stats | null = null
 
 export const bindLiveReadout = (root: ParentNode) => {
   const node = (id: string) => root.querySelector<Scritto>(id)!
@@ -49,12 +46,14 @@ export const bindLiveReadout = (root: ParentNode) => {
     sat.update(sitting(elapsed()), animate)
   }
 
+  // The last visit's numbers go up before the network answers, so the sentence
+  // has its height and the live ones roll in rather than appear.
+  const cached = lastStats()
   let arrived = cached !== null
   if (cached) paint(cached, false)
   const disconnect = connectLive((stats) => {
     const animate = arrived
     arrived = true
-    cached = stats
     paint(stats, animate)
   })
 

@@ -21,6 +21,27 @@
     <title>scritto</title>
     <link rel="stylesheet" href="/src/styles/site.css" />
     <link rel="stylesheet" href="/src/styles/install.css" />
+    <script>
+      // The first /hello, fired before the bundle loads so its reply is in hand
+      // when the readout mounts. src/lib/live.ts takes the promise over, and
+      // mints the same ids under the same keys.
+      (() => {
+        const id = (key) => {
+          const existing = localStorage.getItem(key)
+          if (existing && /^[a-z0-9-]{8,64}$/i.test(existing)) return existing
+          const next = crypto.randomUUID()
+          localStorage.setItem(key, next)
+          return next
+        }
+        window.scrittoHello = fetch('https://live.scrit.to/hello', {
+          method: 'POST',
+          headers: { 'content-type': 'text/plain;charset=UTF-8' },
+          body: JSON.stringify({ vid: id('scritto_vid'), sid: id('scritto_sid') }),
+        })
+        // live.ts handles the failure once it loads; until then it is not unhandled.
+        window.scrittoHello.catch(() => {})
+      })()
+    </script>
   </head>
   <body>
     <main class="flex min-h-dvh w-full items-stretch justify-center bg-bg">

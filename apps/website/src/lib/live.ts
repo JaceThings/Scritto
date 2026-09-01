@@ -11,9 +11,18 @@ export type Stats = {
 
 export const LIVE_URL = import.meta.env.VITE_LIVE_URL ?? 'https://live.scrit.to'
 
+declare global {
+  interface Window {
+    /** The first /hello, fired from index.html before this bundle loads. */
+    scrittoHello?: Promise<Response>
+  }
+}
+
 const VID = 'scritto_vid'
 const SID = 'scritto_sid'
+const LAST = 'scritto_last'
 
+// index.html mints these too, so the keys and the pattern must agree.
 const id = (key: string) => {
   const existing = localStorage.getItem(key)
   if (existing && /^[a-z0-9-]{8,64}$/i.test(existing)) return existing
@@ -27,43 +36,57 @@ const body = (extra: Record<string, string | number>) =>
 
 type Reply = Stats & { acked: number; hasAck: boolean }
 
+const numberAt = (raw: unknown, key: string) => {
+  const value =
+    typeof raw === 'object' && raw !== null ? Object.getOwnPropertyDescriptor(raw, key)?.value : undefined
+  return typeof value === 'number' && Number.isFinite(value) ? value : null
+}
+
 // Error bodies are valid JSON too, and one undefined reaching the arithmetic
 // sticks "NaN" on screen.
-const parseReply = (raw: unknown): Reply | null => {
-  if (typeof raw !== 'object' || raw === null) return null
-  const at = (key: string) => {
-    const value = Object.getOwnPropertyDescriptor(raw, key)?.value
-    return typeof value === 'number' && Number.isFinite(value) ? value : null
-  }
-  const views = at('views')
-  const uniques = at('uniques')
-  const you = at('you')
-  const here = at('here')
-  const clicks = at('clicks')
-  const npm = at('npm')
+const parseStats = (raw: unknown): Stats | null => {
+  const views = numberAt(raw, 'views')
+  const uniques = numberAt(raw, 'uniques')
+  const you = numberAt(raw, 'you')
+  const here = numberAt(raw, 'here')
+  const clicks = numberAt(raw, 'clicks')
+  const npm = numberAt(raw, 'npm')
   if (views === null || uniques === null || you === null || here === null || clicks === null || npm === null) {
     return null
   }
-  const acked = at('acked')
-  return { views, uniques, you, here, clicks, npm, acked: acked ?? 0, hasAck: acked !== null }
+  return { views, uniques, you, here, clicks, npm }
 }
 
-const post = async (
-  path: string,
-  extra: Record<string, string | number> = {},
-  signal?: AbortSignal,
-) => {
-  const res = await fetch(`${LIVE_URL}${path}`, {
+const parseReply = (raw: unknown): Reply | null => {
+  const stats = parseStats(raw)
+  if (!stats) return null
+  const acked = numberAt(raw, 'acked')
+  return { ...stats, acked: acked ?? 0, hasAck: acked !== null }
+}
+
+/** What the last visit saw, painted before the network answers. */
+export const lastStats = (): Stats | null => {
+  try {
+    return parseStats(JSON.parse(localStorage.getItem(LAST) ?? 'null'))
+  } catch {
+    return null
+  }
+}
+
+const reply = async (path: string, res: Response) => {
+  if (!res.ok) throw new Error(`${path} ${res.status}`)
+  const parsed = parseReply(await res.json())
+  if (!parsed) throw new Error(`${path} malformed`)
+  return parsed
+}
+
+const post = (path: string, extra: Record<string, string | number> = {}, signal?: AbortSignal) =>
+  fetch(`${LIVE_URL}${path}`, {
     method: 'POST',
     headers: { 'content-type': 'text/plain;charset=UTF-8' },
     body: body(extra),
     signal,
-  })
-  if (!res.ok) throw new Error(`${path} ${res.status}`)
-  const reply = parseReply(await res.json())
-  if (!reply) throw new Error(`${path} malformed`)
-  return reply
-}
+  }).then((res) => reply(path, res))
 
 const CLICK_WRITE_MS = 2000
 const SOCKET_ACK_MS = 4000
@@ -73,7 +96,8 @@ const SOCKET_MAX_MS = 30_000
 const SOCKET_HEALTHY_MS = 10_000
 
 export const connectLive = (onStats: (stats: Stats) => void) => {
-  let you = 0
+  // Feed frames carry no ordinal, and one can land before the hello reply.
+  let you = lastStats()?.you ?? 0
   let latest: Stats | null = null
 
   // A running total, not one write per click: the server banks the difference,
@@ -111,6 +135,7 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
         }
       : stats
     latest = next
+    localStorage.setItem(LAST, JSON.stringify(next))
     onStats(next)
   }
 
@@ -128,8 +153,12 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
     })
   }
 
-  const hello = () => send('/hello').then((stats) => apply(stats, 'hello')).catch(() => {})
-  hello()
+  // index.html fires the first /hello before this bundle loads, so the reply
+  // is usually in hand by the time the readout mounts.
+  const early = window.scrittoHello?.then((res) => reply('/hello', res))
+  window.scrittoHello = undefined
+  const hello = early ?? send('/hello')
+  hello.then((stats) => apply(stats, 'hello')).catch(() => {})
 
   const beat = window.setInterval(() => {
     if (socket?.readyState === WebSocket.OPEN) return
@@ -139,11 +168,8 @@ export const connectLive = (onStats: (stats: Stats) => void) => {
   const poll = window.setInterval(() => {
     if (socket?.readyState === WebSocket.OPEN) return
     fetch(`${LIVE_URL}/stats`, { signal: requests.signal })
-      .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`stats ${res.status}`))))
-      .then((raw) => {
-        const stats = parseReply(raw)
-        if (stats) apply(stats)
-      })
+      .then((res) => reply('/stats', res))
+      .then((stats) => apply(stats))
       .catch(() => {})
   }, 4000)
 
