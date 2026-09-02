@@ -1,43 +1,35 @@
-import { gzipSync, Glob } from 'bun';
-import { readFileSync, readdirSync, existsSync } from 'fs';
-import { join } from 'path';
+import { gzipSync, Glob } from 'bun'
+import { readFileSync, readdirSync, existsSync } from 'fs'
+import { join } from 'path'
 
-const PACKAGES_ROOT = 'packages';
+const PACKAGES_ROOT = 'packages'
+const SHIPPED = new Glob('**/*.{js,mjs,css,vue,svelte}')
 
-if (!existsSync(PACKAGES_ROOT)) {
-  console.error(`[X] Directory "${PACKAGES_ROOT}" not found`);
-  process.exit(1);
-}
+export type Size = { name: string; bytes: number }
 
-const packages = readdirSync(PACKAGES_ROOT, { withFileTypes: true })
-  .filter((dirent) => dirent.isDirectory())
-  .map((dirent) => dirent.name);
-
-console.log('Bundle Sizes (Gzipped):');
-console.log('-'.repeat(35));
-
-for (const pkg of packages) {
-  const pkgDir = join(PACKAGES_ROOT, pkg);
-  const distDir = join(pkgDir, 'dist');
-  const pkgJsonPath = join(pkgDir, 'package.json');
-
-  if (!existsSync(distDir) || !existsSync(pkgJsonPath)) continue;
-
-  const { name } = JSON.parse(readFileSync(pkgJsonPath, 'utf-8'));
-
-  const glob = new Glob('**/*.{js,mjs,css,vue,svelte}');
-  let totalSizeBytes = 0;
-  for (const file of glob.scanSync(distDir)) {
-    if (file.endsWith('.d.ts') || file.endsWith('.map')) continue;
-
-    const content = readFileSync(join(distDir, file));
-    totalSizeBytes += gzipSync(content).length;
+export const sizes = (): Size[] => {
+  if (!existsSync(PACKAGES_ROOT)) {
+    console.error(`[X] Directory "${PACKAGES_ROOT}" not found`)
+    process.exit(1)
   }
-
-  if (totalSizeBytes === 0) continue;
-
-  const kb = totalSizeBytes / 1024;
-  console.log(`${name.padEnd(22)} ${kb.toFixed(2).padStart(6)}KB`);
+  return readdirSync(PACKAGES_ROOT, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .flatMap((entry) => {
+      const dir = join(PACKAGES_ROOT, entry.name)
+      const manifest = join(dir, 'package.json')
+      const dist = join(dir, 'dist')
+      if (!existsSync(dist) || !existsSync(manifest)) return []
+      let bytes = 0
+      for (const file of SHIPPED.scanSync(dist)) bytes += gzipSync(readFileSync(join(dist, file))).length
+      return bytes ? [{ name: JSON.parse(readFileSync(manifest, 'utf-8')).name as string, bytes }] : []
+    })
 }
 
-console.log('-'.repeat(35));
+export const kb = (bytes: number) => bytes / 1024
+
+if (import.meta.main) {
+  console.log('Bundle Sizes (Gzipped):')
+  console.log('-'.repeat(35))
+  for (const { name, bytes } of sizes()) console.log(`${name.padEnd(22)} ${kb(bytes).toFixed(2).padStart(6)}KB`)
+  console.log('-'.repeat(35))
+}

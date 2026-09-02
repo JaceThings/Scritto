@@ -17,7 +17,8 @@
     "check:docs": "bun apps/website/scripts/check-docs.ts",
     "ci:version": "changeset version && bun update && git add --all",
     "ci:publish": "bun scripts/publish.ts",
-    "size": "bun run build && bun scripts/size.ts"
+    "size": "bun run build && bun scripts/size.ts",
+    "check:size": "bun run build && bun scripts/check-size.ts"
   },
   "devDependencies": {
     "@changesets/cli": "^2.31.1",
