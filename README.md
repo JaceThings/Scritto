@@ -34,7 +34,7 @@ That is the whole thing. `update()` rolls; assigning `.value` sets the text with
 
 Most web number animations only handle digits. SwiftUI's `.numericText` morphs any string, a status or a price or a label, and keeps the letters that stay put. Scritto does that on the web: it diffs the old value against the new one, holds the glyphs that survive, slides them to where they now belong, and rolls the rest out while their replacements roll in. Wrap the line in `<scritto-flow>` and the words beside the value move on the same clock instead of jumping when the browser reflows.
 
-**Every glyph renders in its own span, which is the price of the whole effect.** Nothing can slide independently unless it is its own box, so ligatures and kerning do not apply to a value while Scritto owns it, and the value is one non-wrapping inline unit. If you need a paragraph of text to reflow, this is the wrong tool; if you need a number, a price, a status or a short label to change without the eye losing it, this is exactly the tool.
+**Every glyph renders in its own span, which is the price of the whole effect.** Nothing can slide independently unless it is its own box, so ligatures and kerning do not apply to a value while Scritto owns it, and a value breaks between its words but never inside one. If you need a paragraph of text to reflow, this is the wrong tool; if you need a number, a price, a status or a short label to change without the eye losing it, this is exactly the tool.
 
 ## Quick start
 
@@ -145,7 +145,7 @@ It needs `Intl.Segmenter`, the Web Animations API, CSS masks and `linear()` easi
 
 **Ligatures and kerning are off inside a value.** Every glyph is its own span, which is what lets one slide while its neighbour stays. There is no version of this that keeps both.
 
-**A value never wraps.** The host is `white-space: nowrap` and ordinary spaces become non-breaking, so a long value runs past a narrow container rather than breaking across lines. That is deliberate, because a value that rewraps mid-roll is unreadable, but it means you size the container rather than the value.
+**A value breaks between its words and nowhere else.** Spaces inside a value become non-breaking and each word is its own inline-block, so a line can only break where one word ends and the next begins. A value with no spaces in it, a long formatted number for instance, has nowhere to break and runs past a narrow container rather than wrapping, so you size the container rather than the value.
 
 **Updating faster than the roll stacks ghosts.** An outgoing glyph is never cancelled by the next update, because a digit that pops out of existence halfway through reads worse than one that finishes leaving. Change a value several times inside one roll duration and you get several outgoing copies over each other. The fix is a duration shorter than the gap between your updates, not a shortcut that speeds the pile away.
 
