@@ -12,11 +12,6 @@
   --color-fg: #73574a;
   --color-surface: #ffffff;
   --color-line: #edece8;
-  /* Same token as the site's `--hairline`. Named here so this file's own
-     Tailwind pass emits `border-hairline` / `bg-hairline` for resize.html,
-     which site.css no longer scans. Aliased, not a second swatch, so the
-     value still follows tokens.css (including dark). */
-  --color-hairline: var(--hairline);
   --color-muted: rgba(154, 145, 138, 0.75);
   --color-accent: #5b5ddf;
 }

@@ -9,7 +9,6 @@
    sheet ~190 bytes gzipped; a second Tailwind pass for them cannot see the
    theme's spacing scale, so this is the cheap way that actually works. */
 @source '../../versus.html';
-@source '../../resize.html';
 @source '../../partials';
 @import '@scritto/core/ssr.css';
 @import './tokens.css';
