@@ -5,7 +5,6 @@
 @import 'tailwindcss' source(none);
 @source '../../index.html';
 @source '../../playground.html';
-@source '../../studio.html';
 /* Dev pages, so their utilities exist under `bun run play`. Costs the shipped
    sheet ~190 bytes gzipped; a second Tailwind pass for them cannot see the
    theme's spacing scale, so this is the cheap way that actually works. */
@@ -17,7 +16,7 @@
 @import './base.css';
 
 /* Fontsource's barrel pulls every script into dist. Only latin is used; the
-   roman face keeps that full latin range so playground/studio user text still
+   roman face keeps that full latin range so playground user text still
    covers accents. Subsets are rebuilt by src/fonts/subset.py. */
 @font-face {
   font-family: 'Inter Variable';
