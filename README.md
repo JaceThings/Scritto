@@ -137,7 +137,7 @@ A wrapper is a thin binding over the element, so the core is what you are actual
 - Per-glyph enter and exit with stagger, blur, scale and trend; `bounce` adds overshoot
 - Ghosts fade at an edge only where they would hit a neighbour or leave their container, so text with room around it keeps its shape (`edgeFade` overrides it)
 - Graphemes rather than code points, so emoji, ZWJ sequences, combining marks, CJK and RTL survive intact
-- SSR-safe, `prefers-reduced-motion` honoured by default, and the value kept readable by assistive tech: the element carries it as a plain text node in the light DOM with every animated glyph `aria-hidden`, and the React, Vue and Solid wrappers also set `role="img"` with an `aria-label`
+- SSR-safe, `prefers-reduced-motion` honoured by default, and the value kept readable by assistive tech: the element carries it as a plain text node in the light DOM with every animated glyph `aria-hidden`, and every framework wrapper also sets `role="img"` with an `aria-label`
 
 It needs `Intl.Segmenter`, the Web Animations API, CSS masks and `linear()` easing, and polyfills none of them.
 
