@@ -12,7 +12,7 @@ real `NSHostingView`:
   marker square, then per-frame ink-column profiles and cross-correlation to
   measure how far content translates. 36 cases across three sweeps.
 
-Raw data: `probe/apple-matrix.txt`, the sweep logs, and the frame analyses.
+Raw data: `apple-matrix.txt`, the sweep logs, and the frame analyses.
 
 ## What it does
 

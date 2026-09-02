@@ -151,7 +151,7 @@ const results = await page.evaluate(async () => {
   const fits = await column('four short words here', 400)
   const unbreakable = await column('123,456,789,012,345', 160)
   out.push({
-    page: 'API',
+    page: 'API, README',
     says: 'a value breaks between its words when the line runs out, never inside one',
     ok: tooWide.lines > 1 && tooWide.overflow < 0.5 && fits.lines === 1 && unbreakable.lines === 1,
   })
