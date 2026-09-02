@@ -96,6 +96,8 @@ export const startRouter = (pages: Record<string, PageLoad>) => {
   if (!page || !footer || !nav) return
 
   let route = normalize(location.pathname)
+  // A direct hit on playground.html is the same page; the bar should not say so.
+  if (route !== location.pathname) history.replaceState(null, '', route + location.search + location.hash)
   let dispose: (() => void) | undefined
   let gen = 0
   const home = nav.querySelector<HTMLElement>('.nav-home')
@@ -142,7 +144,7 @@ export const startRouter = (pages: Record<string, PageLoad>) => {
       page.className = next.className
       page.replaceChildren(...next.cloneNode(true).childNodes)
       document.title = doc.title
-      if (push) history.pushState(null, '', url)
+      if (push) history.pushState(null, '', nextRoute + url.search + url.hash)
       route = nextRoute
       const init = ready ? await ready : undefined
       if (token !== gen) return
