@@ -121,11 +121,11 @@ Sizes are gzipped and measured by `bun run size` against the built output, not e
 
 | Package | npm | Size | Description |
 |---|---|---|---|
-| `@scritto/core` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fcore?label=)](https://www.npmjs.com/package/@scritto/core) | 9.92 KB | Framework-agnostic web component |
-| `@scritto/react` | [![npm](https://img.shields.io/npm/v/%40scritto%2Freact?label=)](https://www.npmjs.com/package/@scritto/react) | 0.57 KB | React component |
-| `@scritto/vue` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fvue?label=)](https://www.npmjs.com/package/@scritto/vue) | 0.67 KB | Vue component |
-| `@scritto/svelte` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fsvelte?label=)](https://www.npmjs.com/package/@scritto/svelte) | 0.49 KB | Svelte component |
-| `@scritto/solid` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fsolid?label=)](https://www.npmjs.com/package/@scritto/solid) | 0.64 KB | Solid component |
+| `@scritto/core` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fcore?label=)](https://www.npmjs.com/package/@scritto/core) | 11.47 KB | Framework-agnostic web component |
+| `@scritto/react` | [![npm](https://img.shields.io/npm/v/%40scritto%2Freact?label=)](https://www.npmjs.com/package/@scritto/react) | 0.58 KB | React component |
+| `@scritto/vue` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fvue?label=)](https://www.npmjs.com/package/@scritto/vue) | 0.68 KB | Vue component |
+| `@scritto/svelte` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fsvelte?label=)](https://www.npmjs.com/package/@scritto/svelte) | 0.50 KB | Svelte component |
+| `@scritto/solid` | [![npm](https://img.shields.io/npm/v/%40scritto%2Fsolid?label=)](https://www.npmjs.com/package/@scritto/solid) | 0.65 KB | Solid component |
 
 A wrapper is a thin binding over the element, so the core is what you are actually paying for. Zero runtime dependencies.
 
